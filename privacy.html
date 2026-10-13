@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MarkLens Privacy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Same tokens as the MarkLens page, set as a single readable column. */
+:root{
+  --bg:#f1f4f7;--surface:#ffffff;--ink:#13202e;--mute:#5a6879;--line:#dce2e9;--pen:#d92d3a;--blue:#1f4fd8;--ok:#0f8a6b;
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;--pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;--pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 var(--f-body);padding-inline:16px;-webkit-text-size-adjust:100%}
+main{max-width:68ch;margin-inline:auto;padding-block:40px 64px}
+h1,h2{font-family:var(--f-display);letter-spacing:-.02em;text-wrap:balance;margin:0}
+h1{font-size:clamp(1.9rem,6vw,2.6rem);line-height:1.05;font-weight:800}
+h2{font-size:1.2rem;margin-top:34px;font-weight:700}
+p,li{color:var(--ink)}
+.eyebrow{font:600 .72rem var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.lead{color:var(--mute);font-size:1.05rem}
+.risk{margin:24px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--pen);border-radius:0 10px 10px 0;background:var(--surface)}
+.risk b{color:var(--pen)}
+table{width:100%;border-collapse:collapse;font-size:.92rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 .7rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.wrap{overflow-x:auto}
+a{color:var(--blue)}
+.back{display:inline-block;margin-bottom:24px;font-weight:500}
+small{color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Back to MarkLens</a>
+  <div class="eyebrow">Privacy notice</div>
+  <h1 style="margin-top:10px">What happens to your photos</h1>
+  <p class="lead">MarkLens can read your question paper and exam sheet in two ways. One keeps everything on your phone. The other sends photos to an outside AI company.</p>
+
+  <div class="risk"><b>Upload at your own risk.</b> When you use the AI reader or AI grading, your photos and text are sent to an outside AI company. MarkLens cannot control what that company does with them, and it may save them. Do not upload anything you would not want kept by someone else.</div>
+
+  <h2>The two readers</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>Reader</th><th>Where photos go</th><th>Who can keep them</th></tr></thead>
+    <tbody>
+      <tr><td><b>On this phone · free</b></td><td>Nowhere. The photo is read inside your browser by Tesseract, free open-source software. The first time, your browser downloads Tesseract from jsDelivr, a public code library network; only the software is downloaded, never your photos.</td><td>Only your own device.</td></tr>
+      <tr><td><b>AI reader</b> and <b>AI grading</b></td><td>Through this website's server, which does not save them, to the AI company the site owner has chosen (normally Groq; Google Gemini only on sites for adults).</td><td>The AI company, under its own terms. See below.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>What the AI companies say they do</h2>
+  <ul>
+    <li><b>Groq</b> (default). Groq's services agreement says it does not use what you send to train AI models. It may process and briefly keep requests to run the service, keep it reliable and check misuse. Read <a href="https://console.groq.com/docs/legal/services-agreement" target="_blank" rel="noopener">Groq's services agreement</a>.</li>
+    <li><b>Google Gemini</b> (only if the site owner switches it on). On its free service, Google says it uses what you send to provide, improve and develop its products, and that human reviewers may read it. Google also says its API must not be used in apps likely to be used by people under 18. Read <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Google's Gemini API terms</a>.</li>
+  </ul>
+  <p><small>These companies can change their terms at any time. Their own pages are the final word.</small></p>
+
+  <h2>What MarkLens itself keeps</h2>
+  <ul>
+    <li>Your question paper text, marks and dashboard are saved only in this browser, on this device, so they are still there next time. Clearing your browser's site data deletes them.</li>
+    <li>This website's server passes AI requests through without saving the photos or text. It counts how many AI requests each internet address makes each day, to stop abuse. That count is deleted after two days.</li>
+    <li>MarkLens has no accounts, no adverts and no tracking.</li>
+  </ul>
+
+  <h2>Protect yourself before uploading</h2>
+  <ul>
+    <li>Cover or crop out your name, roll number, school, signature and face.</li>
+    <li>Photograph only the pages you need.</li>
+    <li>If you are under 18, ask a parent or guardian before using the AI reader.</li>
+    <li>If you are unsure, use the on-phone reader. It works without sending anything.</li>
+  </ul>
+
+  <h2>Grades are drafts</h2>
+  <p>AI grading can be wrong. Treat it as practice feedback, not an official mark, and check it against your teacher's marking scheme.</p>
+
+  <h2>Changing your mind</h2>
+  <p>You can stop using the AI reader at any time by choosing <b>On this phone · free</b>. To be asked for consent again, clear this site's data in your browser settings. Photos already sent to an AI company cannot be recalled by MarkLens; contact that company about their data.</p>
+</main>
+</body>
+</html>

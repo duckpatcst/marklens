@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Photograph a question paper and exam sheet. MarkLens shows where your marks went and builds a revision plan.">
+<meta name="theme-color" content="#f1f4f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c131c" media="(prefers-color-scheme: dark)">
+<title>MarkLens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: sticky nav, split hero with a marked-script mock, 3-step strip, then the analyzer and live dashboard as one working surface.
+   Input: photos (camera or gallery) read on the device (Tesseract) or by the site's AI function; touch-sized controls for Android and iOS. */
+:root{
+  --bg:#f1f4f7;--surface:#ffffff;--ink:#13202e;--mute:#5a6879;--line:#dce2e9;
+  --pen:#d92d3a;--blue:#1f4fd8;--ok:#0f8a6b;--warn:#b26a00;--tint:#e8eefc;--paper:#fbfcfd;
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
+  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
+  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-inline:16px}
+.wrap{max-width:1160px;margin-inline:auto}
+h1,h2,h3{font-family:var(--f-display);letter-spacing:-.02em;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.2rem,5.4vw,3.8rem);line-height:1.02;font-weight:800}
+h2{font-size:clamp(1.5rem,3vw,2.1rem);line-height:1.1;font-weight:700}
+h3{font-size:1.02rem;font-weight:700;letter-spacing:-.01em}
+a{color:inherit}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font:600 .72rem var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+button,.btn,select,input,textarea{font:inherit;color:inherit}
+button,.btn,select,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0}
+
+/* nav */
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin-inline:-16px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.logo{display:flex;align-items:center;gap:9px;font:800 1.15rem var(--f-display);text-decoration:none;letter-spacing:-.02em}
+.logo i{width:22px;height:22px;border:2.5px solid var(--pen);border-radius:50%;position:relative;display:inline-block}
+.logo i::after{content:"";position:absolute;left:11px;top:16px;width:9px;height:2.5px;background:var(--pen);transform:rotate(45deg);transform-origin:left}
+nav ul{display:flex;gap:22px;list-style:none;margin:0;padding:0;font-size:.9rem;color:var(--mute)}
+nav ul a{text-decoration:none}
+@media(hover:hover){nav ul a:hover{color:var(--ink)}}
+@media(max-width:620px){nav ul{display:none}}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:9px 15px;border-radius:8px;cursor:pointer;text-decoration:none;font-weight:500;font-size:.92rem;position:relative}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+@media(hover:hover){.btn:hover{border-color:var(--blue)}.btn.primary:hover{background:var(--blue);border-color:var(--blue);color:#fff}}
+.btn:active{transform:translateY(1px)}
+label.btn:focus-within{outline:2px solid var(--blue);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:wait}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:48px;align-items:center;padding-block:56px 48px}
+.hero p.lead{font-size:1.12rem;color:var(--mute);max-width:46ch;margin:18px 0 26px}
+.hero .cta{display:flex;gap:10px;flex-wrap:wrap}
+.hero h1 em{font-style:normal;color:var(--pen);position:relative;white-space:nowrap}
+.hero h1 em::after{content:"";position:absolute;left:-2%;right:-2%;bottom:-.08em;height:.1em;background:var(--pen);border-radius:4px;transform:rotate(-1.2deg)}
+@media(max-width:860px){.hero{grid-template-columns:1fr;gap:32px;padding-block:36px}}
+.script{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px 20px 12px;transform:rotate(1.2deg);box-shadow:0 18px 40px -22px rgba(10,25,50,.35);
+  background-image:repeating-linear-gradient(transparent 0 33px,color-mix(in srgb,var(--blue) 18%,transparent) 33px 34px);background-position:0 8px}
+.script header{display:flex;justify-content:space-between;font:600 .72rem var(--f-mono);color:var(--mute);letter-spacing:.08em;padding-bottom:10px;margin-bottom:6px;border-bottom:2px solid var(--ink)}
+.sq{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;min-height:34px;font-size:.88rem}
+.sq b{font:600 .8rem var(--f-mono)}
+.sq span.n{color:var(--mute)}
+.sq .m{font:600 .95rem var(--f-mono);color:var(--pen);position:relative;padding:1px 8px;border:2px solid var(--pen);border-radius:50%/60%;transform:rotate(-4deg)}
+.sq .m.full{color:var(--ok);border-color:var(--ok)}
+.note{font:500 .78rem var(--f-mono);color:var(--pen);margin:-4px 0 4px 44px;transform:rotate(-.6deg)}
+.script footer{display:flex;justify-content:flex-end;padding-top:10px}
+.script footer .tot{font:800 1.5rem var(--f-display);color:var(--pen);border-bottom:3px double var(--pen)}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-block:8px 64px}
+.step{padding:24px 24px 26px 0;position:relative}
+.step+.step{padding-left:24px;border-left:1px solid var(--line)}
+.step .eyebrow{display:block;margin-bottom:8px}
+.step p{margin:6px 0 0;color:var(--mute);font-size:.92rem;max-width:34ch}
+@media(max-width:760px){.steps{grid-template-columns:1fr}.step,.step+.step{padding:18px 0;border-left:0}.step+.step{border-top:1px solid var(--line)}}
+
+/* sections */
+section{scroll-margin-top:70px}
+.sec-head{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.sec-head p{color:var(--mute);max-width:52ch;margin:8px 0 0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.grid{display:grid;gap:16px}
+.two{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:11px;background:var(--bg);font:.82rem/1.6 var(--f-mono)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.hint{color:var(--mute);font-size:.82rem;margin:8px 0 0}
+.status{font-size:.82rem;color:var(--ok)}
+.status.err{color:var(--pen)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px;max-width:100%}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-size:.85rem;color:var(--mute)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+
+/* photo input */
+.shots{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin-top:12px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+.shot{position:relative;flex:0 0 auto;width:74px;height:98px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--paper);scroll-snap-align:start}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shot span{position:absolute;left:4px;bottom:4px;font:600 .66rem var(--f-mono);background:var(--surface);color:var(--ink);padding:0 4px;border-radius:3px}
+.shot button{position:absolute;top:3px;right:3px;width:28px;height:28px;border:0;border-radius:50%;background:color-mix(in srgb,var(--ink) 72%,transparent);color:var(--bg);cursor:pointer;font-size:.78rem;line-height:1}
+.readlbl{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:16px 0 6px;font:600 .68rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.notice{margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--tint);color:var(--ink);font-size:.88rem}
+
+/* consent dialog */
+.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,var(--ink) 45%,transparent);overflow-y:auto}
+.dialog{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;max-width:520px;width:100%;padding:20px;box-shadow:0 24px 60px -20px rgba(0,0,0,.45);margin-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}
+.dialog h3{font-size:1.2rem;margin-bottom:10px}
+.dialog ul{margin:0 0 14px;padding-left:20px;font-size:.92rem}
+.dialog li{margin-bottom:8px}
+.dialog .warn{border-left:3px solid var(--pen);padding:8px 12px;background:color-mix(in srgb,var(--pen) 8%,transparent);border-radius:0 8px 8px 0;font-size:.92rem;margin:0 0 14px}
+.check{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:.92rem;font-weight:500;margin-bottom:14px;cursor:pointer}
+.check input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--ink)}
+a.inline{color:var(--blue)}
+
+/* table */
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px}
+th,td{padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}
+th{font:600 .68rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+td input,td select{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;padding:4px;font-size:.88rem}
+td input:hover,td select:hover,td input:focus,td select:focus{border-color:var(--line)}
+td input[type=number]{width:64px;font-family:var(--f-mono)}
+td button{border:0;background:none;color:var(--mute);cursor:pointer}
+
+/* touch screens: 44px targets, 16px inputs so iOS does not zoom on focus */
+@media(pointer:coarse){
+  .btn{min-height:44px}
+  .seg button{min-height:42px;padding-inline:14px}
+  textarea,td input,td select{font-size:16px}
+  td input,td select{min-height:40px}
+  td input[type=number]{width:72px}
+  td button{min-width:40px;min-height:40px}
+}
+
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:0;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-block:28px 16px;overflow:hidden}
+.kpi{padding:18px 20px;border-left:1px solid var(--line)}
+.kpi:first-child{border-left:0}
+.kpi .v{font:800 2.3rem/1 var(--f-display);letter-spacing:-.03em}
+.kpi .v small{font:500 1rem var(--f-mono);color:var(--mute);letter-spacing:0}
+.kpi .l{color:var(--mute);font-size:.82rem;margin-top:8px}
+.tl{display:grid;grid-template-columns:minmax(80px,130px) 1fr 46px;gap:10px;align-items:center;margin:9px 0;font-size:.88rem}
+.tl span:last-child{font:600 .82rem var(--f-mono);text-align:right}
+.bar{height:9px;background:var(--line);border-radius:5px;overflow:hidden}
+.bar>span{display:block;height:100%;border-radius:5px}
+.legend{display:flex;gap:16px;font-size:.8rem;color:var(--mute);margin-top:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+svg text{fill:var(--mute);font:500 11px var(--f-mono)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px}
+.callouts{display:grid;gap:10px;margin-top:6px}
+.callout{padding:12px 14px;border:1px solid var(--line);border-radius:8px;display:grid;grid-template-columns:auto 1fr;gap:12px}
+.callout .tag{font:600 .68rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:5px;height:fit-content;white-space:nowrap}
+@media(max-width:420px){.callout{grid-template-columns:1fr;gap:8px}.callout .tag{justify-self:start}}
+.tag.bad{background:color-mix(in srgb,var(--pen) 14%,transparent);color:var(--pen)}
+.tag.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.tag.good{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.tag.info{background:var(--tint);color:var(--blue)}
+.callout b{display:block;font-family:var(--f-display);font-size:.98rem}
+.callout p{margin:2px 0 0;color:var(--mute);font-size:.9rem}
+ol.plan{margin:6px 0 0;padding-left:20px}ol.plan li{margin-bottom:8px}
+.fb{margin:0;padding:9px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:74px 1fr;gap:10px;font-size:.9rem}
+.fb .mono{font-weight:600}
+.empty{color:var(--mute);padding:28px;text-align:center}
+.sample-flag{display:inline-block;margin-left:8px;font:600 .66rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);border-radius:5px;padding:2px 7px;color:var(--mute);vertical-align:middle}
+footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--line);color:var(--mute);font-size:.85rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn:active{transform:none}}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="logo" href="#top"><i></i>MarkLens</a>
+  <ul><li><a href="#how">How it works</a></li><li><a href="#analyze">Analyzer</a></li><li><a href="#dashboard">Dashboard</a></li></ul>
+  <a class="btn primary" href="#analyze">Analyze my paper</a>
+</div></nav>
+
+<main class="wrap" id="top">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Exam analysis for students</div>
+      <h1 style="margin-top:14px">See exactly where your <em>marks went.</em></h1>
+      <p class="lead">Take photos of the question paper and your exam sheet. MarkLens shows which questions, topics and habits cost you marks, and builds a revision plan around them.</p>
+      <div class="cta"><a class="btn primary" href="#analyze">Analyze a paper</a><a class="btn" href="#dashboard">See the dashboard</a></div>
+    </div>
+    <div class="script" aria-label="Example of a marked exam script">
+      <header><span>MATHEMATICS · TERM 2</span><span>SCRIPT 0417</span></header>
+      <div class="sq"><b>Q1</b><span class="n">Solve 2x + 3 = 11</span><span class="m full">2/2</span></div>
+      <div class="sq"><b>Q2</b><span class="n">Factorise x² − 5x + 6</span><span class="m">1/3</span></div>
+      <div class="note">sign error in step 2</div>
+      <div class="sq"><b>Q4</b><span class="n">Prove: angle sum of a triangle</span><span class="m">2/5</span></div>
+      <div class="note">proof incomplete, concept unclear</div>
+      <div class="sq"><b>Q8</b><span class="n">Prove sin²x + cos²x = 1</span><span class="m">0/5</span></div>
+      <footer><span class="tot">21 / 38</span></footer>
+    </div>
+  </div>
+
+  <div class="steps" id="how">
+    <div class="step"><span class="eyebrow">Step 1 · Paper</span><h3>Photograph the question paper</h3><p>Take a photo of each page or pick them from your gallery. MarkLens reads the questions, marks and topics on your phone.</p></div>
+    <div class="step"><span class="eyebrow">Step 2 · Sheet</span><h3>Photograph your exam sheet</h3><p>Already marked? MarkLens reads the marks and the teacher's remarks. Not marked yet? The AI reader can grade your answers.</p></div>
+    <div class="step"><span class="eyebrow">Step 3 · Dashboard</span><h3>Read the leaks</h3><p>Every edit updates the charts, the causes of lost marks and the revision order.</p></div>
+  </div>
+
+  <section id="analyze">
+    <div class="sec-head"><div><h2>Analyzer</h2><p>An example paper is loaded so you can see how it works. Replace it with photos of yours.</p></div>
+      <div class="row" style="margin:0"><button class="btn" id="sample">Reload example</button><button class="btn" id="clear">Clear all</button></div></div>
+    <div class="row" style="margin:0 0 14px"><span class="eyebrow" style="margin-right:4px">Photo reader</span>
+      <div class="seg" role="group" aria-label="Photo reader" style="margin:0"><button id="rdDevice" aria-pressed="true">On this phone · free</button><button id="rdAI" aria-pressed="false" hidden>AI reader · best for handwriting</button></div></div>
+    <p class="notice" id="ocrNote" hidden></p>
+    <div class="grid two">
+      <div class="panel">
+        <h3>Question paper</h3>
+        <div class="row" style="margin-top:12px">
+          <label class="btn primary">Take photo<input class="vh" type="file" id="paperCam" accept="image/*" capture="environment"></label>
+          <label class="btn">Choose photos<input class="vh" type="file" id="paperPick" accept="image/*" multiple></label>
+        </div>
+        <div class="shots" id="paperShots" hidden></div>
+        <div class="row" id="paperReadRow" hidden><button class="btn primary" id="paperRead">Read text</button><span class="status" id="paperPhotoStatus"></span></div>
+        <div class="readlbl"><span>Text read from the photos</span><span class="status" id="paperStatus"></span></div>
+        <textarea id="paper" spellcheck="false" aria-label="Question paper text" placeholder="Section A: Algebra&#10;1. Solve 2x+3=11 [2]&#10;2. Factorise x^2-5x+6 [3]"></textarea>
+        <p class="hint">Shoot each page flat, in good light, with all four edges in frame. Printed papers read best. Fix anything misread. Marks are read from [5], (5 marks) or 5M.</p>
+      </div>
+      <div class="panel">
+        <h3>Exam sheet</h3>
+        <div class="seg" role="group" aria-label="Sheet type" style="margin-top:10px"><button id="modeMarked" aria-pressed="true">Already marked</button><button id="modeAi" aria-pressed="false" hidden>Unmarked · AI grades</button></div>
+        <div class="row" style="margin-top:2px">
+          <label class="btn primary">Take photo<input class="vh" type="file" id="sheetCam" accept="image/*" capture="environment"></label>
+          <label class="btn">Choose photos<input class="vh" type="file" id="sheetPick" accept="image/*" multiple></label>
+        </div>
+        <div class="shots" id="sheetShots" hidden></div>
+        <div class="row" id="sheetReadRow" hidden><button class="btn primary" id="sheetRead">Read marks</button><button class="btn primary" id="aiGo" hidden>Grade with AI</button><span class="status" id="sheetPhotoStatus"></span></div>
+        <div class="readlbl"><span id="sheetLbl">Marks read from the photos</span><span class="status" id="sheetStatus"></span></div>
+        <textarea id="sheet" spellcheck="false" aria-label="Exam sheet text"></textarea>
+        <p class="hint" id="sheetHint"></p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h3>Question breakdown <span class="hint" style="font-weight:400">Edit any cell and the dashboard updates.</span></h3>
+      <div class="tablewrap" id="tableWrap" style="margin-top:8px"></div>
+      <div class="row"><button class="btn" id="addRow">Add question</button></div>
+    </div>
+  </section>
+
+  <section id="dashboard" style="margin-top:56px">
+    <div class="sec-head"><div><h2>Dashboard <span class="sample-flag" id="sampleFlag" hidden>Example data</span></h2></div></div>
+    <div id="dash"></div>
+  </section>
+
+  <footer class="site"><span>MarkLens · the on-phone reader keeps photos on your device. The AI reader sends them to an outside AI company. <a class="inline" href="privacy.html">Privacy notice</a></span><span>Check what is read and graded against your teacher's marks.</span></footer>
+</main>
+
+<div class="overlay" id="consent" hidden role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+  <div class="dialog">
+    <h3 id="consentTitle">Before you use the AI reader</h3>
+    <p class="warn"><b>Use it at your own risk.</b> Your photos and text leave this phone and go to <b id="consentWho">an outside AI company</b>. That company may save them.</p>
+    <ul>
+      <li id="consentData"></li>
+      <li>MarkLens does not store your photos or results on any server. They stay in this browser.</li>
+      <li>Before you upload, cover or crop out your name, roll number, school, signature, face and anything else you do not want shared.</li>
+      <li id="consentAge">If you are under 18, ask a parent or guardian before using the AI reader.</li>
+      <li>Not sure? Use <b>On this phone · free</b> instead. It never sends photos anywhere.</li>
+    </ul>
+    <label class="check"><input type="checkbox" id="consentOk"><span id="consentLine">I understand my photos may be saved by this company, and I upload them at my own risk.</span></label>
+    <div class="row" style="margin:0"><button class="btn primary" id="consentGo" disabled>Use the AI reader</button><button class="btn" id="consentNo">Cancel</button><a class="inline" href="privacy.html" target="_blank" rel="noopener" style="font-size:.88rem">Full privacy notice</a></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const fmt = n => String(Math.round(n * 10) / 10);
+const TYPES = ['MCQ', 'Short answer', 'Long answer'];
+const CAUSES = ['None','Concept gap','Careless / calculation','Incomplete / unattempted','Units & signs','Presentation','Time management','Unspecified'];
+const CAUSE_COLORS = {'Concept gap':'var(--pen)','Careless / calculation':'var(--warn)','Incomplete / unattempted':'#8e4ec6','Units & signs':'var(--ok)','Presentation':'var(--blue)','Time management':'#d6409f','Unspecified':'var(--mute)'};
+const TOPIC_WORDS = {
+  Algebra:/\b(solve|equation|factori[sz]e|expand|polynomial|quadratic|simplify|inequalit)/i,
+  Geometry:/\b(triangle|circle|angle|polygon|congruen|parallel|area of|perimeter|theorem)/i,
+  Trigonometry:/\b(sin|cos|tan|trigonometr)/i,
+  Statistics:/\b(mean|median|mode|probability|variance|histogram)\b/i,
+  Calculus:/\b(differentiat|integrat|derivative|limit|gradient)/i,
+  Physics:/\b(force|velocity|acceleration|energy|momentum|current|voltage|wave|newton)/i,
+  Chemistry:/\b(mole|acid|base|reaction|element|compound|bond|oxidation)/i,
+  Biology:/\b(cell|enzyme|photosynthesis|organism|dna|respiration)/i,
+  Grammar:/\b(tense|grammar|punctuat|synonym|antonym|passive)/i,
+  Writing:/\b(essay|letter|composition|summary|paragraph|discuss)/i
+};
+const CAUSE_WORDS = [
+  ['Concept gap', /concept|not understood|misunderst|wrong (formula|approach|method|theory)|\btheory\b|\blogic|confus/i],
+  ['Careless / calculation', /careless|silly|calculation|arithmetic|\bcopy|miscalc|\bslip/i],
+  ['Incomplete / unattempted', /incomplete|missing|partial|not attempted|unattempted|blank|skipped|\bsteps\b|no working/i],
+  ['Units & signs', /\bunits?\b|\bsigns?\b|decimal|rounding/i],
+  ['Presentation', /presentation|diagram|handwriting|illegible|untidy|\blabel/i],
+  ['Time management', /\btime\b|rushed|ran out/i]
+];
+const FIX = {
+  'Concept gap':'Re-learn the idea before doing more questions: summarise the topic in your own words, work three solved examples line by line, then try similar questions without notes.',
+  'Careless / calculation':'Slow down on the last step. Write one operation per line and keep five minutes at the end to re-check arithmetic and copied numbers.',
+  'Incomplete / unattempted':'Write partial working. Step marks are usually awarded even without a final answer. Practise timed attempts and never leave a question blank.',
+  'Units & signs':'Keep a unit and sign checklist. Write units on every line and circle negative signs when expanding or moving terms.',
+  'Presentation':'Label diagrams, state the formula before substituting, and underline final answers so every mark can be awarded.',
+  'Time management':'Budget time per mark (about 1.5 minutes each), take the easy marks first, and practise full papers under a timer.',
+  'Unspecified':'Compare these answers with the marking scheme to find where each mark went, then tag the reason in the table.'
+};
+let rows = [], aiExtra = null, mode = 'marked', sampleData = true, sheetCount = 0;
+let edits = {};                       // table changes kept across re-parsing, keyed by question number
+const shots = { paper: [], sheet: [] };  // photos: {blob, url}
+
+/* ---- parsing ---- */
+const guessTopic = t => { for (const [k, re] of Object.entries(TOPIC_WORDS)) if (re.test(t)) return k; return 'General'; };
+const guessType = (t, max) => (/\b[a-d][.)]\s.+\b[b-d][.)]\s/i.test(t) || /\b(mcq|choose|tick)\b/i.test(t)) ? 'MCQ' : (max <= 3 ? 'Short answer' : 'Long answer');
+const classify = (rem, lost) => { if (lost <= 0) return 'None'; for (const [c, re] of CAUSE_WORDS) if (re.test(rem)) return c; return 'Unspecified'; };
+function parsePaper(text){
+  const qs = []; let section = '', cur = null;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim(); if (!line) continue;
+    const sec = line.match(/^(?:section|part|unit|chapter)\s+\w+\s*[:\-–]?\s*(.*)$/i);
+    if (sec) { section = sec[1] ? sec[1].trim() : ''; cur = null; continue; }
+    const m = line.match(/^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)\s*[.):\-]\s*(.+)/i);
+    if (m) { cur = { q: +m[1], text: m[2], section }; qs.push(cur); } else if (cur) cur.text += ' ' + line;
+  }
+  return qs.map(o => {
+    // the last marks label wins, so f(2) inside the question is not read as marks; lowercase "m" alone is metres
+    const all = [...o.text.matchAll(/[\[(]\s*(\d+(?:\.\d+)?)\s*(?:[Mm]arks?|[Mm])?\s*[\])]|(\d+(?:\.\d+)?)\s*(?:[Mm]arks?\b|M\b)/g)];
+    const mk = all.at(-1), max = mk ? num(mk[1] || mk[2]) : 0;
+    const tag = o.text.match(/#([A-Za-z][\w &-]*)/) || o.text.match(/\btopic\s*[:\-]\s*([^\]\)|,#]+)/i);
+    return { q: o.q, topic: tag ? tag[1].trim() : (o.section || guessTopic(o.text)), type: guessType(o.text, max), max };
+  });
+}
+function parseSheet(text){
+  const re = /^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)(?:\s*[.):\-=,]+\s*|\s+)(\d+(?:\.\d+)?)\s*(?:(?:\/|out of|of)\s*(\d+(?:\.\d+)?))?\s*[-–,:|]?\s*(.*)$/i, out = [];
+  for (const l of text.split(/\r?\n/)) { const m = l.match(re); if (m) out.push({ q: +m[1], got: num(m[2]), max: m[3] ? num(m[3]) : 0, remark: m[4] || '' }); }
+  return out;
+}
+function rebuild(){
+  if (mode !== 'marked') return;
+  const paper = parsePaper($('#paper').value), sheet = parseSheet($('#sheet').value), by = new Map();
+  sheetCount = sheet.length;
+  paper.forEach(p => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
+  const seen = new Set();
+  sheet.forEach(s => {
+    seen.add(s.q);
+    const r = by.get(s.q) || { q: s.q, topic: 'General', type: s.max <= 3 ? 'Short answer' : 'Long answer', max: 0, got: 0 };
+    if (!r.max) r.max = s.max || s.got;
+    r.got = Math.min(s.got, r.max); r.cause = classify(s.remark, r.max - r.got); by.set(s.q, r);
+  });
+  for (const [q, e] of Object.entries(edits)) {
+    const k = +q, { added, deleted, ...f } = e;
+    if (deleted) { by.delete(k); continue; }
+    const r = by.get(k);
+    if (r) Object.assign(r, f);
+    else if (added) by.set(k, { q: k, topic: f.topic || 'General', type: f.type || 'Short answer', max: num(f.max), got: num(f.got), cause: f.cause || 'Unspecified' });
+  }
+  rows = [...by.values()].sort((a, b) => a.q - b.q); aiExtra = null;
+  const missing = sheet.length ? paper.filter(p => !seen.has(p.q)).map(p => 'Q' + p.q) : [];
+  $('#paperStatus').textContent = paper.length ? `${paper.length} questions` : '';
+  $('#sheetStatus').textContent = sheet.length ? `${sheet.length} marks` + (missing.length ? ` · ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? '…' : ''} not found` : '') : '';
+  $('#sheetStatus').className = missing.length ? 'status err' : 'status';
+  changed(true);
+}
+function changed(tbl){ if (tbl) renderTable(); renderDash(); $('#sampleFlag').hidden = !sampleData; save(); }
+function save(){ try { localStorage.setItem('marklens3', JSON.stringify({ paper: $('#paper').value, sheet: $('#sheet').value, rows, mode, sampleData, aiExtra, edits })); } catch {} }
+
+/* ---- table ---- */
+function renderTable(){
+  if (!rows.length) { $('#tableWrap').innerHTML = '<div class="empty">No questions yet. Add photos of the paper and sheet above, or reload the example.</div>'; return; }
+  const opt = (a, v) => a.map(x => `<option${x === v ? ' selected' : ''}>${esc(x)}</option>`).join('');
+  $('#tableWrap').innerHTML = `<table><thead><tr><th>Q</th><th>Topic</th><th>Type</th><th>Awarded</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
+  rows.map((r, i) => `<tr data-i="${i}"><td><input type="number" inputmode="numeric" data-k="q" value="${num(r.q)}" style="width:52px" aria-label="Question number"></td>
+    <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Topic"></td><td><select data-k="type" aria-label="Type">${opt(TYPES, r.type)}</select></td>
+    <td><input type="number" inputmode="decimal" step="0.5" min="0" data-k="got" value="${num(r.got)}" aria-label="Marks awarded"></td>
+    <td><input type="number" inputmode="decimal" step="0.5" min="0" data-k="max" value="${num(r.max)}" aria-label="Maximum marks"></td>
+    <td><select data-k="cause" aria-label="Cause">${opt(CAUSES, r.cause)}</select></td>
+    <td><button data-del="${i}" aria-label="Remove question">✕</button></td></tr>`).join('') + '</tbody></table>';
+}
+const noteEdit = (r, f) => { edits[r.q] = Object.assign(edits[r.q] || {}, f); };
+$('#tableWrap').addEventListener('input', e => {
+  const tr = e.target.closest('tr'), k = e.target.dataset.k; if (!tr || !k) return;
+  const r = rows[+tr.dataset.i];
+  if (k === 'q') { const old = r.q; r.q = num(e.target.value); if (edits[old]) { edits[r.q] = edits[old]; delete edits[old]; } sampleData = false; changed(false); return; }
+  r[k] = (k === 'got' || k === 'max') ? Math.max(0, num(e.target.value)) : e.target.value;
+  if (k === 'got' || k === 'max') {
+    const lostNow = r.max - r.got, cs = tr.querySelector('[data-k=cause]');
+    if (lostNow <= 0) r.cause = 'None'; else if (r.cause === 'None') r.cause = 'Unspecified';
+    cs.value = r.cause;
+  }
+  noteEdit(r, { [k]: r[k], cause: r.cause });
+  sampleData = false; changed(false);
+});
+// when a marks cell is finished, awarded can never exceed the maximum
+$('#tableWrap').addEventListener('change', e => {
+  const tr = e.target.closest('tr'), k = e.target.dataset.k; if (!tr || (k !== 'got' && k !== 'max')) return;
+  const r = rows[+tr.dataset.i];
+  if (r.got > r.max) { r.got = r.max; tr.querySelector('[data-k=got]').value = r.got; r.cause = 'None'; tr.querySelector('[data-k=cause]').value = 'None'; noteEdit(r, { got: r.got, cause: r.cause }); changed(false); }
+});
+$('#tableWrap').addEventListener('click', e => {
+  const d = e.target.dataset.del; if (d === undefined) return;
+  const r = rows[+d]; if (edits[r.q]?.added) delete edits[r.q]; else edits[r.q] = { deleted: true };
+  rows.splice(+d, 1); sampleData = false; changed(true);
+});
+$('#addRow').onclick = () => {
+  const r = { q: Math.max(0, ...rows.map(x => x.q)) + 1, topic: 'General', type: 'Short answer', max: 5, got: 0, cause: 'Unspecified' };
+  rows.push(r); edits[r.q] = { ...r, added: true }; sampleData = false; changed(true);
+};
+
+/* ---- analysis ---- */
+function groupBy(key){
+  const m = new Map();
+  rows.forEach(r => { const g = m.get(r[key]) || { name: r[key], got: 0, max: 0 }; g.got += r.got; g.max += r.max; m.set(r[key], g); });
+  return [...m.values()].map(g => ({ ...g, lost: g.max - g.got, pct: g.max ? g.got / g.max * 100 : 0 })).sort((a, b) => b.lost - a.lost);
+}
+const grade = p => p >= 90 ? 'A+' : p >= 80 ? 'A' : p >= 70 ? 'B' : p >= 60 ? 'C' : p >= 50 ? 'D' : 'F';
+const pc = p => p >= 75 ? 'var(--ok)' : p >= 50 ? 'var(--warn)' : 'var(--pen)';
+
+function renderDash(){
+  const d = $('#dash');
+  const tot = rows.reduce((a, r) => ({ got: a.got + r.got, max: a.max + r.max }), { got: 0, max: 0 });
+  if (!rows.length || !tot.max) { d.innerHTML = '<div class="panel empty">Your dashboard appears here once there are questions with marks.</div>'; return; }
+  if (mode === 'marked' && !sheetCount && !rows.some(r => r.got > 0)) { d.innerHTML = '<div class="panel empty">The questions are ready. Add photos of your marked exam sheet to see where the marks went.</div>'; return; }
+  const lost = tot.max - tot.got, pct = tot.got / tot.max * 100, topics = groupBy('topic'), types = groupBy('type');
+  const cm = {}; rows.forEach(r => { const l = r.max - r.got; if (l > 0) { const c = r.cause === 'None' ? 'Unspecified' : r.cause; cm[c] = (cm[c] || 0) + l; } });
+  const causes = Object.entries(cm).sort((a, b) => b[1] - a[1]);
+  const full = rows.filter(r => r.got >= r.max).length, zero = rows.filter(r => r.got === 0 && r.max > 0).length;
+  const worst = [...rows].sort((a, b) => (b.max - b.got) - (a.max - a.got)).slice(0, 3).filter(r => r.max > r.got);
+  let proj = tot.got; topics.slice(0, 2).forEach(t => { if (t.pct < 80) proj += t.max * .8 - t.got; });
+  const ins = [], wt = topics.find(t => t.lost > 0);
+  if (wt) ins.push(['bad', 'Biggest leak', wt.name, `You lost ${fmt(wt.lost)} of ${fmt(wt.max)} marks here (${Math.round(wt.pct)}% scored). That is ${Math.round(wt.lost / lost * 100)}% of everything you dropped. Start revision here.`]);
+  if (causes[0]) ins.push(['warn', 'Main cause', causes[0][0], `${fmt(causes[0][1])} marks, ${Math.round(causes[0][1] / lost * 100)}% of the losses. ${FIX[causes[0][0]]}`]);
+  const wty = types.find(t => t.lost > 0 && t.pct < pct - 8);
+  if (wty) ins.push(['warn', 'Question style', `${wty.name} questions`, `Only ${Math.round(wty.pct)}% scored against ${Math.round(pct)}% overall. Practise this style on its own.`]);
+  if (zero) ins.push(['bad', 'Zero scores', `${zero} question${zero > 1 ? 's' : ''} with no marks`, 'A zero usually means skipped or fully misunderstood. Attempt everything: method marks count.']);
+  const strong = topics.filter(t => t.pct >= 80).map(t => t.name);
+  if (strong.length) ins.push(['good', 'Strengths', strong.join(', '), 'Scoring 80% or more. Revise lightly and spend the time elsewhere.']);
+  if (proj > tot.got) ins.push(['info', 'Target', `${fmt(tot.got)} → ${fmt(proj)} / ${fmt(tot.max)}`, `Lifting your two costliest topics to 80% would move you from ${Math.round(pct)}% to about ${Math.round(proj / tot.max * 100)}%.`]);
+  const lossy = topics.filter(t => t.lost > 0);
+  d.innerHTML = `
+  <div class="kpis">
+    <div class="kpi"><div class="v mono">${fmt(tot.got)}<small> / ${fmt(tot.max)}</small></div><div class="l">Total score</div></div>
+    <div class="kpi"><div class="v" style="color:${pc(pct)}">${Math.round(pct)}%</div><div class="l">Grade ${grade(pct)}</div></div>
+    <div class="kpi"><div class="v" style="color:var(--pen)">−${fmt(lost)}</div><div class="l">Marks lost</div></div>
+    <div class="kpi"><div class="v mono">${full}<small> / ${rows.length}</small></div><div class="l">Questions fully correct</div></div>
+  </div>
+  <div class="grid two">
+    <div class="panel"><h3>Marks by question</h3>${questionChart()}<div class="legend"><span><i style="background:var(--blue)"></i>Scored</span><span><i style="background:var(--pen)"></i>Lost</span></div></div>
+    <div class="panel"><h3>Where the marks went</h3>${donut(causes, lost)}</div>
+    <div class="panel"><h3>Topics, weakest first</h3>${[...topics].sort((a, b) => a.pct - b.pct).map(t => `<div class="tl"><span>${esc(t.name)}</span><div class="bar"><span style="width:${t.pct}%;background:${pc(t.pct)}"></span></div><span>${Math.round(t.pct)}%</span></div>`).join('')}</div>
+    <div class="panel"><h3>Question types</h3>${types.map(t => `<div class="tl"><span>${esc(t.name)}</span><div class="bar"><span style="width:${t.pct}%;background:${pc(t.pct)}"></span></div><span>${Math.round(t.pct)}%</span></div>`).join('')}
+      <h3 style="margin-top:20px">Costliest questions</h3>${worst.length ? worst.map(r => `<div class="tl" style="grid-template-columns:44px 1fr 56px"><span class="mono">Q${num(r.q)}</span><span>${esc(r.topic)} · ${esc(r.cause)}</span><span style="color:var(--pen)">−${fmt(r.max - r.got)}</span></div>`).join('') : '<p class="hint">No marks lost.</p>'}</div>
+  </div>
+  <div class="panel" style="margin-top:16px"><h3>What to improve</h3>
+    <div class="callouts">${ins.map(i => `<div class="callout"><span class="tag ${i[0]}">${i[1]}</span><div><b>${esc(i[2])}</b><p>${esc(i[3])}</p></div></div>`).join('')}</div>
+    ${aiExtra ? `<h3 style="margin-top:22px">Examiner summary</h3><p>${esc(aiExtra.summary)}</p>${aiExtra.plan.length ? `<ol class="plan">${aiExtra.plan.map(p => `<li>${esc(p)}</li>`).join('')}</ol>` : ''}` : ''}
+    ${rows.some(r => r.feedback) ? `<h3 style="margin-top:22px">Feedback by question</h3>${rows.filter(r => r.feedback).map(r => `<p class="fb"><span class="mono" style="color:${pc(r.max ? r.got / r.max * 100 : 0)}">Q${num(r.q)} ${fmt(r.got)}/${fmt(r.max)}</span><span>${esc(r.feedback)}</span></p>`).join('')}` : ''}
+    ${causes.length ? `<h3 style="margin-top:22px">Action plan</h3><ol class="plan">${causes.map(([c, m]) => `<li><b>${esc(c)}</b> (−${fmt(m)}). ${esc(FIX[c])}</li>`).join('')}</ol>` : ''}
+    ${lossy.length ? `<h3 style="margin-top:22px">Revision order</h3><ol class="plan">${lossy.slice(0, 5).map(t => `<li>${esc(t.name)}: up to <b>${fmt(t.lost)}</b> marks to recover (Q${rows.filter(r => r.topic === t.name && r.max > r.got).map(r => num(r.q)).join(', Q')})</li>`).join('')}</ol>` : ''}
+  </div>`;
+}
+function questionChart(){
+  const W = Math.max(520, rows.length * 46 + 44), H = 230, pl = 34, pb = 28, pt = 12, mx = Math.max(...rows.map(r => r.max), 1), bw = (W - pl) / rows.length;
+  const y = v => pt + (H - pt - pb) * (1 - v / mx);
+  let s = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:${Math.min(W, 520)}px;max-height:260px" role="img" aria-label="Marks scored and lost per question">`;
+  for (let i = 0; i <= 4; i++) { const v = mx * i / 4; s += `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
+  rows.forEach((r, i) => { const x = pl + i * bw + bw * .2, w = bw * .6;
+    s += `<g><title>Q${num(r.q)} ${esc(r.topic)}: ${fmt(r.got)}/${fmt(r.max)}</title><rect x="${x}" y="${y(r.got)}" width="${w}" height="${Math.max(0, y(0) - y(r.got))}" fill="var(--blue)" rx="2"/><rect x="${x}" y="${y(r.max)}" width="${w}" height="${Math.max(0, y(r.got) - y(r.max))}" fill="var(--pen)" rx="2"/><text x="${x + w / 2}" y="${H - 9}" text-anchor="middle">Q${num(r.q)}</text></g>`; });
+  return s + '</svg></div>';
+}
+function donut(causes, lost){
+  if (!causes.length) return '<div class="empty">No marks lost.</div>';
+  const R = 70, r = 46, C = 90; let a0 = -Math.PI / 2, paths = '';
+  causes.forEach(([c, v]) => {
+    const span = v / lost * Math.PI * 2, a1 = a0 + span - (causes.length > 1 ? .03 : .0001), big = a1 - a0 > Math.PI ? 1 : 0, p = (rad, a) => [C + rad * Math.cos(a), C + rad * Math.sin(a)];
+    const [x1, y1] = p(R, a0), [x2, y2] = p(R, a1), [x3, y3] = p(r, a1), [x4, y4] = p(r, a0);
+    paths += `<path d="M${x1} ${y1}A${R} ${R} 0 ${big} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${big} 0 ${x4} ${y4}Z" fill="${CAUSE_COLORS[c] || 'var(--mute)'}"><title>${esc(c)}: ${fmt(v)}</title></path>`; a0 += span;
+  });
+  return `<div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap;margin-top:6px"><svg viewBox="0 0 180 180" width="170" height="170" role="img" aria-label="Marks lost by cause">${paths}<text x="90" y="92" text-anchor="middle" style="font:800 24px var(--f-display);fill:var(--ink)">−${fmt(lost)}</text><text x="90" y="110" text-anchor="middle">marks lost</text></svg>
+  <div style="flex:1;min-width:min(100%,190px)">${causes.map(([c, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;margin:7px 0;font-size:.9rem"><span><span class="dot" style="background:${CAUSE_COLORS[c] || 'var(--mute)'}"></span>${esc(c)}</span><b class="mono">${fmt(v)}</b></div>`).join('')}</div></div>`;
+}
+
+/* ---- photos: camera or gallery, on Android, iOS and desktop ---- */
+// Phone photos are 8-48 MP. Shrink to a 2000px JPEG: smaller uploads on mobile data, less memory on iPhones,
+// and HEIC from iOS comes out as JPEG. If the browser can't decode a file, keep the original when it is already a JPEG, PNG or WebP.
+const toJpeg = file => new Promise((res, rej) => {
+  const img = new Image(), u = URL.createObjectURL(file);
+  img.onload = () => {
+    const k = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+    c.toBlob(b => b ? res(b) : rej(), 'image/jpeg', .85);
+  };
+  img.onerror = () => { URL.revokeObjectURL(u); rej(); };
+  img.src = u;
+});
+const setSt = (id, msg, bad) => { const el = $(id); el.textContent = msg; el.className = bad ? 'status err' : 'status'; };
+async function addPhotos(kind, files){
+  if (!files.length) return;
+  const st = '#' + kind + 'PhotoStatus'; $('#' + kind + 'ReadRow').hidden = false; setSt(st, 'Preparing photos…');
+  let bad = 0;
+  for (const f of files) {
+    try { const b = await toJpeg(f); shots[kind].push({ blob: b, url: URL.createObjectURL(b) }); }
+    catch {
+      if (/^image\/(jpeg|png|webp)$/.test(f.type) && f.size <= 15e6) shots[kind].push({ blob: f, url: URL.createObjectURL(f) });
+      else bad++;
+    }
+  }
+  renderShots(kind);
+  if (reader === 'device' && shots[kind].length) getOcr().catch(() => {});
+  if (bad) setSt(st, `${bad} photo${bad > 1 ? 's' : ''} could not be opened. Use JPEG or PNG.`, true);
+  else setSt(st, '');
+}
+function renderShots(kind){
+  const list = shots[kind], box = $('#' + kind + 'Shots');
+  box.hidden = !list.length;
+  box.innerHTML = list.map((s, i) => `<div class="shot"><img src="${s.url}" alt="Page ${i + 1}"><span>P${i + 1}</span><button data-kind="${kind}" data-rm="${i}" aria-label="Remove page ${i + 1}">✕</button></div>`).join('');
+  updateReadRow(kind);
+}
+function updateReadRow(kind){
+  const n = shots[kind].length, plural = n === 1 ? 'photo' : 'photos';
+  if (kind === 'paper') { $('#paperReadRow').hidden = !n; $('#paperRead').textContent = `Read text from ${n} ${plural}`; return; }
+  $('#sheetRead').hidden = !n; $('#aiGo').hidden = mode !== 'ai';
+  $('#sheetRead').textContent = `${mode === 'ai' ? 'Read answers' : 'Read marks'} from ${n} ${plural}`;
+  $('#sheetReadRow').hidden = mode === 'marked' ? !n : false;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-rm]'); if (!b) return;
+  const kind = b.dataset.kind, [s] = shots[kind].splice(+b.dataset.rm, 1);
+  URL.revokeObjectURL(s.url); renderShots(kind);
+});
+for (const kind of ['paper', 'sheet']) for (const src of ['Cam', 'Pick']) {
+  const inp = $('#' + kind + src);
+  inp.addEventListener('change', () => { const files = [...inp.files]; inp.value = ''; addPhotos(kind, files); });
+}
+
+/* ---- AI reader and grader, through this site's own /api/ai function ---- */
+// The page never holds an API key. /api/ai (functions/api/ai.js) adds the key, writes the
+// instructions and calls the AI company, so the key cannot be copied or misused from here.
+let ai = null;   // {enabled, provider, providerName, maxImages, trains}
+const ERR = {
+  busy: 'The AI reader is busy or its free limit is used up for now. Wait a few minutes, or use the free on-phone reader.',
+  limit: "You have used today's AI requests on this site. Try again tomorrow, or use the free on-phone reader.",
+  too_large: 'The photos are too large to send together. Use fewer photos at a time.',
+  bad_request: 'The request was not accepted. Reload the page and try again.',
+  not_configured: 'The AI reader is not switched on for this site yet. Use the free on-phone reader.',
+  forbidden: 'This request was blocked. Open MarkLens from its own website address.',
+  invalid_json: 'The grading came back in an unexpected form. Try again.',
+  offline: 'No internet connection. Check it, or use the free on-phone reader, which works offline.'
+};
+const errMsg = (e, fallback) => (e && ERR[e.code]) || fallback;
+const clean = t => String(t || '').replace(/^\s*```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/, '').trim();
+const toDataURL = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+async function callAI(body){
+  let r;
+  try { r = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+  catch { throw { code: 'offline' }; }
+  let j = null; try { j = await r.json(); } catch {}
+  if (!r.ok) throw { code: (j && j.error) || 'upstream' };
+  return j || {};
+}
+
+/* Own-risk consent, asked once per AI company before anything is sent. */
+const CONSENT_KEY = 'marklens-ai-consent';
+const DATA_TEXT = {
+  trains: name => `${name} says that on its free service it may store what you send, use it to improve its products, and let human reviewers read it.`,
+  safe: name => `${name} says it does not use what you send to train its AI, but it processes it on its own servers and may keep it for a short time to run and protect its service.`
+};
+function hasConsent(){ try { return !!ai && localStorage.getItem(CONSENT_KEY) === ai.provider; } catch { return false; } }
+function askConsent(){
+  return new Promise(res => {
+    const box = $('#consent'), ok = $('#consentOk'), go = $('#consentGo'), back = document.activeElement;
+    $('#consentWho').textContent = ai.providerName;
+    $('#consentData').textContent = (ai.trains ? DATA_TEXT.trains : DATA_TEXT.safe)(ai.providerName);
+    $('#consentAge').textContent = ai.trains
+      ? `${ai.providerName} allows its free AI service only for people aged 18 and over.`
+      : 'If you are under 18, ask a parent or guardian before using the AI reader.';
+    $('#consentLine').textContent = (ai.trains ? 'I am 18 or older. ' : '') + `I understand my photos may be saved by ${ai.providerName}, and I upload them at my own risk.`;
+    ok.checked = false; go.disabled = true; box.hidden = false; ok.focus();
+    ok.onchange = () => { go.disabled = !ok.checked; };
+    const esc = e => { if (e.key === 'Escape') done(false); };
+    const done = yes => {
+      box.hidden = true; go.onclick = $('#consentNo').onclick = ok.onchange = null; document.removeEventListener('keydown', esc);
+      if (yes) { try { localStorage.setItem(CONSENT_KEY, ai.provider); } catch {} }
+      if (back && back.focus) back.focus();
+      res(yes);
+    };
+    document.addEventListener('keydown', esc);
+    go.onclick = () => done(true); $('#consentNo').onclick = () => done(false);
+  });
+}
+const ensureConsent = async () => hasConsent() || await askConsent();
+
+/* ---- on-device reader: Tesseract (open source, free), runs inside the phone's browser ---- */
+// Its engine and English model download once from jsDelivr (a public code library network) and are then
+// kept by the browser. Photos are never sent anywhere by this reader.
+let reader = 'device', ocrWorker = null, ocrProgress = () => {};
+function getOcr(){
+  if (!ocrWorker) {
+    if (!window.Tesseract) return Promise.reject(new Error('reader script did not load'));
+    ocrWorker = Tesseract.createWorker('eng', 1, {
+      logger: m => ocrProgress(m)   // engine, worker and model come from the matching tesseract.js 5.1.1 files on jsDelivr
+    }).then(async w => { await w.setParameters({ preserve_interword_spaces: '1' }); return w; });
+    ocrWorker.catch(() => { ocrWorker = null; });
+  }
+  return ocrWorker;
+}
+// Grey, contrast-stretched copy of the photo: helps with shadows and yellowed paper.
+const prep = blob => new Promise((res, rej) => {
+  const img = new Image(), u = URL.createObjectURL(blob);
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); URL.revokeObjectURL(u);
+    const d = g.getImageData(0, 0, c.width, c.height), px = d.data, hist = new Uint32Array(256);
+    for (let i = 0; i < px.length; i += 4) { const v = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000 | 0; px[i] = v; hist[v]++; }
+    const total = px.length / 4; let lo = 0, hi = 255, acc = 0;
+    while (lo < 255 && (acc += hist[lo]) < total * .01) lo++;
+    acc = 0; while (hi > 0 && (acc += hist[hi]) < total * .01) hi--;
+    const k = 255 / Math.max(1, hi - lo);
+    for (let i = 0; i < px.length; i += 4) { const v = Math.max(0, Math.min(255, (px[i] - lo) * k)); px[i] = px[i + 1] = px[i + 2] = v; }
+    g.putImageData(d, 0, 0); res(c);
+  };
+  img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('photo')); };
+  img.src = u;
+});
+// drops edge noise such as "ER" or "|i" that shadows at the page border produce
+const tidyCommon = t => t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, '-').replace(/\{/g, '[').replace(/\}/g, ']').replace(/[ \t]+/g, ' ')
+  .replace(/(\w)\s?~\s?(\d)/g, '$1^$2')
+  .split('\n').map(l => l.trim()).filter(l => /\d/.test(l) || (l.match(/[A-Za-z]/g) || []).length > 3).join('\n');
+const tidyPaper = t => tidyCommon(t).split('\n').map(l => l
+  .replace(/^Q(?:ue?s?)?\s*[.\-]?\s*(\d{1,3})\s*[.):\-]?\s*/i, '$1. ')     // Q.1 / Ques 1 / Q1) -> 1.
+  .replace(/^(\d{1,3})\s+(?=[A-Z(])/, '$1. ')                              // "1 Solve" -> "1. Solve"
+  .replace(/\[\s*(\d+(?:\.\d+)?)\s*(marks?|M)?\s*$/i, '[$1]')              // "[2" at line end -> "[2]"
+  .replace(/\[\s*([2-9])[1lI|]\s*\]?\s*$/, '[$1]')                          // "]" misread as 1: "[31]" -> "[3]"
+).join('\n');
+const tidySheet = t => tidyCommon(t).split('\n').map(l => l
+  .replace(/^Q(?:ue?s?)?\s*[.\-]?\s*(\d{1,3})\s*[.):\-]?\s*/i, '$1: ')
+  .replace(/(\d)\s*(?:out of|\\|I|l)\s*(\d)/g, '$1/$2')
+).join('\n');
+
+async function readOnDevice(kind){
+  const btn = $(kind === 'paper' ? '#paperRead' : '#sheetRead'), st = '#' + kind + 'PhotoStatus', ta = $('#' + kind);
+  const list = shots[kind], n = list.length, before = ta.value;
+  if (!n) return;
+  btn.disabled = true; let page = 0, conf = 100;
+  ocrProgress = m => {
+    if (m.status === 'recognizing text') setSt(st, `Reading page ${page} of ${n}… ${Math.round(m.progress * 100)}%`);
+    else if (/load|initiali/.test(m.status)) setSt(st, 'Getting the reader ready (first time only, about 7 MB)…');
+  };
+  try {
+    setSt(st, 'Getting the reader ready…');
+    const w = await getOcr(), out = [];
+    for (const s of list) {
+      page++; setSt(st, `Reading page ${page} of ${n}…`);
+      const { data } = await w.recognize(await prep(s.blob));
+      out.push(data.text); conf = Math.min(conf, data.confidence ?? 100);
+    }
+    const raw = out.join('\n');
+    const text = kind === 'paper' ? tidyPaper(raw) : (mode === 'marked' ? tidySheet(raw) : tidyCommon(raw));
+    ta.value = text; sampleData = false; edits = {};
+    if (mode === 'marked' || kind === 'paper') rebuild();
+    const weak = conf < 60 ? ' Some text was hard to read: retake in brighter light, or try the AI reader.' : '';
+    if (kind === 'sheet' && mode === 'ai') setSt(st, 'Answers read. Check them, then tap Grade with AI.' + weak, !!weak);
+    else {
+      const count = kind === 'paper' ? parsePaper(text).length : parseSheet(text).length, what = kind === 'paper' ? 'questions' : 'marks';
+      setSt(st, count ? `Read ${count} ${what}. Check the text below.${weak}` : `No ${what} were found. Check the text below${kind === 'sheet' ? ', or try the AI reader for handwriting' : ''}.`, !count || !!weak);
+    }
+  } catch (e) {
+    ta.value = before;
+    setSt(st, e && e.message === 'photo' ? 'One photo could not be opened. Retake it.' : 'The photo reader could not start. Reload the page and try again.', true);
+  } finally { ocrProgress = () => {}; btn.disabled = false; }
+}
+
+function setReader(r){
+  reader = r; $('#rdDevice').setAttribute('aria-pressed', r === 'device'); $('#rdAI').setAttribute('aria-pressed', r === 'ai');
+  updateReadRow('paper'); updateReadRow('sheet');
+  try { localStorage.setItem('marklens-reader', r); } catch {}
+}
+$('#rdDevice').onclick = () => setReader('device');
+$('#rdAI').onclick = () => setReader('ai');
+const readPhotos = kind => reader === 'ai' ? readWithAI(kind) : readOnDevice(kind);
+
+async function readWithAI(kind){
+  const btn = $(kind === 'paper' ? '#paperRead' : '#sheetRead'), st = '#' + kind + 'PhotoStatus', ta = $('#' + kind);
+  if (!ai || !ai.enabled) { setSt(st, ERR.not_configured, true); return; }
+  const list = shots[kind].map(s => s.blob), per = Math.max(1, ai.maxImages || 3), n = list.length, before = ta.value;
+  if (!n) return;
+  if (!(await ensureConsent())) { setSt(st, 'Nothing was sent. The free on-phone reader is still available.'); return; }
+  const task = kind === 'paper' ? 'paper' : (mode === 'ai' ? 'answers' : 'sheet'), paperText = $('#paper').value;
+  btn.disabled = true; let done = '';
+  try {
+    for (let i = 0; i < n; i += per) {
+      const batch = list.slice(i, i + per), a = i + 1, b = i + batch.length;
+      setSt(st, n > per ? `AI reader: pages ${a}–${b} of ${n}…` : 'AI reader is working… this can take up to a minute.');
+      const images = await Promise.all(batch.map(toDataURL));
+      const j = await callAI({ task, images, first: a, last: b, total: n, paper: task === 'sheet' ? paperText : '' });
+      done = (done ? done + '\n' : '') + clean(j.text);
+      ta.value = done;
+    }
+    sampleData = false; edits = {};
+    if (mode === 'marked' || kind === 'paper') rebuild();
+    if (task === 'answers') setSt(st, 'Answers read. Check them, then tap Grade with AI.');
+    else {
+      const count = kind === 'paper' ? parsePaper(done).length : parseSheet(done).length, what = kind === 'paper' ? 'questions' : 'marks';
+      setSt(st, count ? `Read ${count} ${what}. Check the text below.` : `No ${what} were found. Check the photos and the text below.`, !count);
+    }
+  } catch (e) {
+    ta.value = done || before;
+    setSt(st, errMsg(e, 'The AI reader failed. Try again, or use the on-phone reader.'), true);
+  }
+  btn.disabled = false;
+}
+$('#paperRead').onclick = () => readPhotos('paper');
+$('#sheetRead').onclick = () => readPhotos('sheet');
+
+/* ---- modes + AI grading ---- */
+const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. Handwritten marks are hard to read on the phone: check every line, or switch to the AI reader. Remarks decide why marks were lost.';
+const HINT_AI = "Add photos of the unmarked answer sheet and tap Read answers, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
+let sessionSheetMarked = null;
+function setMode(m){
+  mode = m; $('#modeMarked').setAttribute('aria-pressed', m === 'marked'); $('#modeAi').setAttribute('aria-pressed', m === 'ai');
+  $('#sheetHint').textContent = m === 'ai' ? HINT_AI : HINT_MARKED;
+  $('#sheetLbl').textContent = m === 'ai' ? 'Answers, typed or read from photos' : 'Marks read from the photos';
+  $('#sheet').placeholder = m === 'ai' ? 'Q1: x = 4\nQ2: (x-2)(x-3)\nQ3: b\n...' : '1: 2/2\n2: 1/3 sign error while factorising\n3: 2/5 concept not clear';
+  updateReadRow('sheet');
+}
+$('#modeMarked').onclick = () => { if (mode === 'ai') $('#sheet').value = sessionSheetMarked ?? ''; setMode('marked'); rebuild(); };
+$('#modeAi').onclick = () => { if (mode === 'marked') sessionSheetMarked = $('#sheet').value; $('#sheet').value = ''; setMode('ai'); };
+
+$('#aiGo').onclick = async () => {
+  const st = '#sheetPhotoStatus', typed = $('#sheet').value.trim();
+  if (!ai || !ai.enabled) { setSt(st, ERR.not_configured, true); return; }
+  if (!$('#paper').value.trim()) { setSt(st, 'Add the question paper first.', true); return; }
+  // Answers already in the box are sent as text. Photos are sent only when nothing has been read yet.
+  const imgs = typed ? [] : shots.sheet.map(s => s.blob);
+  if (!typed && !imgs.length) { setSt(st, 'Add photos of the answers, or type them, first.', true); return; }
+  if (!typed && reader === 'device') { setSt(st, 'Tap Read answers first, or switch to the AI reader.', true); return; }
+  if (imgs.length > (ai.maxImages || 3)) { setSt(st, `Tap Read answers first. The AI can look at ${ai.maxImages} photos at a time when grading.`, true); return; }
+  if (!(await ensureConsent())) { setSt(st, 'Nothing was sent.'); return; }
+  setSt(st, 'Grading… this can take up to a minute.'); $('#aiGo').disabled = true;
+  try {
+    const images = await Promise.all(imgs.map(toDataURL));
+    const { result: j } = await callAI({ task: 'grade', paper: $('#paper').value, answers: typed, images });
+    rows = (j.rows || []).map(x => ({ q: num(x.q), topic: String(x.topic || 'General'), type: TYPES.includes(x.type) ? x.type : 'Short answer', max: num(x.max), got: Math.max(0, Math.min(num(x.got), num(x.max))), cause: CAUSES.includes(x.cause) ? x.cause : 'Unspecified', feedback: String(x.feedback || '') }));
+    aiExtra = { summary: String(j.summary || ''), plan: Array.isArray(j.study_plan) ? j.study_plan.map(String) : [] }; sampleData = false; edits = {};
+    setSt(st, `Graded ${rows.length} questions. This is a draft: check it against the marking scheme.`); changed(true); $('#dashboard').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) {
+    setSt(st, errMsg(e, 'Grading failed. Try again.'), true);
+  }
+  $('#aiGo').disabled = false;
+};
+
+/* ---- wiring ---- */
+let t; const deb = () => { clearTimeout(t); t = setTimeout(() => { sampleData = false; rebuild(); }, 350); };
+$('#paper').addEventListener('input', () => { if (mode === 'marked') deb(); else sampleData = false; });
+$('#sheet').addEventListener('input', () => { if (mode === 'marked') deb(); });
+function dropShots(){ for (const k of ['paper', 'sheet']) { shots[k].forEach(s => URL.revokeObjectURL(s.url)); shots[k] = []; renderShots(k); setSt('#' + k + 'PhotoStatus', ''); } }
+$('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); setMode('marked'); changed(true); };
+function loadSample(){
+  $('#paper').value = `Section A: Algebra
+1. Solve 2x + 3 = 11 [2]
+2. Factorise x^2 - 5x + 6 [3]
+3. Choose the correct root of x^2 = 49: a) 5 b) 7 c) 9 d) 11 [1]
+Section B: Geometry
+4. Prove that the angle sum of a triangle is 180 degrees. [5]
+5. Find the area of a circle of radius 7 cm. [3]
+6. In a right triangle, find the missing side using the theorem. [4]
+Section C: Trigonometry
+7. Find sin 30 + cos 60. [2]
+8. Prove sin^2 x + cos^2 x = 1 using a right triangle. [5]
+Section D: Statistics
+9. Find the mean of 4, 8, 12, 16. [2]
+10. Calculate the median and mode of the data set. [4]
+11. A bag has 3 red and 5 blue balls. Find the probability of drawing red. [3]
+12. Describe how a histogram differs from a bar chart. [4]`;
+  $('#sheet').value = `1: 2/2
+2: 1/3 sign error while factorising
+3: 1/1
+4: 2/5 concept not clear, incomplete proof
+5: 2/3 forgot units
+6: 1/4 wrong formula used
+7: 2/2
+8: 0/5 not attempted
+9: 2/2
+10: 3/4 careless calculation of median
+11: 3/3
+12: 2/4 incomplete explanation`;
+  edits = {}; dropShots(); setMode('marked'); rebuild(); sampleData = true; $('#sampleFlag').hidden = false; save();
+}
+$('#sample').onclick = loadSample;
+
+let saved = null; try { saved = JSON.parse(localStorage.getItem('marklens3') || localStorage.getItem('marklens2') || 'null'); } catch {}
+if (saved && Array.isArray(saved.rows) && saved.rows.length) {
+  $('#paper').value = saved.paper || ''; $('#sheet').value = saved.sheet || '';
+  rows = saved.rows.map(r => ({ ...r, q: num(r.q), got: num(r.got), max: num(r.max) }));
+  aiExtra = saved.aiExtra || null; edits = saved.edits || {}; sampleData = !!saved.sampleData;
+  sheetCount = parseSheet(saved.sheet || '').length;
+  setMode(saved.mode === 'ai' ? 'ai' : 'marked'); changed(true);
+} else loadSample();
+
+/* AI reader and grading appear only when the site owner has switched on /api/ai */
+(async () => {
+  try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
+  if (!ai || !ai.enabled) { ai = null; return; }
+  $('#modeAi').hidden = false; $('#rdAI').hidden = false;
+  let pref = null; try { pref = localStorage.getItem('marklens-reader'); } catch {}
+  if (pref === 'ai') setReader('ai');
+})();
+</script>
+</body>
+</html>
