@@ -529,7 +529,9 @@ let ai = null;   // {enabled, provider, providerName, maxImages, trains}
 const ERR = {
   busy: 'The AI reader is busy or its free limit is used up for now. Wait a few minutes, or use the free on-phone reader.',
   limit: "You have used today's AI requests on this site. Try again tomorrow, or use the free on-phone reader.",
-  too_large: 'The photos are too large to send together. Use fewer photos at a time.',
+  too_large: 'This photo is too large for the free AI plan. Retake it slightly further away, or crop it to the answers.',
+  image_rejected: 'The AI could not open this photo. Retake it as a normal camera photo (JPEG) and try again.',
+  upstream: 'The AI service had a problem. Wait a minute and try again.',
   bad_request: 'The request was not accepted. Reload the page and try again.',
   not_configured: 'The AI reader is not switched on for this site yet. Use the free on-phone reader.',
   forbidden: 'This request was blocked. Open MarkLens from its own website address.',
@@ -538,14 +540,36 @@ const ERR = {
 };
 const errMsg = (e, fallback) => (e && ERR[e.code]) || fallback;
 const clean = t => String(t || '').replace(/^\s*```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/, '').trim();
-const toDataURL = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
-async function callAI(body){
-  let r;
-  try { r = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
-  catch { throw { code: 'offline' }; }
-  let j = null; try { j = await r.json(); } catch {}
-  if (!r.ok) throw { code: (j && j.error) || 'upstream' };
-  return j || {};
+// Photos for the AI are re-shrunk to 1600px: still sharp enough for handwriting, and small enough
+// for the free plan's per-minute limit. The stored photo stays at full quality for the on-phone reader.
+const forAI = blob => new Promise((res, rej) => {
+  const img = new Image(), u = URL.createObjectURL(blob);
+  img.onload = () => {
+    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+    res(c.toDataURL('image/jpeg', 0.8));
+  };
+  img.onerror = () => { URL.revokeObjectURL(u); rej({ code: 'image_rejected' }); };
+  img.src = u;
+});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// One automatic retry when the free plan says "busy", after the wait it asks for (up to 60 s).
+async function callAI(body, onWait){
+  for (let attempt = 0; ; attempt++) {
+    let r;
+    try { r = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+    catch { throw { code: 'offline' }; }
+    let j = null; try { j = await r.json(); } catch {}
+    if (r.ok) return j || {};
+    const code = (j && j.error) || 'upstream';
+    if (code === 'busy' && attempt === 0) {
+      const wait = Math.min(60, Number(j && j.retry_after) || 20);
+      for (let s = wait; s > 0; s--) { if (onWait) onWait(s); await sleep(1000); }
+      continue;
+    }
+    throw { code };
+  }
 }
 
 /* No tick-box: the own-risk notice (#aiRisk) is always on screen whenever the AI reader is available. */
@@ -641,17 +665,19 @@ const readPhotos = kind => reader === 'ai' ? readWithAI(kind) : readOnDevice(kin
 
 async function readWithAI(kind){
   const btn = $(kind === 'paper' ? '#paperRead' : '#sheetRead'), st = '#' + kind + 'PhotoStatus', ta = $('#' + kind);
-  if (!ai || !ai.enabled) { setSt(st, ERR.not_configured, true); return; }
-  const list = shots[kind].map(s => s.blob), per = Math.max(1, ai.maxImages || 3), n = list.length, before = ta.value;
-  if (!n) return;
+  if (!ai || !ai.enabled) { setSt(st, ERR.not_configured, true); return false; }
+  const list = shots[kind].map(s => s.blob), per = Math.max(1, ai.maxImages || 1), n = list.length, before = ta.value;
+  if (!n) return false;
   const task = kind === 'paper' ? 'paper' : (mode === 'ai' ? 'answers' : 'sheet'), paperText = $('#paper').value;
-  btn.disabled = true; let done = '';
+  btn.disabled = true; let done = '', a = 1;
   try {
     for (let i = 0; i < n; i += per) {
-      const batch = list.slice(i, i + per), a = i + 1, b = i + batch.length;
-      setSt(st, n > per ? `AI reader: pages ${a}–${b} of ${n}…` : 'AI reader is working… this can take up to a minute.');
-      const images = await Promise.all(batch.map(toDataURL));
-      const j = await callAI({ task, images, first: a, last: b, total: n, paper: task === 'sheet' ? paperText : '' });
+      const batch = list.slice(i, i + per), b = i + batch.length; a = i + 1;
+      const label = n > 1 ? `AI reader: page ${a} of ${n}` : 'AI reader is working';
+      setSt(st, `${label}… this can take up to a minute.`);
+      const images = await Promise.all(batch.map(forAI));
+      const j = await callAI({ task, images, first: a, last: b, total: n, paper: task === 'sheet' ? paperText : '' },
+        s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
       done = (done ? done + '\n' : '') + clean(j.text);
       ta.value = done;
     }
@@ -662,11 +688,14 @@ async function readWithAI(kind){
       const count = kind === 'paper' ? parsePaper(done).length : parseSheet(done).length, what = kind === 'paper' ? 'questions' : 'marks';
       setSt(st, count ? `Read ${count} ${what}. Check the text below.` : `No ${what} were found. Check the photos and the text below.`, !count);
     }
+    btn.disabled = false;
+    return true;
   } catch (e) {
     ta.value = done || before;
-    setSt(st, errMsg(e, 'The AI reader failed. Try again, or use the on-phone reader.'), true);
+    setSt(st, (n > 1 ? `Page ${a}: ` : '') + errMsg(e, ERR.upstream), true);
   }
   btn.disabled = false;
+  return false;
 }
 $('#paperRead').onclick = () => readPhotos('paper');
 $('#sheetRead').onclick = () => readPhotos('sheet');
@@ -689,20 +718,25 @@ $('#aiGo').onclick = async () => {
   const st = '#sheetPhotoStatus', typed = $('#sheet').value.trim();
   if (!ai || !ai.enabled) { setSt(st, ERR.not_configured, true); return; }
   if (!$('#paper').value.trim()) { setSt(st, 'Add the question paper first.', true); return; }
-  // Answers already in the box are sent as text. Photos are sent only when nothing has been read yet.
-  const imgs = typed ? [] : shots.sheet.map(s => s.blob);
-  if (!typed && !imgs.length) { setSt(st, 'Add photos of the answers, or type them, first.', true); return; }
-  if (!typed && reader === 'device') { setSt(st, 'Tap Read answers first, or switch to the AI reader.', true); return; }
-  if (imgs.length > (ai.maxImages || 3)) { setSt(st, `Tap Read answers first. The AI can look at ${ai.maxImages} photos at a time when grading.`, true); return; }
-  setSt(st, 'Grading… this can take up to a minute.'); $('#aiGo').disabled = true;
+  // Grading always works from text: photos are read first, one page at a time, then the answers are graded.
+  let answers = typed;
+  if (!answers && !shots.sheet.length) { setSt(st, 'Add photos of the answers, or type them, first.', true); return; }
+  if (!answers && reader === 'device') { setSt(st, 'Tap Read answers first, or switch to the AI reader.', true); return; }
+  $('#aiGo').disabled = true;
+  if (!answers) {
+    const ok = await readWithAI('sheet');
+    answers = $('#sheet').value.trim();
+    if (!ok || !answers) { $('#aiGo').disabled = false; return; }
+  }
+  setSt(st, 'Grading… this can take up to a minute.');
   try {
-    const images = await Promise.all(imgs.map(toDataURL));
-    const { result: j } = await callAI({ task: 'grade', paper: $('#paper').value, answers: typed, images });
+    const { result: j } = await callAI({ task: 'grade', paper: $('#paper').value, answers, images: [] },
+      s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
     rows = (j.rows || []).map(x => ({ q: num(x.q), topic: String(x.topic || 'General'), type: TYPES.includes(x.type) ? x.type : 'Short answer', max: num(x.max), got: Math.max(0, Math.min(num(x.got), num(x.max))), cause: CAUSES.includes(x.cause) ? x.cause : 'Unspecified', feedback: String(x.feedback || '') }));
     aiExtra = { summary: String(j.summary || ''), plan: Array.isArray(j.study_plan) ? j.study_plan.map(String) : [] }; sampleData = false; edits = {};
     setSt(st, `Graded ${rows.length} questions. This is a draft: check it against the marking scheme.`); changed(true); $('#dashboard').scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
-    setSt(st, errMsg(e, 'Grading failed. Try again.'), true);
+    setSt(st, errMsg(e, ERR.upstream), true);
   }
   $('#aiGo').disabled = false;
 };
