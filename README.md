@@ -104,7 +104,7 @@ A short per-minute limit (6 requests a minute) is always on, even without KV.
 
 ## Privacy: your responsibilities as the site owner
 
-- Before anything is sent, MarkLens shows every user an **own-risk notice**. It says photos go to an outside AI company that may save them, tells them to crop out names and roll numbers, and asks under-18s to involve a parent. Nothing is sent until they tick the box. The full notice is on `privacy.html`.
+- Whenever the AI reader is available, MarkLens shows an **own-risk notice** on the page: photos go to an outside AI company, may be saved and used to improve its output, and should have names and roll numbers cropped out. There is no tick-box. The full notice is on `privacy.html`.
 - The on-phone reader never sends photos anywhere. Point cautious users to it.
 - In India, the **Digital Personal Data Protection Act, 2023** has rules for processing personal data, with stricter consent rules for children under 18. If schools or many students will use your site, check what applies to you. This guide isn't legal advice.
 - MarkLens keeps students' results only in their own browser. The only thing your site stores is a daily request count per internet address, which is deleted after two days.

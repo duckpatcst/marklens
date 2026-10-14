@@ -116,15 +116,8 @@ textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line
 .readlbl{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:16px 0 6px;font:600 .68rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 .notice{margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--tint);color:var(--ink);font-size:.88rem}
 
-/* consent dialog */
-.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,var(--ink) 45%,transparent);overflow-y:auto}
-.dialog{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;max-width:520px;width:100%;padding:20px;box-shadow:0 24px 60px -20px rgba(0,0,0,.45);margin-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}
-.dialog h3{font-size:1.2rem;margin-bottom:10px}
-.dialog ul{margin:0 0 14px;padding-left:20px;font-size:.92rem}
-.dialog li{margin-bottom:8px}
-.dialog .warn{border-left:3px solid var(--pen);padding:8px 12px;background:color-mix(in srgb,var(--pen) 8%,transparent);border-radius:0 8px 8px 0;font-size:.92rem;margin:0 0 14px}
-.check{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:.92rem;font-weight:500;margin-bottom:14px;cursor:pointer}
-.check input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--ink)}
+/* own-risk notice, shown whenever the AI reader is available */
+.notice.risk{background:color-mix(in srgb,var(--pen) 8%,var(--surface));border-color:color-mix(in srgb,var(--pen) 35%,var(--line));border-left:3px solid var(--pen)}
 a.inline{color:var(--blue)}
 
 /* table */
@@ -219,7 +212,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
       <div class="row" style="margin:0"><button class="btn" id="sample">Reload example</button><button class="btn" id="clear">Clear all</button></div></div>
     <div class="row" style="margin:0 0 14px"><span class="eyebrow" style="margin-right:4px">Photo reader</span>
       <div class="seg" role="group" aria-label="Photo reader" style="margin:0"><button id="rdDevice" aria-pressed="true">On this phone · free</button><button id="rdAI" aria-pressed="false" hidden>AI reader · best for handwriting</button></div></div>
-    <p class="notice" id="ocrNote" hidden></p>
+    <p class="notice risk" id="aiRisk" role="note" hidden><b>Upload at your own risk.</b> Photos and answers you send with the AI reader or AI grading go to an outside AI company (<span id="aiWho">the AI provider</span>). They may be saved and used to improve its output. Crop out your name, roll number and school first. The free on-phone reader keeps photos on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
     <div class="grid two">
       <div class="panel">
         <h3>Question paper</h3>
@@ -262,21 +255,6 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   <footer class="site"><span>MarkLens · the on-phone reader keeps photos on your device. The AI reader sends them to an outside AI company. <a class="inline" href="privacy.html">Privacy notice</a></span><span>Check what is read and graded against your teacher's marks.</span></footer>
 </main>
 
-<div class="overlay" id="consent" hidden role="dialog" aria-modal="true" aria-labelledby="consentTitle">
-  <div class="dialog">
-    <h3 id="consentTitle">Before you use the AI reader</h3>
-    <p class="warn"><b>Use it at your own risk.</b> Your photos and text leave this phone and go to <b id="consentWho">an outside AI company</b>. That company may save them.</p>
-    <ul>
-      <li id="consentData"></li>
-      <li>MarkLens does not store your photos or results on any server. They stay in this browser.</li>
-      <li>Before you upload, cover or crop out your name, roll number, school, signature, face and anything else you do not want shared.</li>
-      <li id="consentAge">If you are under 18, ask a parent or guardian before using the AI reader.</li>
-      <li>Not sure? Use <b>On this phone · free</b> instead. It never sends photos anywhere.</li>
-    </ul>
-    <label class="check"><input type="checkbox" id="consentOk"><span id="consentLine">I understand my photos may be saved by this company, and I upload them at my own risk.</span></label>
-    <div class="row" style="margin:0"><button class="btn primary" id="consentGo" disabled>Use the AI reader</button><button class="btn" id="consentNo">Cancel</button><a class="inline" href="privacy.html" target="_blank" rel="noopener" style="font-size:.88rem">Full privacy notice</a></div>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
 <script>
@@ -570,36 +548,7 @@ async function callAI(body){
   return j || {};
 }
 
-/* Own-risk consent, asked once per AI company before anything is sent. */
-const CONSENT_KEY = 'marklens-ai-consent';
-const DATA_TEXT = {
-  trains: name => `${name} says that on its free service it may store what you send, use it to improve its products, and let human reviewers read it.`,
-  safe: name => `${name} says it does not use what you send to train its AI, but it processes it on its own servers and may keep it for a short time to run and protect its service.`
-};
-function hasConsent(){ try { return !!ai && localStorage.getItem(CONSENT_KEY) === ai.provider; } catch { return false; } }
-function askConsent(){
-  return new Promise(res => {
-    const box = $('#consent'), ok = $('#consentOk'), go = $('#consentGo'), back = document.activeElement;
-    $('#consentWho').textContent = ai.providerName;
-    $('#consentData').textContent = (ai.trains ? DATA_TEXT.trains : DATA_TEXT.safe)(ai.providerName);
-    $('#consentAge').textContent = ai.trains
-      ? `${ai.providerName} allows its free AI service only for people aged 18 and over.`
-      : 'If you are under 18, ask a parent or guardian before using the AI reader.';
-    $('#consentLine').textContent = (ai.trains ? 'I am 18 or older. ' : '') + `I understand my photos may be saved by ${ai.providerName}, and I upload them at my own risk.`;
-    ok.checked = false; go.disabled = true; box.hidden = false; ok.focus();
-    ok.onchange = () => { go.disabled = !ok.checked; };
-    const esc = e => { if (e.key === 'Escape') done(false); };
-    const done = yes => {
-      box.hidden = true; go.onclick = $('#consentNo').onclick = ok.onchange = null; document.removeEventListener('keydown', esc);
-      if (yes) { try { localStorage.setItem(CONSENT_KEY, ai.provider); } catch {} }
-      if (back && back.focus) back.focus();
-      res(yes);
-    };
-    document.addEventListener('keydown', esc);
-    go.onclick = () => done(true); $('#consentNo').onclick = () => done(false);
-  });
-}
-const ensureConsent = async () => hasConsent() || await askConsent();
+/* No tick-box: the own-risk notice (#aiRisk) is always on screen whenever the AI reader is available. */
 
 /* ---- on-device reader: Tesseract (open source, free), runs inside the phone's browser ---- */
 // Its engine and English model download once from jsDelivr (a public code library network) and are then
@@ -695,7 +644,6 @@ async function readWithAI(kind){
   if (!ai || !ai.enabled) { setSt(st, ERR.not_configured, true); return; }
   const list = shots[kind].map(s => s.blob), per = Math.max(1, ai.maxImages || 3), n = list.length, before = ta.value;
   if (!n) return;
-  if (!(await ensureConsent())) { setSt(st, 'Nothing was sent. The free on-phone reader is still available.'); return; }
   const task = kind === 'paper' ? 'paper' : (mode === 'ai' ? 'answers' : 'sheet'), paperText = $('#paper').value;
   btn.disabled = true; let done = '';
   try {
@@ -746,7 +694,6 @@ $('#aiGo').onclick = async () => {
   if (!typed && !imgs.length) { setSt(st, 'Add photos of the answers, or type them, first.', true); return; }
   if (!typed && reader === 'device') { setSt(st, 'Tap Read answers first, or switch to the AI reader.', true); return; }
   if (imgs.length > (ai.maxImages || 3)) { setSt(st, `Tap Read answers first. The AI can look at ${ai.maxImages} photos at a time when grading.`, true); return; }
-  if (!(await ensureConsent())) { setSt(st, 'Nothing was sent.'); return; }
   setSt(st, 'Grading… this can take up to a minute.'); $('#aiGo').disabled = true;
   try {
     const images = await Promise.all(imgs.map(toDataURL));
@@ -813,6 +760,7 @@ if (saved && Array.isArray(saved.rows) && saved.rows.length) {
   try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
   if (!ai || !ai.enabled) { ai = null; return; }
   $('#modeAi').hidden = false; $('#rdAI').hidden = false;
+  $('#aiWho').textContent = ai.providerName; $('#aiRisk').hidden = false;
   let pref = null; try { pref = localStorage.getItem('marklens-reader'); } catch {}
   if (pref === 'ai') setReader('ai');
 })();
