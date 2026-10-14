@@ -20,7 +20,7 @@ const PROVIDERS = {
     name: 'Groq',
     keyVar: 'GROQ_API_KEY',
     model: 'qwen/qwen3.8-27b',     // Groq's image-reading model (console.groq.com/docs/vision)
-    maxImages: 3,                  // Groq accepts up to 3 images per request
+    maxImages: 1,                  // one photo per request keeps each call inside Groq's free per-minute token limit
     trains: false                  // Groq's terms: inputs are not used for training
   },
   gemini: {
@@ -35,7 +35,7 @@ const PROVIDERS = {
 const MAX_BODY = 9_000_000;        // bytes, about 6 phone photos after MarkLens shrinks them
 const MAX_PAPER = 20_000;          // characters
 const MAX_ANSWERS = 20_000;
-const BURST = { limit: 6, windowMs: 60_000 };   // per visitor, per minute, best effort
+const BURST = { limit: 15, windowMs: 60_000 };  // per visitor, per minute, best effort (one request per page)
 const IMG_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 
 const burst = new Map();           // in-memory, per server instance
@@ -98,7 +98,14 @@ export async function onRequestPost({ request, env }) {
   try {
     text = await callModel(s, prompt, images, task === 'grade');
   } catch (e) {
-    return fail(e && e.status === 429 ? 'busy' : 'upstream', e && e.status === 429 ? 429 : 502);
+    const st = e && e.status;
+    if (st === 429) {
+      const wait = Math.min(60, Math.max(1, Math.ceil(Number(e.retryAfter) || 20)));
+      return json({ error: 'busy', retry_after: wait }, 429);
+    }
+    if (st === 413) return fail('too_large', 413);          // photo or request bigger than the free plan allows at once
+    if (st === 400 || st === 422) return fail('image_rejected', 422);
+    return fail('upstream', 502);
   }
 
   if (task !== 'grade') return json({ text: stripFences(text) });
@@ -124,7 +131,7 @@ async function callGroq(s, prompt, images) {
       messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] }]
     })
   });
-  if (!r.ok) throw { status: r.status };
+  if (!r.ok) throw { status: r.status, retryAfter: r.headers.get('retry-after') };
   const j = await r.json();
   return String(j?.choices?.[0]?.message?.content || '');
 }
@@ -142,7 +149,7 @@ async function callGemini(s, prompt, images, wantJson) {
       generationConfig: { temperature: 0.1, maxOutputTokens: 8192, ...(wantJson ? { responseMimeType: 'application/json' } : {}) }
     })
   });
-  if (!r.ok) throw { status: r.status };
+  if (!r.ok) throw { status: r.status, retryAfter: r.headers.get('retry-after') };
   const j = await r.json();
   return (j?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
 }
