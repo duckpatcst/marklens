@@ -36,6 +36,7 @@ const PROVIDERS = {
 
 const OUT_TOKENS = { paper: 1800, sheet: 900, answers: 1800, grade: 3000 };  // answer budget per job
 const BACKUP_MODEL = '@cf/qwen/qwen3.8-27b';                                 // Workers AI copy of the same model
+const BACKUP_TIMEOUT = 60_000;                                                // ms to wait for the backup before saying "busy"
 const MAX_BODY = 9_000_000;        // bytes, about 6 phone photos after MarkLens shrinks them
 const MAX_PAPER = 20_000;          // characters
 const MAX_ANSWERS = 20_000;
@@ -107,7 +108,7 @@ export async function onRequestPost({ request, env }) {
     let e = first;
     if (env.AI && (!first || [429, 413, 500, 502, 503, 504].includes(first.status) || !first.status)) {
       try { text = await callWorkersAI(env, prompt, images, OUT_TOKENS[task]); via = 'Cloudflare Workers AI'; e = null; }
-      catch (second) { e = first && first.status === 429 ? first : second; }
+      catch (second) { e = second && second.retryAfter ? second : first && first.status === 429 ? first : second; }
     }
     if (e) return failFor(e);
   }
@@ -136,17 +137,21 @@ async function callModel(s, prompt, images, wantJson, maxOut) {
 }
 
 async function callWorkersAI(env, prompt, images, maxOut) {
-  let out;
+  let out, timer;
   try {
-    out = await env.AI.run(BACKUP_MODEL, {
+    // A slow backup reply must not hold the phone's connection open until it drops ("Failed to fetch").
+    // Give up after BACKUP_TIMEOUT and tell the page to wait briefly; by then Groq's per-minute allowance is usually back.
+    const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject({ status: 429, retryAfter: 5 }), BACKUP_TIMEOUT); });
+    out = await Promise.race([timeout, env.AI.run(BACKUP_MODEL, {
       temperature: 0.1,
       max_completion_tokens: maxOut,
       messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] }]
-    });
+    })]);
   } catch (err) {
+    if (err && err.status) throw err;
     const m = String(err && err.message || err);
     throw { status: /429|rate|capacity|neuron|limit/i.test(m) ? 429 : 502 };
-  }
+  } finally { clearTimeout(timer); }
   const text = out?.choices?.[0]?.message?.content ?? out?.response ?? '';
   if (!String(text).trim()) throw { status: 502 };
   return String(text);

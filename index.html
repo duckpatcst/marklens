@@ -559,7 +559,12 @@ async function callAI(body, onWait){
   for (let attempt = 0; ; attempt++) {
     let r;
     try { r = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
-    catch { throw { code: 'offline' }; }
+    catch {
+      // A dropped connection on mobile data is usually temporary: wait a little and try the same page again.
+      if (!navigator.onLine || attempt >= 4) throw { code: 'offline' };
+      for (let s = 8; s > 0; s--) { if (onWait) onWait(s); await sleep(1000); }
+      continue;
+    }
     let j = null; try { j = await r.json(); } catch {}
     if (r.ok) return j || {};
     const code = (j && j.error) || 'upstream';
