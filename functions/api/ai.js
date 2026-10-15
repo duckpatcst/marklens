@@ -13,6 +13,8 @@
  *   AI_MODEL         text    Optional. Overrides the model below if the provider renames it.
  *   DAILY_LIMIT      text    Optional. AI requests per visitor per day (default 40). Needs RATE_LIMIT.
  *   RATE_LIMIT       KV      Optional KV namespace binding that makes the daily limit stick.
+ *   AI               Workers AI binding (optional). A free backup: when Groq is busy or over its
+ *                            per-minute limit, the same Qwen model runs on Cloudflare instead.
  */
 
 const PROVIDERS = {
@@ -32,6 +34,8 @@ const PROVIDERS = {
   }
 };
 
+const OUT_TOKENS = { paper: 1800, sheet: 900, answers: 1800, grade: 3000 };  // answer budget per job
+const BACKUP_MODEL = '@cf/qwen/qwen3.8-27b';                                 // Workers AI copy of the same model
 const MAX_BODY = 9_000_000;        // bytes, about 6 phone photos after MarkLens shrinks them
 const MAX_PAPER = 20_000;          // characters
 const MAX_ANSWERS = 20_000;
@@ -55,13 +59,13 @@ const fail = (error, status) => json({ error }, status);
 /* GET /api/ai — tells the page whether the AI reader is switched on, and which company runs it. */
 export async function onRequestGet({ env }) {
   const s = settings(env);
-  return json({ enabled: !!s.key, provider: s.id, providerName: s.name, maxImages: s.maxImages, trains: s.trains });
+  return json({ enabled: !!s.key || !!env.AI, provider: s.id, providerName: s.name, maxImages: s.maxImages, trains: s.trains, backup: env.AI ? 'Cloudflare Workers AI' : null });
 }
 
 /* POST /api/ai — one MarkLens job: read a question paper, a marked sheet, typed answers, or grade. */
 export async function onRequestPost({ request, env }) {
   const s = settings(env);
-  if (!s.key) return fail('not_configured', 503);
+  if (!s.key && !env.AI) return fail('not_configured', 503);
 
   // Only this site's own pages may call the function.
   const origin = request.headers.get('origin');
@@ -94,10 +98,27 @@ export async function onRequestPost({ request, env }) {
     : task === 'answers' ? answersPrompt(first, last, total)
     : gradePrompt(paper, answers, images.length > 0);
 
-  let text;
+  let text, via = s.name;
   try {
-    text = await callModel(s, prompt, images, task === 'grade');
-  } catch (e) {
+    if (!s.key) throw { status: 503 };
+    text = await callModel(s, prompt, images, task === 'grade', OUT_TOKENS[task]);
+  } catch (first) {
+    // Groq busy, over its per-minute limit, or down: try the same model on Cloudflare Workers AI.
+    let e = first;
+    if (env.AI && (!first || [429, 413, 500, 502, 503, 504].includes(first.status) || !first.status)) {
+      try { text = await callWorkersAI(env, prompt, images, OUT_TOKENS[task]); via = 'Cloudflare Workers AI'; e = null; }
+      catch (second) { e = first && first.status === 429 ? first : second; }
+    }
+    if (e) return failFor(e);
+  }
+
+  if (task !== 'grade') return json({ text: stripFences(text), via });
+  const result = parseJson(text);
+  if (!result || !Array.isArray(result.rows)) return fail('invalid_json', 502);
+  return json({ result, via });
+}
+
+function failFor(e) {
     const st = e && e.status;
     if (st === 429) {
       const wait = Math.min(60, Math.max(1, Math.ceil(Number(e.retryAfter) || 20)));
@@ -106,28 +127,39 @@ export async function onRequestPost({ request, env }) {
     if (st === 413) return fail('too_large', 413);          // photo or request bigger than the free plan allows at once
     if (st === 400 || st === 422) return fail('image_rejected', 422);
     return fail('upstream', 502);
-  }
-
-  if (task !== 'grade') return json({ text: stripFences(text) });
-  const result = parseJson(text);
-  if (!result || !Array.isArray(result.rows)) return fail('invalid_json', 502);
-  return json({ result });
 }
 
 /* ---------- providers ---------- */
 
-async function callModel(s, prompt, images, wantJson) {
-  return s.id === 'gemini' ? callGemini(s, prompt, images, wantJson) : callGroq(s, prompt, images);
+async function callModel(s, prompt, images, wantJson, maxOut) {
+  return s.id === 'gemini' ? callGemini(s, prompt, images, wantJson) : callGroq(s, prompt, images, maxOut);
 }
 
-async function callGroq(s, prompt, images) {
+async function callWorkersAI(env, prompt, images, maxOut) {
+  let out;
+  try {
+    out = await env.AI.run(BACKUP_MODEL, {
+      temperature: 0.1,
+      max_completion_tokens: maxOut,
+      messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] }]
+    });
+  } catch (err) {
+    const m = String(err && err.message || err);
+    throw { status: /429|rate|capacity|neuron|limit/i.test(m) ? 429 : 502 };
+  }
+  const text = out?.choices?.[0]?.message?.content ?? out?.response ?? '';
+  if (!String(text).trim()) throw { status: 502 };
+  return String(text);
+}
+
+async function callGroq(s, prompt, images, maxOut) {
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'authorization': `Bearer ${s.key}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       model: s.model,
       temperature: 0.1,
-      max_completion_tokens: 6000,
+      max_completion_tokens: maxOut || 1800,
       messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] }]
     })
   });

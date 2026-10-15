@@ -89,6 +89,7 @@ A short per-minute limit (6 requests a minute) is always on, even without KV.
 | `GEMINI_API_KEY` | Secret | Key from aistudio.google.com. Only used when `AI_PROVIDER` is `gemini` |
 | `AI_MODEL` | Text | Use a different model, for example if the provider retires the default |
 | `DAILY_LIMIT` | Text | AI requests per visitor per day (needs `RATE_LIMIT`) |
+| `AI` | Workers AI binding | Free backup: when Groq is busy, the same Qwen model runs on Cloudflare (Settings → Bindings → Add → Workers AI, name `AI`) |
 
 ### About Google Gemini
 
