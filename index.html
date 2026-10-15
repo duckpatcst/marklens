@@ -540,21 +540,21 @@ const ERR = {
 };
 const errMsg = (e, fallback) => (e && ERR[e.code]) || fallback;
 const clean = t => String(t || '').replace(/^\s*```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/, '').trim();
-// Photos for the AI are re-shrunk to 1600px: still sharp enough for handwriting, and small enough
-// for the free plan's per-minute limit. The stored photo stays at full quality for the on-phone reader.
+// Photos for the AI are re-shrunk to 1400px and turned grey: still sharp enough for handwriting, and
+// about a third fewer tokens against the free plan's per-minute limit. The stored photo stays full quality.
 const forAI = blob => new Promise((res, rej) => {
   const img = new Image(), u = URL.createObjectURL(blob);
   img.onload = () => {
-    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+    const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.15)'; g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
     res(c.toDataURL('image/jpeg', 0.8));
   };
   img.onerror = () => { URL.revokeObjectURL(u); rej({ code: 'image_rejected' }); };
   img.src = u;
 });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-// One automatic retry when the free plan says "busy", after the wait it asks for (up to 60 s).
+// When the free plan says "busy", wait the time it asks for (up to 60 s) and try again, up to 4 times.
 async function callAI(body, onWait){
   for (let attempt = 0; ; attempt++) {
     let r;
@@ -563,7 +563,7 @@ async function callAI(body, onWait){
     let j = null; try { j = await r.json(); } catch {}
     if (r.ok) return j || {};
     const code = (j && j.error) || 'upstream';
-    if (code === 'busy' && attempt === 0) {
+    if (code === 'busy' && attempt < 4) {
       const wait = Math.min(60, Number(j && j.retry_after) || 20);
       for (let s = wait; s > 0; s--) { if (onWait) onWait(s); await sleep(1000); }
       continue;
@@ -794,7 +794,7 @@ if (saved && Array.isArray(saved.rows) && saved.rows.length) {
   try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
   if (!ai || !ai.enabled) { ai = null; return; }
   $('#modeAi').hidden = false; $('#rdAI').hidden = false;
-  $('#aiWho').textContent = ai.providerName; $('#aiRisk').hidden = false;
+  $('#aiWho').textContent = ai.backup ? `${ai.providerName}, or ${ai.backup} as a backup` : ai.providerName; $('#aiRisk').hidden = false;
   let pref = null; try { pref = localStorage.getItem('marklens-reader'); } catch {}
   if (pref === 'ai') setReader('ai');
 })();
