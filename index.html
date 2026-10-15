@@ -141,9 +141,9 @@ td button{border:0;background:none;color:var(--mute);cursor:pointer}
 }
 
 /* dashboard */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:0;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-block:28px 16px;overflow:hidden}
-.kpi{padding:18px 20px;border-left:1px solid var(--line)}
-.kpi:first-child{border-left:0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:1px;border:1px solid var(--line);border-radius:12px;background:var(--line);margin-block:28px 16px;overflow:hidden}
+.kpi{padding:18px 20px;background:var(--surface)}
+@media(max-width:420px){.kpi{padding:14px 16px}.kpi .v{font-size:1.9rem!important}}
 .kpi .v{font:800 2.3rem/1 var(--f-display);letter-spacing:-.03em}
 .kpi .v small{font:500 1rem var(--f-mono);color:var(--mute);letter-spacing:0}
 .kpi .l{color:var(--mute);font-size:.82rem;margin-top:8px}
@@ -300,35 +300,72 @@ const shots = { paper: [], sheet: [] };  // photos: {blob, url}
 
 /* ---- parsing ---- */
 const guessTopic = t => { for (const [k, re] of Object.entries(TOPIC_WORDS)) if (re.test(t)) return k; return 'General'; };
-const guessType = (t, max) => (/\b[a-d][.)]\s.+\b[b-d][.)]\s/i.test(t) || /\b(mcq|choose|tick)\b/i.test(t)) ? 'MCQ' : (max <= 3 ? 'Short answer' : 'Long answer');
+// MCQ: options a) b) c), or (a) (b) (c), on a low-mark question, or the words MCQ / choose / tick. (a) (b) parts of a bigger question are not MCQ.
+const guessType = (t, max) => ((max <= 2 && /\(?a[.)]\s.+\(?b[.)]\s.+\(?c[.)]\s/i.test(t)) || /\b(mcq|choose|tick)\b/i.test(t)) ? 'MCQ' : (max <= 3 ? 'Short answer' : 'Long answer');
 const classify = (rem, lost) => { if (lost <= 0) return 'None'; for (const [c, re] of CAUSE_WORDS) if (re.test(rem)) return c; return 'Unspecified'; };
+// Half marks as teachers write them: 1½ -> 1.5, ½ -> 0.5
+const halves = t => String(t).replace(/(\d)\s*½/g, '$1.5').replace(/½/g, '0.5');
+// "Q1" for plain numbers; section labels such as "B2" are shown as they are
+const qName = q => /^\d/.test(String(q)) ? 'Q' + q : String(q);
+const PART = String.raw`(?:\(\s*(?:[a-h]|[ivx]{1,4})\s*\)|(?:[a-h]|[ivx]{1,4})\))`;   // (a)  b)  (iii)
 function parsePaper(text){
-  const qs = []; let section = '', cur = null;
-  for (const raw of text.split(/\r?\n/)) {
+  const qs = []; let section = '', secId = '', cur = null;
+  const lineRe = new RegExp(String.raw`^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)\s*(?:[.):\-]\s*|(?=${PART}))(.+)`, 'i');
+  for (const raw of halves(text).split(/\r?\n/)) {
     const line = raw.trim(); if (!line) continue;
-    const sec = line.match(/^(?:section|part|unit|chapter)\s+\w+\s*[:\-–]?\s*(.*)$/i);
-    if (sec) { section = sec[1] ? sec[1].trim() : ''; cur = null; continue; }
-    const m = line.match(/^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)\s*[.):\-]\s*(.+)/i);
-    if (m) { cur = { q: +m[1], text: m[2], section }; qs.push(cur); } else if (cur) cur.text += ' ' + line;
+    const sec = line.match(/^(?:section|part|unit|chapter)\s+(\w+)\s*[:\-–]?\s*(.*)$/i);
+    if (sec) { secId = sec[1].toUpperCase(); section = sec[2] ? sec[2].trim() : ''; cur = null; continue; }
+    const m = line.match(lineRe);
+    if (m) { cur = { n: +m[1], text: m[2], section, secId }; qs.push(cur); } else if (cur) cur.text += ' ' + line;
   }
-  return qs.map(o => {
-    // the last marks label wins, so f(2) inside the question is not read as marks; lowercase "m" alone is metres
-    const all = [...o.text.matchAll(/[\[(]\s*(\d+(?:\.\d+)?)\s*(?:[Mm]arks?|[Mm])?\s*[\])]|(\d+(?:\.\d+)?)\s*(?:[Mm]arks?\b|M\b)/g)];
-    const mk = all.at(-1), max = mk ? num(mk[1] || mk[2]) : 0;
+  // Papers that restart numbering in each section (A1-5, B1-5) get section labels, so no question overwrites another.
+  const restarts = new Set(qs.map(o => o.n)).size < qs.length;
+  return qs.map((o, i) => {
+    // [1×5=5] or (2 x 3 = 6) -> the total; otherwise the last marks label wins, so f(2) inside the question is not
+    // read as marks; lowercase "m" alone is metres. A question split into parts (a) [2] (b) [3] gets the sum of the parts.
+    const all = [...o.text.matchAll(/[\[(]\s*\d+(?:\.\d+)?\s*[x×*]\s*\d+(?:\.\d+)?\s*=\s*(\d+(?:\.\d+)?)\s*(?:[Mm]arks?)?\s*[\])]|[\[(]\s*(\d+(?:\.\d+)?)\s*(?:[Mm]arks?|[Mm])?\s*[\])]|(\d+(?:\.\d+)?)\s*(?:[Mm]arks?\b|M\b)/g)];
+    const val = mk => num(mk[1] || mk[2] || mk[3]);
+    const firm = all.filter(mk => mk[0][0] === '[' || /marks?|M\b|=/.test(mk[0]));
+    const parts = (o.text.match(new RegExp(PART, 'gi')) || []).length;
+    const max = parts >= 2 && firm.length >= 2 ? firm.reduce((a, mk) => a + val(mk), 0) : all.length ? val(all.at(-1)) : 0;
     const tag = o.text.match(/#([A-Za-z][\w &-]*)/) || o.text.match(/\btopic\s*[:\-]\s*([^\]\)|,#]+)/i);
-    return { q: o.q, topic: tag ? tag[1].trim() : (o.section || guessTopic(o.text)), type: guessType(o.text, max), max };
+    const sid = o.secId || 'S' + (1 + qs.slice(0, i).filter(p => p.n === o.n).length);
+    return { q: restarts ? sid + (/^\d/.test(sid) ? '.' : '') + o.n : String(o.n), n: o.n, topic: tag ? tag[1].trim() : (o.section || guessTopic(o.text)), type: guessType(o.text, max), max };
   });
 }
 function parseSheet(text){
-  const re = /^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)(?:\s*[.):\-=,]+\s*|\s+)(\d+(?:\.\d+)?)\s*(?:(?:\/|out of|of)\s*(\d+(?:\.\d+)?))?\s*[-–,:|]?\s*(.*)$/i, out = [];
-  for (const l of text.split(/\r?\n/)) { const m = l.match(re); if (m) out.push({ q: +m[1], got: num(m[2]), max: m[3] ? num(m[3]) : 0, remark: m[4] || '' }); }
+  const re = new RegExp(String.raw`^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)\s*(${PART}|[a-h](?=[\s.):\-=,]))?(?:\s*[.):\-=,]+\s*|\s+)(\d+(?:\.\d+)?)\s*(?:(?:\/|out of|of)\s*(\d+(?:\.\d+)?))?\s*[-–,:|]?\s*(.*)$`, 'i'), out = [];
+  for (const l of halves(text).split(/\r?\n/)) {
+    const m = l.match(re);
+    if (m) out.push({ n: +m[1], part: (m[2] || '').replace(/[()\s]/g, '').toLowerCase(), got: num(m[3]), max: m[4] ? num(m[4]) : 0, remark: m[5] || '' });
+  }
   return out;
+}
+// Match sheet lines to paper questions. Parts 1(a), 1(b) add up into question 1. When numbering restarts in a new
+// section, the second "1" on the sheet goes to the second question 1 on the paper. A question repeated across a page
+// break keeps its latest line.
+function matchSheet(paper, sheet){
+  const byNum = new Map(); paper.forEach(p => byNum.set(p.n, [...(byNum.get(p.n) || []), p.q]));
+  const occ = new Map(), out = new Map(); let prev = null;
+  for (const s of sheet) {
+    const k = occ.has(s.n) && prev && prev.n !== s.n ? occ.get(s.n) + 1 : (occ.get(s.n) ?? 0);
+    occ.set(s.n, k);
+    const key = (byNum.get(s.n) || [])[k] ?? (k ? `S${k + 1}.${s.n}` : String(s.n));
+    const cur = out.get(key) || { q: key, parts: new Map() };
+    if (!s.part) cur.parts = new Map();                  // a whole-question line replaces anything before it
+    cur.parts.set(s.part || '', s); out.set(key, cur);
+    prev = s;
+  }
+  return [...out.values()].map(({ q, parts }) => {
+    const ps = [...parts.values()];
+    return { q, got: ps.reduce((a, p) => a + p.got, 0), max: ps.reduce((a, p) => a + p.max, 0), remark: ps.map(p => p.remark).filter(Boolean).join('; ') };
+  });
 }
 function rebuild(){
   if (mode !== 'marked') return;
-  const paper = parsePaper($('#paper').value), sheet = parseSheet($('#sheet').value), by = new Map();
+  const paper = parsePaper($('#paper').value), sheet = matchSheet(paper, parseSheet($('#sheet').value)), by = new Map();
   sheetCount = sheet.length;
-  paper.forEach(p => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
+  paper.forEach(({ n, ...p }) => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
   const seen = new Set();
   sheet.forEach(s => {
     seen.add(s.q);
@@ -336,15 +373,15 @@ function rebuild(){
     if (!r.max) r.max = s.max || s.got;
     r.got = Math.min(s.got, r.max); r.cause = classify(s.remark, r.max - r.got); by.set(s.q, r);
   });
-  for (const [q, e] of Object.entries(edits)) {
-    const k = +q, { added, deleted, ...f } = e;
+  for (const [k, e] of Object.entries(edits)) {
+    const { added, deleted, ...f } = e;
     if (deleted) { by.delete(k); continue; }
     const r = by.get(k);
     if (r) Object.assign(r, f);
     else if (added) by.set(k, { q: k, topic: f.topic || 'General', type: f.type || 'Short answer', max: num(f.max), got: num(f.got), cause: f.cause || 'Unspecified' });
   }
-  rows = [...by.values()].sort((a, b) => a.q - b.q); aiExtra = null;
-  const missing = sheet.length ? paper.filter(p => !seen.has(p.q)).map(p => 'Q' + p.q) : [];
+  rows = [...by.values()]; aiExtra = null;   // paper order, then anything found only on the sheet
+  const missing = sheet.length ? paper.filter(p => !seen.has(p.q)).map(p => qName(p.q)) : [];
   $('#paperStatus').textContent = paper.length ? `${paper.length} questions` : '';
   $('#sheetStatus').textContent = sheet.length ? `${sheet.length} marks` + (missing.length ? ` · ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? '…' : ''} not found` : '') : '';
   $('#sheetStatus').className = missing.length ? 'status err' : 'status';
@@ -358,7 +395,7 @@ function renderTable(){
   if (!rows.length) { $('#tableWrap').innerHTML = '<div class="empty">No questions yet. Add photos of the paper and sheet above, or reload the example.</div>'; return; }
   const opt = (a, v) => a.map(x => `<option${x === v ? ' selected' : ''}>${esc(x)}</option>`).join('');
   $('#tableWrap').innerHTML = `<table><thead><tr><th>Q</th><th>Topic</th><th>Type</th><th>Awarded</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
-  rows.map((r, i) => `<tr data-i="${i}"><td><input type="number" inputmode="numeric" data-k="q" value="${num(r.q)}" style="width:52px" aria-label="Question number"></td>
+  rows.map((r, i) => `<tr data-i="${i}"><td><input data-k="q" value="${esc(r.q)}" style="width:56px" aria-label="Question number"></td>
     <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Topic"></td><td><select data-k="type" aria-label="Type">${opt(TYPES, r.type)}</select></td>
     <td><input type="number" inputmode="decimal" step="0.5" min="0" data-k="got" value="${num(r.got)}" aria-label="Marks awarded"></td>
     <td><input type="number" inputmode="decimal" step="0.5" min="0" data-k="max" value="${num(r.max)}" aria-label="Maximum marks"></td>
@@ -369,7 +406,7 @@ const noteEdit = (r, f) => { edits[r.q] = Object.assign(edits[r.q] || {}, f); };
 $('#tableWrap').addEventListener('input', e => {
   const tr = e.target.closest('tr'), k = e.target.dataset.k; if (!tr || !k) return;
   const r = rows[+tr.dataset.i];
-  if (k === 'q') { const old = r.q; r.q = num(e.target.value); if (edits[old]) { edits[r.q] = edits[old]; delete edits[old]; } sampleData = false; changed(false); return; }
+  if (k === 'q') { const old = r.q; r.q = e.target.value.trim(); if (edits[old]) { edits[r.q] = edits[old]; delete edits[old]; } sampleData = false; changed(false); return; }
   r[k] = (k === 'got' || k === 'max') ? Math.max(0, num(e.target.value)) : e.target.value;
   if (k === 'got' || k === 'max') {
     const lostNow = r.max - r.got, cs = tr.querySelector('[data-k=cause]');
@@ -391,7 +428,7 @@ $('#tableWrap').addEventListener('click', e => {
   rows.splice(+d, 1); sampleData = false; changed(true);
 });
 $('#addRow').onclick = () => {
-  const r = { q: Math.max(0, ...rows.map(x => x.q)) + 1, topic: 'General', type: 'Short answer', max: 5, got: 0, cause: 'Unspecified' };
+  const r = { q: String(Math.max(0, ...rows.map(x => num(String(x.q).match(/\d+(?:\.\d+)?$/)?.[0]))) + 1), topic: 'General', type: 'Short answer', max: 5, got: 0, cause: 'Unspecified' };
   rows.push(r); edits[r.q] = { ...r, added: true }; sampleData = false; changed(true);
 };
 
@@ -437,23 +474,25 @@ function renderDash(){
     <div class="panel"><h3>Where the marks went</h3>${donut(causes, lost)}</div>
     <div class="panel"><h3>Topics, weakest first</h3>${[...topics].sort((a, b) => a.pct - b.pct).map(t => `<div class="tl"><span>${esc(t.name)}</span><div class="bar"><span style="width:${t.pct}%;background:${pc(t.pct)}"></span></div><span>${Math.round(t.pct)}%</span></div>`).join('')}</div>
     <div class="panel"><h3>Question types</h3>${types.map(t => `<div class="tl"><span>${esc(t.name)}</span><div class="bar"><span style="width:${t.pct}%;background:${pc(t.pct)}"></span></div><span>${Math.round(t.pct)}%</span></div>`).join('')}
-      <h3 style="margin-top:20px">Costliest questions</h3>${worst.length ? worst.map(r => `<div class="tl" style="grid-template-columns:44px 1fr 56px"><span class="mono">Q${num(r.q)}</span><span>${esc(r.topic)} · ${esc(r.cause)}</span><span style="color:var(--pen)">−${fmt(r.max - r.got)}</span></div>`).join('') : '<p class="hint">No marks lost.</p>'}</div>
+      <h3 style="margin-top:20px">Costliest questions</h3>${worst.length ? worst.map(r => `<div class="tl" style="grid-template-columns:56px 1fr 56px"><span class="mono">${esc(qName(r.q))}</span><span>${esc(r.topic)} · ${esc(r.cause)}</span><span style="color:var(--pen)">−${fmt(r.max - r.got)}</span></div>`).join('') : '<p class="hint">No marks lost.</p>'}</div>
   </div>
   <div class="panel" style="margin-top:16px"><h3>What to improve</h3>
     <div class="callouts">${ins.map(i => `<div class="callout"><span class="tag ${i[0]}">${i[1]}</span><div><b>${esc(i[2])}</b><p>${esc(i[3])}</p></div></div>`).join('')}</div>
     ${aiExtra ? `<h3 style="margin-top:22px">Examiner summary</h3><p>${esc(aiExtra.summary)}</p>${aiExtra.plan.length ? `<ol class="plan">${aiExtra.plan.map(p => `<li>${esc(p)}</li>`).join('')}</ol>` : ''}` : ''}
-    ${rows.some(r => r.feedback) ? `<h3 style="margin-top:22px">Feedback by question</h3>${rows.filter(r => r.feedback).map(r => `<p class="fb"><span class="mono" style="color:${pc(r.max ? r.got / r.max * 100 : 0)}">Q${num(r.q)} ${fmt(r.got)}/${fmt(r.max)}</span><span>${esc(r.feedback)}</span></p>`).join('')}` : ''}
+    ${rows.some(r => r.feedback) ? `<h3 style="margin-top:22px">Feedback by question</h3>${rows.filter(r => r.feedback).map(r => `<p class="fb"><span class="mono" style="color:${pc(r.max ? r.got / r.max * 100 : 0)}">${esc(qName(r.q))} ${fmt(r.got)}/${fmt(r.max)}</span><span>${esc(r.feedback)}</span></p>`).join('')}` : ''}
     ${causes.length ? `<h3 style="margin-top:22px">Action plan</h3><ol class="plan">${causes.map(([c, m]) => `<li><b>${esc(c)}</b> (−${fmt(m)}). ${esc(FIX[c])}</li>`).join('')}</ol>` : ''}
-    ${lossy.length ? `<h3 style="margin-top:22px">Revision order</h3><ol class="plan">${lossy.slice(0, 5).map(t => `<li>${esc(t.name)}: up to <b>${fmt(t.lost)}</b> marks to recover (Q${rows.filter(r => r.topic === t.name && r.max > r.got).map(r => num(r.q)).join(', Q')})</li>`).join('')}</ol>` : ''}
+    ${lossy.length ? `<h3 style="margin-top:22px">Revision order</h3><ol class="plan">${lossy.slice(0, 5).map(t => `<li>${esc(t.name)}: up to <b>${fmt(t.lost)}</b> marks to recover (${rows.filter(r => r.topic === t.name && r.max > r.got).map(r => esc(qName(r.q))).join(', ')})</li>`).join('')}</ol>` : ''}
   </div>`;
 }
 function questionChart(){
-  const W = Math.max(520, rows.length * 46 + 44), H = 230, pl = 34, pb = 28, pt = 12, mx = Math.max(...rows.map(r => r.max), 1), bw = (W - pl) / rows.length;
+  // Fits the screen up to about 10 questions; longer papers scroll sideways, with each bar still wide enough to tap.
+  const W = Math.max(320, rows.length * 40 + 40), H = 220, pl = 30, pb = 26, pt = 12, bw = (W - pl) / rows.length;
+  const top = Math.max(...rows.map(r => r.max), 1), step = [0.5, 1, 2, 5, 10, 20, 50].find(st => top / st <= 5) || Math.ceil(top / 5), mx = Math.ceil(top / step) * step;
   const y = v => pt + (H - pt - pb) * (1 - v / mx);
-  let s = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:${Math.min(W, 520)}px;max-height:260px" role="img" aria-label="Marks scored and lost per question">`;
-  for (let i = 0; i <= 4; i++) { const v = mx * i / 4; s += `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
+  let s = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:${rows.length > 10 ? rows.length * 30 + 30 : 0}px;max-height:280px" role="img" aria-label="Marks scored and lost per question">`;
+  for (let v = 0; v <= mx + 1e-9; v += step) s += `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
   rows.forEach((r, i) => { const x = pl + i * bw + bw * .2, w = bw * .6;
-    s += `<g><title>Q${num(r.q)} ${esc(r.topic)}: ${fmt(r.got)}/${fmt(r.max)}</title><rect x="${x}" y="${y(r.got)}" width="${w}" height="${Math.max(0, y(0) - y(r.got))}" fill="var(--blue)" rx="2"/><rect x="${x}" y="${y(r.max)}" width="${w}" height="${Math.max(0, y(r.got) - y(r.max))}" fill="var(--pen)" rx="2"/><text x="${x + w / 2}" y="${H - 9}" text-anchor="middle">Q${num(r.q)}</text></g>`; });
+    s += `<g><title>${esc(qName(r.q))} ${esc(r.topic)}: ${fmt(r.got)}/${fmt(r.max)}</title><rect x="${x}" y="${y(r.got)}" width="${w}" height="${Math.max(0, y(0) - y(r.got))}" fill="var(--blue)" rx="2"/><rect x="${x}" y="${y(r.max)}" width="${w}" height="${Math.max(0, y(r.got) - y(r.max))}" fill="var(--pen)" rx="2"/><text x="${x + w / 2}" y="${H - 9}" text-anchor="middle">${esc(qName(r.q))}</text></g>`; });
   return s + '</svg></div>';
 }
 function donut(causes, lost){
@@ -737,7 +776,7 @@ $('#aiGo').onclick = async () => {
   try {
     const { result: j } = await callAI({ task: 'grade', paper: $('#paper').value, answers, images: [] },
       s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
-    rows = (j.rows || []).map(x => ({ q: num(x.q), topic: String(x.topic || 'General'), type: TYPES.includes(x.type) ? x.type : 'Short answer', max: num(x.max), got: Math.max(0, Math.min(num(x.got), num(x.max))), cause: CAUSES.includes(x.cause) ? x.cause : 'Unspecified', feedback: String(x.feedback || '') }));
+    rows = (j.rows || []).map((x, i) => ({ q: String(x.q ?? i + 1).trim() || String(i + 1), topic: String(x.topic || 'General'), type: TYPES.includes(x.type) ? x.type : 'Short answer', max: num(x.max), got: Math.max(0, Math.min(num(x.got), num(x.max))), cause: CAUSES.includes(x.cause) ? x.cause : 'Unspecified', feedback: String(x.feedback || '') }));
     aiExtra = { summary: String(j.summary || ''), plan: Array.isArray(j.study_plan) ? j.study_plan.map(String) : [] }; sampleData = false; edits = {};
     setSt(st, `Graded ${rows.length} questions. This is a draft: check it against the marking scheme.`); changed(true); $('#dashboard').scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
@@ -788,7 +827,7 @@ $('#sample').onclick = loadSample;
 let saved = null; try { saved = JSON.parse(localStorage.getItem('marklens3') || localStorage.getItem('marklens2') || 'null'); } catch {}
 if (saved && Array.isArray(saved.rows) && saved.rows.length) {
   $('#paper').value = saved.paper || ''; $('#sheet').value = saved.sheet || '';
-  rows = saved.rows.map(r => ({ ...r, q: num(r.q), got: num(r.got), max: num(r.max) }));
+  rows = saved.rows.map(r => ({ ...r, q: String(r.q), got: num(r.got), max: num(r.max) }));
   aiExtra = saved.aiExtra || null; edits = saved.edits || {}; sampleData = !!saved.sampleData;
   sheetCount = parseSheet(saved.sheet || '').length;
   setMode(saved.mode === 'ai' ? 'ai' : 'marked'); changed(true);

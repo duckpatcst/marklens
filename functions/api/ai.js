@@ -260,6 +260,9 @@ Example lines:
 9: 2/2
 
 Rules:
+- Use the question numbers as printed, in the paper's order. If the paper restarts numbering in each section, keep that numbering and that section order.
+- For a question with parts, write one line for the whole question, or one line per part such as 4(a): 1/2 and 4(b): 2/3.
+- Write half marks as decimals: 1.5, not 1½.
 - Use the marks the teacher wrote. If there is a marks summary grid, use it, and use the answers to explain the losses.
 - Take marks available from the question paper when the sheet does not show them.${all ? ' Include every question on the paper; write 0 and "not attempted" for any question with no answer on any page.' : ' Only list questions that appear on these pages.'}
 - For the reason, use the teacher's remark when there is one. Otherwise describe what went wrong in a few words, using these phrases where they fit: concept not clear, wrong formula, careless calculation, incomplete, not attempted, forgot units, sign error, poor presentation, diagram not labelled, ran out of time.
@@ -291,5 +294,5 @@ STUDENT ANSWERS (typed):
 ${answers.trim() || '(see photos)'}
 
 Reply with ONLY a JSON object: {"rows":[{"q":1,"topic":"Algebra","type":"MCQ|Short answer|Long answer","max":2,"got":1.5,"cause":"None|Concept gap|Careless / calculation|Incomplete / unattempted|Units & signs|Presentation|Time management|Unspecified","feedback":"2-3 sentences: what was right, exactly where marks were lost, how to fix it"}],"summary":"3-5 sentence overall assessment","study_plan":["specific actionable step"]}
-Include a row for every question. "got" is between 0 and "max" in steps of 0.5. cause is "None" when got equals max. Unanswered questions get got 0 and cause "Incomplete / unattempted".`;
+Include a row for every question. "q" is the question number as printed; if numbering restarts in a later section, prefix it with that section's letter, e.g. "B2". Give one row per whole question, adding up its parts. "got" is between 0 and "max" in steps of 0.5. cause is "None" when got equals max. Unanswered questions get got 0 and cause "Incomplete / unattempted".`;
 }
