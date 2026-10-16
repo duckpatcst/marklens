@@ -120,6 +120,49 @@ textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line
 .notice.risk{background:color-mix(in srgb,var(--pen) 8%,var(--surface));border-color:color-mix(in srgb,var(--pen) 35%,var(--line));border-left:3px solid var(--pen)}
 a.inline{color:var(--blue)}
 
+/* reader picker: three tiles, the chosen one inked in */
+.readers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;margin:0 0 14px}
+.rd{position:relative;display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;min-height:64px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.rd .ic{flex:0 0 auto;display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:var(--tint);color:var(--blue);transition:background .15s,color .15s}
+.rd .ic svg{width:21px;height:21px}
+.rd b{display:block;font:700 .95rem var(--f-display);letter-spacing:-.01em}
+.rd small{display:block;color:var(--mute);font-size:.8rem;line-height:1.35;margin-top:1px}
+.rd[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.rd[aria-pressed=true] .ic{background:var(--ink);color:var(--bg)}
+@media(hover:hover){.rd:hover{border-color:var(--blue)}}
+.rd .pick{position:absolute;top:-9px;right:12px;font:600 .6rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--pen);padding:2px 7px;border-radius:5px;transform:rotate(-2deg)}
+
+/* Google Lens guide: a ruled sheet with red-pen step numbers */
+.lensguide{margin:0 0 16px;padding:16px 18px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);
+  background-image:repeating-linear-gradient(transparent 0 31px,color-mix(in srgb,var(--blue) 7%,transparent) 31px 32px)}
+.lensguide h3{margin-top:4px}
+.lg-steps{list-style:none;margin:14px 0 4px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px 18px;counter-reset:lg}
+.lg-steps li{counter-increment:lg;display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;font-size:.88rem}
+.lg-steps li::before{content:counter(lg);display:grid;place-items:center;width:30px;height:28px;font:600 .9rem var(--f-mono);color:var(--pen);border:2px solid var(--pen);border-radius:50%/60%;transform:rotate(-5deg);background:var(--paper)}
+.lg-steps b{display:block;font:700 .92rem var(--f-display);color:var(--ink)}
+.lg-steps span{color:var(--mute)}
+kbd{font:600 .74rem var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;white-space:nowrap}
+.lg-note{margin-top:10px}
+
+/* paste box under the paper and the sheet */
+.pastebox{margin-top:12px;padding:12px;border:1.5px dashed color-mix(in srgb,var(--blue) 45%,var(--line));border-radius:10px;background:color-mix(in srgb,var(--tint) 55%,var(--surface))}
+.pastebox .pr{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+.pastebox .btn{flex:1 1 150px;max-width:100%}
+.pastebox .btn svg{width:17px;height:17px}
+textarea.pastezone{flex:1 1 170px;min-height:0;height:44px;resize:none;overflow:hidden;border:1px solid transparent;background:var(--surface);border-radius:8px;padding:11px;font:.86rem var(--f-body);color:var(--mute)}
+textarea.pastezone:focus{border-color:var(--blue);color:var(--ink)}
+.pastebox .pages{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.pastebox .pages:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;font:500 .74rem var(--f-mono);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.chip b{color:var(--ok)}
+.chip.warn b{color:var(--warn)}
+.linkbtn{border:0;background:none;color:var(--blue);font-size:.82rem;cursor:pointer;padding:6px 4px;text-decoration:underline;text-underline-offset:2px}
+.pastebox .status{display:block;margin-top:8px}
+.pastebox .status:empty{display:none}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
+.chip.new{animation:pop .25s ease-out}
+@media(prefers-reduced-motion:reduce){.chip.new{animation:none}.rd,.rd .ic{transition:none}}
+
 /* table */
 .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px}
@@ -186,7 +229,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
     <div>
       <div class="eyebrow">Exam analysis for students</div>
       <h1 style="margin-top:14px">See exactly where your <em>marks went.</em></h1>
-      <p class="lead">Take photos of the question paper and your exam sheet. MarkLens shows which questions, topics and habits cost you marks, and builds a revision plan around them.</p>
+      <p class="lead">Scan the question paper and your exam sheet with Google Lens or your camera. MarkLens shows which questions, topics and habits cost you marks, and builds a revision plan around them.</p>
       <div class="cta"><a class="btn primary" href="#analyze">Analyze a paper</a><a class="btn" href="#dashboard">See the dashboard</a></div>
     </div>
     <div class="script" aria-label="Example of a marked exam script">
@@ -202,40 +245,67 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   </div>
 
   <div class="steps" id="how">
-    <div class="step"><span class="eyebrow">Step 1 · Paper</span><h3>Photograph the question paper</h3><p>Take a photo of each page or pick them from your gallery. MarkLens reads the questions, marks and topics on your phone.</p></div>
-    <div class="step"><span class="eyebrow">Step 2 · Sheet</span><h3>Photograph your exam sheet</h3><p>Already marked? MarkLens reads the marks and the teacher's remarks. Not marked yet? The AI reader can grade your answers.</p></div>
+    <div class="step"><span class="eyebrow">Step 1 · Paper</span><h3>Scan the question paper</h3><p>Copy each page with Google Lens and paste it in, or take photos. MarkLens finds the questions, marks and topics.</p></div>
+    <div class="step"><span class="eyebrow">Step 2 · Sheet</span><h3>Scan your exam sheet</h3><p>Google Lens reads handwriting best. Already marked? MarkLens finds the marks and the teacher's remarks. Not marked yet? The AI reader can grade your answers.</p></div>
     <div class="step"><span class="eyebrow">Step 3 · Dashboard</span><h3>Read the leaks</h3><p>Every edit updates the charts, the causes of lost marks and the revision order.</p></div>
   </div>
 
   <section id="analyze">
-    <div class="sec-head"><div><h2>Analyzer</h2><p>An example paper is loaded so you can see how it works. Replace it with photos of yours.</p></div>
+    <div class="sec-head"><div><h2>Analyzer</h2><p>An example paper is loaded so you can see how it works. Replace it with your own pages.</p></div>
       <div class="row" style="margin:0"><button class="btn" id="sample">Reload example</button><button class="btn" id="clear">Clear all</button></div></div>
-    <div class="row" style="margin:0 0 14px"><span class="eyebrow" style="margin-right:4px">Photo reader</span>
-      <div class="seg" role="group" aria-label="Photo reader" style="margin:0"><button id="rdDevice" aria-pressed="true">On this phone · free</button><button id="rdAI" aria-pressed="false" hidden>AI reader · best for handwriting</button></div></div>
-    <p class="notice risk" id="aiRisk" role="note" hidden><b>Upload at your own risk.</b> Photos and answers you send with the AI reader or AI grading go to an outside AI company (<span id="aiWho">the AI provider</span>). They may be saved and used to improve its output. Crop out your name, roll number and school first. The free on-phone reader keeps photos on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
+    <div class="eyebrow" style="margin:0 0 10px">How should MarkLens read your pages?</div>
+    <div class="readers" role="group" aria-label="How to read your pages">
+      <button type="button" class="rd" id="rdLens" aria-pressed="true"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg></span><span><b>Google Lens</b><small>Best for handwriting. Copy each page, paste it here.</small></span><span class="pick">Recommended</span></button>
+      <button type="button" class="rd" id="rdDevice" aria-pressed="false"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span><b>On this phone</b><small>Free and private. Best for printed papers.</small></span></button>
+      <button type="button" class="rd" id="rdAI" aria-pressed="false" hidden><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg></span><span><b>AI reader</b><small>Automatic from photos. Photos go to an AI company.</small></span></button>
+    </div>
+    <div class="lensguide" id="lensGuide" hidden>
+      <span class="eyebrow">Google Lens · for every page</span>
+      <h3>Let Lens read the page, then paste the text here</h3>
+      <ol class="lg-steps">
+        <li><span><b>Open Lens</b>In the Google app tap the camera icon, or open Google Lens, or Google Translate → <kbd>Camera</kbd>.</span></li>
+        <li><span><b>Point at one page</b>Hold it flat with all four edges in view, then tap <kbd>Text</kbd>.</span></li>
+        <li><span><b>Copy it all</b>Tap <kbd>Select all</kbd>, then <kbd>Copy</kbd>.</span></li>
+        <li><span><b>Paste it here</b>Come back and tap <kbd>Paste page</kbd> under the paper or the sheet. Do the next page the same way.</span></li>
+      </ol>
+      <p class="hint lg-note">Lens is Google's app, so the page you scan goes to Google under Google's terms. MarkLens only receives the text you paste.<span id="lensAiNote" hidden> MarkLens's AI then sorts that text into questions and marks. No photo is sent.</span></p>
+    </div>
+    <p class="notice risk" id="aiRisk" role="note" hidden><b>Upload at your own risk.</b> Photos, pasted text and answers that MarkLens's AI reads, sorts or grades go to an outside AI company (<span id="aiWho">the AI provider</span>). They may be saved and used to improve its output. Crop out your name, roll number and school first. The free on-phone reader keeps photos on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
     <div class="grid two">
       <div class="panel">
         <h3>Question paper</h3>
-        <div class="row" style="margin-top:12px">
+        <div class="pastebox" id="paperLens" hidden>
+          <div class="pr"><button type="button" class="btn primary" id="paperPaste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h1.5A1.5 1.5 0 0 1 19 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-13A1.5 1.5 0 0 1 6.5 5H8"/><path d="M9 13h6M9 16.5h4"/></svg><span>Paste page 1</span></button>
+            <textarea class="pastezone" id="paperZone" rows="1" spellcheck="false" aria-label="Paste the question paper text from Google Lens here" placeholder="…or long-press here and tap Paste"></textarea></div>
+          <div class="pages" id="paperPages"></div>
+          <span class="status" id="paperLensStatus" role="status"></span>
+        </div>
+        <div class="row" id="paperPhotoRow" style="margin-top:12px">
           <label class="btn primary">Take photo<input class="vh" type="file" id="paperCam" accept="image/*" capture="environment"></label>
           <label class="btn">Choose photos<input class="vh" type="file" id="paperPick" accept="image/*" multiple></label>
         </div>
         <div class="shots" id="paperShots" hidden></div>
         <div class="row" id="paperReadRow" hidden><button class="btn primary" id="paperRead">Read text</button><span class="status" id="paperPhotoStatus"></span></div>
-        <div class="readlbl"><span>Text read from the photos</span><span class="status" id="paperStatus"></span></div>
+        <div class="readlbl"><span>Question paper text</span><span class="status" id="paperStatus"></span></div>
         <textarea id="paper" spellcheck="false" aria-label="Question paper text" placeholder="Section A: Algebra&#10;1. Solve 2x+3=11 [2]&#10;2. Factorise x^2-5x+6 [3]"></textarea>
-        <p class="hint">Shoot each page flat, in good light, with all four edges in frame. Printed papers read best. Fix anything misread. Marks are read from [5], (5 marks) or 5M.</p>
+        <p class="hint">Scan each page flat, in good light, with all four edges in frame. Fix anything misread. Marks are read from [5], (5 marks) or 5M.</p>
       </div>
       <div class="panel">
         <h3>Exam sheet</h3>
         <div class="seg" role="group" aria-label="Sheet type" style="margin-top:10px"><button id="modeMarked" aria-pressed="true">Already marked</button><button id="modeAi" aria-pressed="false" hidden>Unmarked · AI grades</button></div>
-        <div class="row" style="margin-top:2px">
+        <div class="pastebox" id="sheetLens" hidden>
+          <div class="pr"><button type="button" class="btn primary" id="sheetPaste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h1.5A1.5 1.5 0 0 1 19 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-13A1.5 1.5 0 0 1 6.5 5H8"/><path d="M9 13h6M9 16.5h4"/></svg><span>Paste page 1</span></button>
+            <textarea class="pastezone" id="sheetZone" rows="1" spellcheck="false" aria-label="Paste the exam sheet text from Google Lens here" placeholder="…or long-press here and tap Paste"></textarea></div>
+          <div class="pages" id="sheetPages"></div>
+          <span class="status" id="sheetLensStatus" role="status"></span>
+        </div>
+        <div class="row" id="sheetPhotoRow" style="margin-top:2px">
           <label class="btn primary">Take photo<input class="vh" type="file" id="sheetCam" accept="image/*" capture="environment"></label>
           <label class="btn">Choose photos<input class="vh" type="file" id="sheetPick" accept="image/*" multiple></label>
         </div>
         <div class="shots" id="sheetShots" hidden></div>
         <div class="row" id="sheetReadRow" hidden><button class="btn primary" id="sheetRead">Read marks</button><button class="btn primary" id="aiGo" hidden>Grade with AI</button><span class="status" id="sheetPhotoStatus"></span></div>
-        <div class="readlbl"><span id="sheetLbl">Marks read from the photos</span><span class="status" id="sheetStatus"></span></div>
+        <div class="readlbl"><span id="sheetLbl">Marks found on the sheet</span><span class="status" id="sheetStatus"></span></div>
         <textarea id="sheet" spellcheck="false" aria-label="Exam sheet text"></textarea>
         <p class="hint" id="sheetHint"></p>
       </div>
@@ -334,10 +404,11 @@ function parsePaper(text){
   });
 }
 function parseSheet(text){
-  const re = new RegExp(String.raw`^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)\s*(${PART}|[a-h](?=[\s.):\-=,]))?(?:\s*[.):\-=,]+\s*|\s+)(\d+(?:\.\d+)?)\s*(?:(?:\/|out of|of)\s*(\d+(?:\.\d+)?))?\s*[-–,:|]?\s*(.*)$`, 'i'), out = [];
+  // an optional section letter first (A1, B-2), as in papers that restart numbering per section
+  const re = new RegExp(String.raw`^\s*(?:([A-PR-Z])\s*[-.]?\s*(?=\d))?(?:Q(?:uestion)?\.?\s*)?(\d+)\s*(${PART}|[a-h](?=[\s.):\-=,]))?(?:\s*[.):\-=,]+\s*|\s+)(\d+(?:\.\d+)?)\s*(?:(?:\/|out of|of)\s*(\d+(?:\.\d+)?))?\s*[-–,:|]?\s*(.*)$`, 'i'), out = [];
   for (const l of halves(text).split(/\r?\n/)) {
     const m = l.match(re);
-    if (m) out.push({ n: +m[1], part: (m[2] || '').replace(/[()\s]/g, '').toLowerCase(), got: num(m[3]), max: m[4] ? num(m[4]) : 0, remark: m[5] || '' });
+    if (m) out.push({ sec: (m[1] || '').toUpperCase(), n: +m[2], part: (m[3] || '').replace(/[()\s]/g, '').toLowerCase(), got: num(m[4]), max: m[5] ? num(m[5]) : 0, remark: m[6] || '' });
   }
   return out;
 }
@@ -348,7 +419,8 @@ function matchSheet(paper, sheet){
   const byNum = new Map(); paper.forEach(p => byNum.set(p.n, [...(byNum.get(p.n) || []), p.q]));
   const occ = new Map(), out = new Map(); let prev = null;
   for (const s of sheet) {
-    const k = occ.has(s.n) && prev && prev.n !== s.n ? occ.get(s.n) + 1 : (occ.get(s.n) ?? 0);
+    const labelled = s.sec ? (byNum.get(s.n) || []).indexOf(s.sec + s.n) : -1;   // "B1" goes straight to B1
+    const k = labelled >= 0 ? labelled : occ.has(s.n) && prev && prev.n !== s.n ? occ.get(s.n) + 1 : (occ.get(s.n) ?? 0);
     occ.set(s.n, k);
     const key = (byNum.get(s.n) || [])[k] ?? (k ? `S${k + 1}.${s.n}` : String(s.n));
     const cur = out.get(key) || { q: key, parts: new Map() };
@@ -545,11 +617,13 @@ function renderShots(kind){
   updateReadRow(kind);
 }
 function updateReadRow(kind){
-  const n = shots[kind].length, plural = n === 1 ? 'photo' : 'photos';
-  if (kind === 'paper') { $('#paperReadRow').hidden = !n; $('#paperRead').textContent = `Read text from ${n} ${plural}`; return; }
-  $('#sheetRead').hidden = !n; $('#aiGo').hidden = mode !== 'ai';
+  const n = shots[kind].length, plural = n === 1 ? 'photo' : 'photos', L = reader === 'lens';
+  // Google Lens mode swaps the photo buttons for the paste box
+  $('#' + kind + 'PhotoRow').hidden = L; $('#' + kind + 'Lens').hidden = !L; $('#' + kind + 'Shots').hidden = L || !n;
+  if (kind === 'paper') { $('#paperReadRow').hidden = L || !n; $('#paperRead').textContent = `Read text from ${n} ${plural}`; return; }
+  $('#sheetRead').hidden = L || !n; $('#aiGo').hidden = mode !== 'ai';
   $('#sheetRead').textContent = `${mode === 'ai' ? 'Read answers' : 'Read marks'} from ${n} ${plural}`;
-  $('#sheetReadRow').hidden = mode === 'marked' ? !n : false;
+  $('#sheetReadRow').hidden = mode === 'marked' ? (L || !n) : false;
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-rm]'); if (!b) return;
@@ -621,7 +695,7 @@ async function callAI(body, onWait){
 /* ---- on-device reader: Tesseract (open source, free), runs inside the phone's browser ---- */
 // Its engine and English model download once from jsDelivr (a public code library network) and are then
 // kept by the browser. Photos are never sent anywhere by this reader.
-let reader = 'device', ocrWorker = null, ocrProgress = () => {};
+let reader = 'lens', ocrWorker = null, ocrProgress = () => {};
 function getOcr(){
   if (!ocrWorker) {
     if (!window.Tesseract) return Promise.reject(new Error('reader script did not load'));
@@ -698,13 +772,82 @@ async function readOnDevice(kind){
   } finally { ocrProgress = () => {}; btn.disabled = false; }
 }
 
-function setReader(r){
-  reader = r; $('#rdDevice').setAttribute('aria-pressed', r === 'device'); $('#rdAI').setAttribute('aria-pressed', r === 'ai');
+function setReader(r, keep){
+  reader = r;
+  for (const [id, v] of [['#rdLens', 'lens'], ['#rdDevice', 'device'], ['#rdAI', 'ai']]) $(id).setAttribute('aria-pressed', r === v);
+  $('#lensGuide').hidden = r !== 'lens';
   updateReadRow('paper'); updateReadRow('sheet');
-  try { localStorage.setItem('marklens-reader', r); } catch {}
+  if (!keep) try { localStorage.setItem('marklens-reader2', r); } catch {}
 }
+$('#rdLens').onclick = () => setReader('lens');
 $('#rdDevice').onclick = () => setReader('device');
 $('#rdAI').onclick = () => setReader('ai');
+
+/* ---- Google Lens: the student copies a page's text in Lens and pastes it here, one page at a time ---- */
+// Lens reads handwriting far better than the readers above. Only the pasted text reaches MarkLens; when the
+// AI is on, that text (no photo) is sorted into questions or marks, which costs much less of the free AI allowance.
+const lens = { paper: [], sheet: [] }, lensBusy = { paper: false, sheet: false };
+function renderLens(kind){
+  const list = lens[kind];
+  $('#' + kind + 'Paste').querySelector('span').textContent = `Paste page ${list.length + 1}`;
+  $('#' + kind + 'Pages').innerHTML = list.map((p, i) => `<span class="chip${p.count ? '' : ' warn'}${i === list.length - 1 && p.fresh ? ' new' : ''}"><b>${p.count ? '✓' : '!'}</b>Page ${i + 1} · ${p.count} ${p.what}</span>`).join('')
+    + (list.length ? `<button type="button" class="linkbtn" data-lens-reset="${kind}">Start over</button>` : '');
+  list.forEach(p => { p.fresh = false; });
+}
+function resetLens(kind){ lens[kind] = []; renderLens(kind); setSt('#' + kind + 'LensStatus', ''); }
+async function addLensPage(kind, raw){
+  const st = '#' + kind + 'LensStatus', ta = $('#' + kind), btn = $('#' + kind + 'Paste');
+  raw = String(raw || '').replace(/\r/g, '').replace(/\u00a0/g, ' ').trim();
+  if (!raw) { setSt(st, 'Nothing was copied yet. In Lens tap Text, then Select all and Copy, and try again.', true); return; }
+  if (lensBusy[kind]) return;
+  lensBusy[kind] = true; btn.disabled = true;
+  if (sampleData) { $('#paper').value = ''; $('#sheet').value = ''; sampleData = false; resetLens('paper'); resetLens('sheet'); }   // the first real page replaces the example
+  const page = lens[kind].length + 1, answers = kind === 'sheet' && mode === 'ai';
+  let text = answers ? tidyCommon(raw) : kind === 'paper' ? tidyPaper(raw) : tidySheet(raw), aiErr = '';
+  if (!answers && ai && ai.enabled) {
+    setSt(st, `Sorting page ${page} into ${kind === 'paper' ? 'questions' : 'marks'}…`);
+    try {
+      const j = await callAI({ task: 'tidy', kind, text: raw, first: page, paper: kind === 'sheet' ? $('#paper').value : '' },
+        s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
+      const t = clean(j.text); if (t) text = t;
+    } catch (e) { aiErr = errMsg(e, ERR.upstream); }
+  }
+  ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + text;
+  const what = answers ? 'answers' : kind === 'paper' ? 'questions' : 'marks';
+  const count = answers ? text.split('\n').filter(l => /^\s*Q?\s*\d/i.test(l)).length || 1 : kind === 'paper' ? parsePaper(text).length : parseSheet(text).length;
+  lens[kind].push({ count, what, fresh: true }); renderLens(kind);
+  edits = {};
+  if (mode === 'marked' || kind === 'paper') rebuild(); else { changed(false); }
+  const next = answers ? ' Paste the next page, or tap Grade with AI.' : ' Paste the next page, or check the text below.';
+  if (aiErr) setSt(st, `Page ${page} pasted, but it could not be sorted automatically: ${aiErr} Check the text below.`, true);
+  else if (!count) setSt(st, kind === 'paper' ? `Page ${page}: no questions found. Check that the copied text has the question numbers.`
+    : `Page ${page}: no marks found. Check that the teacher's marks were copied, or type them below as 2: 1/3.`, true);
+  else setSt(st, `Page ${page} added: ${answers ? 'answers' : count + ' ' + what} found.${next}`);
+  lensBusy[kind] = false; btn.disabled = false;
+}
+for (const kind of ['paper', 'sheet']) {
+  const zone = $('#' + kind + 'Zone');
+  $('#' + kind + 'Paste').onclick = async () => {
+    let t = '';
+    try { if (navigator.clipboard && navigator.clipboard.readText) t = await navigator.clipboard.readText(); } catch {}
+    if (t && t.trim()) return addLensPage(kind, t);
+    zone.focus();
+    setSt('#' + kind + 'LensStatus', t === '' && navigator.clipboard && navigator.clipboard.readText
+      ? 'Nothing to paste, or this browser blocked it. Long-press the box next to the button and tap Paste.'
+      : 'Long-press the box next to the button and tap Paste.', true);
+  };
+  zone.addEventListener('paste', e => { const t = e.clipboardData && e.clipboardData.getData('text'); if (t) { e.preventDefault(); zone.value = ''; addLensPage(kind, t); } });
+  // some phone keyboards insert clipboard text without a paste event
+  zone.addEventListener('input', e => { if (/paste|replacement/i.test(e.inputType || '') && zone.value.trim()) { const t = zone.value; zone.value = ''; addLensPage(kind, t); } });
+  zone.addEventListener('blur', () => { if (zone.value.trim()) { const t = zone.value; zone.value = ''; addLensPage(kind, t); } });
+}
+// computers: Ctrl+V (⌘V on a Mac) instead of long-press
+if (matchMedia('(pointer:fine)').matches) for (const z of [$('#paperZone'), $('#sheetZone')]) z.placeholder = `…or click here and press ${/Mac/i.test(navigator.platform) ? '⌘V' : 'Ctrl+V'}`;
+document.addEventListener('click', e => {
+  const k = e.target.closest('[data-lens-reset]')?.dataset.lensReset; if (!k) return;
+  $('#' + k).value = ''; resetLens(k); edits = {};
+  if (mode === 'marked' || k === 'paper') rebuild(); else changed(false);
+});
 const readPhotos = kind => reader === 'ai' ? readWithAI(kind) : readOnDevice(kind);
 
 async function readWithAI(kind){
@@ -745,18 +888,18 @@ $('#paperRead').onclick = () => readPhotos('paper');
 $('#sheetRead').onclick = () => readPhotos('sheet');
 
 /* ---- modes + AI grading ---- */
-const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. Handwritten marks are hard to read on the phone: check every line, or switch to the AI reader. Remarks decide why marks were lost.';
-const HINT_AI = "Add photos of the unmarked answer sheet and tap Read answers, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
+const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. For handwriting, use Google Lens and paste each page. Remarks decide why marks were lost.';
+const HINT_AI = "Paste each page of the unmarked answers from Google Lens, add photos, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
 let sessionSheetMarked = null;
 function setMode(m){
   mode = m; $('#modeMarked').setAttribute('aria-pressed', m === 'marked'); $('#modeAi').setAttribute('aria-pressed', m === 'ai');
   $('#sheetHint').textContent = m === 'ai' ? HINT_AI : HINT_MARKED;
-  $('#sheetLbl').textContent = m === 'ai' ? 'Answers, typed or read from photos' : 'Marks read from the photos';
+  $('#sheetLbl').textContent = m === 'ai' ? 'Answers, pasted, typed or read from photos' : 'Marks found on the sheet';
   $('#sheet').placeholder = m === 'ai' ? 'Q1: x = 4\nQ2: (x-2)(x-3)\nQ3: b\n...' : '1: 2/2\n2: 1/3 sign error while factorising\n3: 2/5 concept not clear';
   updateReadRow('sheet');
 }
-$('#modeMarked').onclick = () => { if (mode === 'ai') $('#sheet').value = sessionSheetMarked ?? ''; setMode('marked'); rebuild(); };
-$('#modeAi').onclick = () => { if (mode === 'marked') sessionSheetMarked = $('#sheet').value; $('#sheet').value = ''; setMode('ai'); };
+$('#modeMarked').onclick = () => { if (mode === 'ai') $('#sheet').value = sessionSheetMarked ?? ''; resetLens('sheet'); setMode('marked'); rebuild(); };
+$('#modeAi').onclick = () => { if (mode === 'marked') sessionSheetMarked = $('#sheet').value; $('#sheet').value = ''; resetLens('sheet'); setMode('ai'); };
 
 $('#aiGo').onclick = async () => {
   const st = '#sheetPhotoStatus', typed = $('#sheet').value.trim();
@@ -764,7 +907,7 @@ $('#aiGo').onclick = async () => {
   if (!$('#paper').value.trim()) { setSt(st, 'Add the question paper first.', true); return; }
   // Grading always works from text: photos are read first, one page at a time, then the answers are graded.
   let answers = typed;
-  if (!answers && !shots.sheet.length) { setSt(st, 'Add photos of the answers, or type them, first.', true); return; }
+  if (!answers && !shots.sheet.length) { const m = reader === 'lens' ? 'Paste the answers from Google Lens, or type them, first.' : 'Add photos of the answers, or type them, first.'; if (reader === 'lens') setSt('#sheetLensStatus', m, true); setSt(st, m, true); return; }
   if (!answers && reader === 'device') { setSt(st, 'Tap Read answers first, or switch to the AI reader.', true); return; }
   $('#aiGo').disabled = true;
   if (!answers) {
@@ -787,10 +930,10 @@ $('#aiGo').onclick = async () => {
 
 /* ---- wiring ---- */
 let t; const deb = () => { clearTimeout(t); t = setTimeout(() => { sampleData = false; rebuild(); }, 350); };
-$('#paper').addEventListener('input', () => { if (mode === 'marked') deb(); else sampleData = false; });
-$('#sheet').addEventListener('input', () => { if (mode === 'marked') deb(); });
+$('#paper').addEventListener('input', () => { if (!$('#paper').value.trim()) resetLens('paper'); if (mode === 'marked') deb(); else sampleData = false; });
+$('#sheet').addEventListener('input', () => { if (!$('#sheet').value.trim()) resetLens('sheet'); if (mode === 'marked') deb(); });
 function dropShots(){ for (const k of ['paper', 'sheet']) { shots[k].forEach(s => URL.revokeObjectURL(s.url)); shots[k] = []; renderShots(k); setSt('#' + k + 'PhotoStatus', ''); } }
-$('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); setMode('marked'); changed(true); };
+$('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); resetLens('paper'); resetLens('sheet'); setMode('marked'); changed(true); };
 function loadSample(){
   $('#paper').value = `Section A: Algebra
 1. Solve 2x + 3 = 11 [2]
@@ -820,7 +963,7 @@ Section D: Statistics
 10: 3/4 careless calculation of median
 11: 3/3
 12: 2/4 incomplete explanation`;
-  edits = {}; dropShots(); setMode('marked'); rebuild(); sampleData = true; $('#sampleFlag').hidden = false; save();
+  edits = {}; dropShots(); resetLens('paper'); resetLens('sheet'); setMode('marked'); rebuild(); sampleData = true; $('#sampleFlag').hidden = false; save();
 }
 $('#sample').onclick = loadSample;
 
@@ -833,14 +976,17 @@ if (saved && Array.isArray(saved.rows) && saved.rows.length) {
   setMode(saved.mode === 'ai' ? 'ai' : 'marked'); changed(true);
 } else loadSample();
 
+let savedReader = null; try { savedReader = localStorage.getItem('marklens-reader2'); } catch {}
+setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens unless the student chose another reader
+
 /* AI reader and grading appear only when the site owner has switched on /api/ai */
 (async () => {
   try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
   if (!ai || !ai.enabled) { ai = null; return; }
   $('#modeAi').hidden = false; $('#rdAI').hidden = false;
   $('#aiWho').textContent = ai.backup ? `${ai.providerName}, or ${ai.backup} as a backup` : ai.providerName; $('#aiRisk').hidden = false;
-  let pref = null; try { pref = localStorage.getItem('marklens-reader'); } catch {}
-  if (pref === 'ai') setReader('ai');
+  $('#lensAiNote').hidden = false;
+  if (savedReader === 'ai') setReader('ai', true);
 })();
 </script>
 </body>

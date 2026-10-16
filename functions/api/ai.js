@@ -34,7 +34,8 @@ const PROVIDERS = {
   }
 };
 
-const OUT_TOKENS = { paper: 1800, sheet: 900, answers: 1800, grade: 3000 };  // answer budget per job
+const OUT_TOKENS = { paper: 1800, sheet: 900, answers: 1800, grade: 3000, tidy: 1500 };  // answer budget per job
+const MAX_TIDY = 12_000;           // characters of text pasted from Google Lens, per page
 const BACKUP_MODEL = '@cf/qwen/qwen3.8-27b';                                 // Workers AI copy of the same model
 const BACKUP_TIMEOUT = 60_000;                                                // ms to wait for the backup before saying "busy"
 const MAX_BODY = 9_000_000;        // bytes, about 6 phone photos after MarkLens shrinks them
@@ -82,11 +83,14 @@ export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return fail('bad_request', 400); }
   const task = body && body.task;
-  if (!['paper', 'sheet', 'answers', 'grade'].includes(task)) return fail('bad_request', 400);
+  if (!['paper', 'sheet', 'answers', 'grade', 'tidy'].includes(task)) return fail('bad_request', 400);
 
   const images = Array.isArray(body.images) ? body.images : [];
   if (images.length > s.maxImages || !images.every(u => typeof u === 'string' && IMG_RE.test(u))) return fail('bad_request', 400);
-  if (task !== 'grade' && !images.length) return fail('bad_request', 400);
+  if (task !== 'grade' && task !== 'tidy' && !images.length) return fail('bad_request', 400);
+  // tidy: text the student copied with Google Lens, no photo. Only the text comes here.
+  const kind = body.kind === 'sheet' ? 'sheet' : 'paper', lens = String(body.text || '').slice(0, MAX_TIDY);
+  if (task === 'tidy' && (images.length || !lens.trim())) return fail('bad_request', 400);
 
   const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 && n < 1000 ? n : d; };
   const total = int(body.total, images.length), first = Math.min(int(body.first, 1), total), last = Math.min(Math.max(int(body.last, first), first), total);
@@ -97,6 +101,7 @@ export async function onRequestPost({ request, env }) {
   const prompt = task === 'paper' ? paperPrompt(first, last, total)
     : task === 'sheet' ? sheetPrompt(first, last, total, paper)
     : task === 'answers' ? answersPrompt(first, last, total)
+    : task === 'tidy' ? tidyPrompt(kind, lens, first, paper)
     : gradePrompt(paper, answers, images.length > 0);
 
   let text, via = s.name;
@@ -282,6 +287,50 @@ Rules:
 - Describe diagrams in a few words in square brackets, e.g. [diagram: right triangle, sides labelled 3, 4, 5].
 - Write [?] for anything unreadable. Never copy names, roll numbers or school details.
 - ${SAFE}`;
+}
+
+function tidyPrompt(kind, text, page, paper) {
+  const intro = `Below is text that a student copied with Google Lens from page ${page} of ${kind === 'paper' ? 'an exam question paper' : "their exam answer sheet, which a teacher has already marked"}. Google Lens reads handwriting well, but it can break lines, merge columns, split a question over several lines, or put the teacher's marks and ticks out of place. It cannot show ticks and crosses, so judge from the marks written.`;
+  const fmt = kind === 'paper'
+    ? `Rewrite it as the question paper, in exactly this format and output nothing else:
+
+Section A: <topic of the section, e.g. Algebra>
+1. <full question text> [<marks>]
+
+Rules:
+- One line per question, starting with the question number as printed, then a full stop. Join lines that belong to one question.
+- End each line with that question's marks in square brackets, e.g. [3]. If a question has parts (a), (b), keep them on the same line and give the total marks. Write [?] if the marks are not in the text.
+- Write a section line before each section, naming the subject topic when you can tell it, otherwise the printed heading. If numbering restarts in each section, keep it as printed.
+- Keep multiple-choice options on the question line as a) ... b) ... c) ... d) ...
+- Keep the wording; fix only obvious reading slips (O for 0, l for 1). Write maths as plain text: x^2, sqrt(x), 3/4.
+- Leave out general instructions, headers, footers, page numbers, names, roll numbers and school details.`
+    : `QUESTION PAPER (for question numbers and marks available):
+${paper.trim() || '(not provided)'}
+
+Find the marks the teacher awarded for each question on this page. Output only one line per question, in question order, in exactly this format:
+<question number>: <marks awarded>/<marks available> <short reason marks were lost>
+
+Example lines:
+2: 1/3 sign error while factorising
+9: 2/2
+
+Rules:
+- Use the marks the teacher wrote, such as 2/3, 2, ½ or a circled number next to an answer, or a marks summary grid. Write half marks as decimals: 1.5.
+- Take marks available from the question paper when the text does not show them.
+- For a question with parts, write one line for the whole question, or one line per part such as 4(a): 1/2.
+- Use the question numbers as printed, in the paper's order. If the paper restarts numbering in each section, put the section letter first, such as B1: 2/3.
+- For the reason, use the teacher's remark when there is one. Otherwise compare the student's answer with the question and describe what went wrong in a few words, using these phrases where they fit: concept not clear, wrong formula, careless calculation, incomplete, not attempted, forgot units, sign error, poor presentation, diagram not labelled, ran out of time.
+- Only list questions that appear in this text. If you cannot find a mark for a question, leave it out. Leave the reason empty for full marks.
+- Never copy names, roll numbers or school details.`;
+  return `${intro}
+
+${fmt}
+- ${SAFE}
+
+COPIED TEXT:
+<<<
+${text}
+>>>`;
 }
 
 function gradePrompt(paper, answers, withImages) {
