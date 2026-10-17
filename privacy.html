@@ -43,22 +43,24 @@ small{color:var(--mute)}
   <a class="back" href="./">← Back to MarkLens</a>
   <div class="eyebrow">Privacy notice</div>
   <h1 style="margin-top:10px">What happens to your photos</h1>
-  <p class="lead">MarkLens can read your question paper and exam sheet in three ways. One keeps everything on your phone. One uses Google Lens, then sends only the copied text to an outside AI company. One sends photos to an outside AI company.</p>
+  <p class="lead">MarkLens can read your question paper and exam sheet in three ways. One keeps everything on your phone. One sends each photo to Google to be read. One sends photos to an outside AI company.</p>
 
-  <div class="risk"><b>Upload at your own risk.</b> When you use the AI reader, AI grading, or paste text from Google Lens, your photos or text are sent to an outside AI company. MarkLens cannot control what that company does with them, and it may save them. Do not upload anything you would not want kept by someone else.</div>
+  <div class="risk"><b>Upload at your own risk.</b> When you use the Google reader, the AI reader or AI grading, your photos or text are sent to an outside company. MarkLens cannot control what that company does with them. Do not upload anything you would not want kept by someone else.</div>
 
   <h2>The three readers</h2>
   <div class="wrap"><table>
     <thead><tr><th>Reader</th><th>Where photos go</th><th>Who can keep them</th></tr></thead>
     <tbody>
       <tr><td><b>On this phone · free</b></td><td>Nowhere. The photo is read inside your browser by Tesseract, free open-source software. The first time, your browser downloads Tesseract from jsDelivr, a public code library network; only the software is downloaded, never your photos.</td><td>Only your own device.</td></tr>
-      <tr><td><b>Google Lens</b></td><td>You scan the page in Google's own app (Google Lens, the Google app or Google Translate), so the photo goes to Google under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's privacy policy</a>. You then paste the text into MarkLens. If the site's AI is switched on, that text, but no photo, goes through this website's server to the AI company below to be sorted into questions and marks.</td><td>Google, for the scan. The AI company, for the pasted text.</td></tr>
+      <tr><td><b>On this phone</b>, red-pen marks</td><td>Nowhere. MarkLens finds the teacher's red ink and reads the marks inside your browser, with a small model that is part of this website.</td><td>Only your own device.</td></tr>
+      <tr><td><b>Google reader</b></td><td>Each photo goes through this website's server, which does not save it, to Google Cloud Vision, Google's text reader for apps. Your phone then works out which words are in red ink. If the site's AI is switched on, the text Google read (no photo) goes to the AI company below to match the marks to the questions.</td><td>Google, under its Cloud terms (see below). The AI company, for the text.</td></tr>
       <tr><td><b>AI reader</b> and <b>AI grading</b></td><td>Through this website's server, which does not save them, to the AI company the site owner has chosen (normally Groq, with Cloudflare Workers AI as a backup when Groq is busy; Google Gemini only on sites for adults).</td><td>The AI company, under its own terms. See below.</td></tr>
     </tbody>
   </table></div>
 
-  <h2>What the AI companies say they do</h2>
+  <h2>What these companies say they do</h2>
   <ul>
+    <li><b>Google Cloud Vision</b> (the Google reader). Google says photos sent for reading are handled in memory and not written to disk, and that it does not use them to train or improve its models. It keeps some details of each request, such as its time and size, for a short time. Read <a href="https://cloud.google.com/vision/docs/data-usage" target="_blank" rel="noopener">Google's Cloud Vision data usage page</a>.</li>
     <li><b>Groq</b> (default). Groq's services agreement says it does not use what you send to train AI models. It may process and briefly keep requests to run the service, keep it reliable and check misuse. Read <a href="https://console.groq.com/docs/legal/services-agreement" target="_blank" rel="noopener">Groq's services agreement</a>.</li>
     <li><b>Cloudflare Workers AI</b> (backup). When Groq is busy, the same AI model runs on Cloudflare, the company that already hosts MarkLens. Read <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare's privacy policy</a>.</li>
     <li><b>Google Gemini</b> (only if the site owner switches it on). On its free service, Google says it uses what you send to provide, improve and develop its products, and that human reviewers may read it. Google also says its API must not be used in apps likely to be used by people under 18. Read <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Google's Gemini API terms</a>.</li>
@@ -68,7 +70,8 @@ small{color:var(--mute)}
   <h2>What MarkLens itself keeps</h2>
   <ul>
     <li>Your question paper text, marks and dashboard are saved only in this browser, on this device, so they are still there next time. Clearing your browser's site data deletes them.</li>
-    <li>This website's server passes AI requests through without saving the photos or text. It counts how many AI requests each internet address makes each day, to stop abuse. That count is deleted after two days.</li>
+    <li>Photos you add stay in this browser tab only while you use it; they are not saved on your device or on this website.</li>
+    <li>This website's server passes reading and AI requests through without saving the photos or text. It counts how many requests each internet address makes each day, to stop abuse. That count is deleted after two days.</li>
     <li>MarkLens has no accounts, no adverts and no tracking.</li>
   </ul>
 
