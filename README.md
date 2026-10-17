@@ -4,7 +4,7 @@ MarkLens is a website. Students photograph a question paper and their exam sheet
 
 It reads pages in three ways:
 
-- **Google Lens · recommended for handwriting.** Students copy each page's text in Google Lens and paste every page in, then tap **Find where marks were lost** once. Pasting sends nothing; that tap sorts all the pasted text (never a photo) into questions and marks with the AI, in a few batched requests. Without an AI key, MarkLens's built-in rules sort it instead.
+- **Google Lens · recommended for handwriting.** Students take or choose photos of every page as usual and tap **Read with Google Lens**. MarkLens opens each photo in Google Lens (through the phone's share menu, or long-press → Search with Google Lens). The student taps Text → Select all → Copy and comes back, and MarkLens picks up the text and moves to the next photo. After the last photo, the text (never the photo) is sorted into questions or marks with the AI and matched to the question paper. Without an AI key, MarkLens's built-in rules sort it instead.
 - **On this phone · free.** Uses Tesseract, which runs inside the browser. Nothing is sent anywhere, and it needs no account or key.
 - **AI reader** and **AI grading.** These use a free AI service, Groq by default. They are better for handwriting and can grade unmarked answers. They only appear once you add an API key (step 3).
 
