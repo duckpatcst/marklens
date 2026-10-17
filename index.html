@@ -15,17 +15,17 @@
    Input: photos (camera or gallery) read on the device (Tesseract) or by the site's AI function; touch-sized controls for Android and iOS. */
 :root{
   --bg:#f1f4f7;--surface:#ffffff;--ink:#13202e;--mute:#5a6879;--line:#dce2e9;
-  --pen:#d92d3a;--blue:#1f4fd8;--ok:#0f8a6b;--warn:#b26a00;--tint:#e8eefc;--paper:#fbfcfd;
+  --pen:#d92d3a;--blue:#1f4fd8;--ok:#0f8a6b;--warn:#b26a00;--tint:#e8eefc;--paper:#fbfcfd;--on-pen:#ffffff;
   --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
   --f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
-  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}}
+  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;--on-pen:#0c131c;color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
-  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}
+  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;--on-pen:#0c131c;color-scheme:dark}
 *{box-sizing:border-box}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
@@ -103,6 +103,7 @@ textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line
 .hint{color:var(--mute);font-size:.82rem;margin:8px 0 0}
 .status{font-size:.82rem;color:var(--ok)}
 .status.err{color:var(--pen)}
+.status.wait{color:var(--blue)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px;max-width:100%}
 .seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-size:.85rem;color:var(--mute)}
 .seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
@@ -143,6 +144,26 @@ a.inline{color:var(--blue)}
 .lg-steps span{color:var(--mute)}
 kbd{font:600 .74rem var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;white-space:nowrap}
 .lg-note{margin-top:10px}
+.lg-tip{margin-top:8px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--ok) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--ok) 25%,var(--line));font-size:.84rem;color:var(--ink)}
+.lg-tip b{color:var(--ok)}
+
+/* the one button: sort every pasted page and fill the dashboard. Stays pinned to the bottom while pages are pasted. */
+.finish{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:4;margin-top:16px;display:flex;align-items:center;gap:12px 16px;flex-wrap:wrap;padding:12px 14px;
+  background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 34px -18px rgba(10,25,50,.45)}
+.fin-info{flex:1 1 240px;min-width:0}
+.fin-counts{display:flex;gap:4px 16px;flex-wrap:wrap;font-size:.84rem;color:var(--mute)}
+.fc::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--line);margin-right:7px;vertical-align:1px}
+.fc.wait::before{background:var(--blue)}
+.fc.ok::before{background:var(--ok)}
+.fc b{color:var(--ink);font-weight:600}
+.fin-bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:9px}
+.fin-bar span{display:block;height:100%;width:0;background:var(--pen);border-radius:3px;transition:width .35s ease}
+.finish .status{display:block;margin-top:6px}
+.finish .status:empty{display:none}
+.btn.go{flex:1 1 220px;min-height:48px;font-weight:600;font-size:.98rem;background:var(--pen);border-color:var(--pen);color:var(--on-pen)}
+.btn.go svg{width:19px;height:19px}
+@media(hover:hover){.btn.go:hover{background:color-mix(in srgb,var(--pen) 85%,var(--ink));border-color:color-mix(in srgb,var(--pen) 85%,var(--ink))}}
+@media(prefers-reduced-motion:reduce){.fin-bar span{transition:none}}
 
 /* paste box under the paper and the sheet */
 .pastebox{margin-top:12px;padding:12px;border:1.5px dashed color-mix(in srgb,var(--blue) 45%,var(--line));border-radius:10px;background:color-mix(in srgb,var(--tint) 55%,var(--surface))}
@@ -156,6 +177,7 @@ textarea.pastezone:focus{border-color:var(--blue);color:var(--ink)}
 .chip{display:inline-flex;align-items:center;gap:6px;font:500 .74rem var(--f-mono);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
 .chip b{color:var(--ok)}
 .chip.warn b{color:var(--warn)}
+.chip.wait b{color:var(--blue);font-size:.6rem}
 .linkbtn{border:0;background:none;color:var(--blue);font-size:.82rem;cursor:pointer;padding:6px 4px;text-decoration:underline;text-underline-offset:2px}
 .pastebox .status{display:block;margin-top:8px}
 .pastebox .status:empty{display:none}
@@ -260,15 +282,16 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
       <button type="button" class="rd" id="rdAI" aria-pressed="false" hidden><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg></span><span><b>AI reader</b><small>Automatic from photos. Photos go to an AI company.</small></span></button>
     </div>
     <div class="lensguide" id="lensGuide" hidden>
-      <span class="eyebrow">Google Lens · for every page</span>
-      <h3>Let Lens read the page, then paste the text here</h3>
+      <span class="eyebrow">Google Lens · every page, then one tap</span>
+      <h3>Copy every page with Lens, paste them all, then find your lost marks</h3>
       <ol class="lg-steps">
-        <li><span><b>Open Lens</b>In the Google app tap the camera icon, or open Google Lens, or Google Translate → <kbd>Camera</kbd>.</span></li>
-        <li><span><b>Point at one page</b>Hold it flat with all four edges in view, then tap <kbd>Text</kbd>.</span></li>
-        <li><span><b>Copy it all</b>Tap <kbd>Select all</kbd>, then <kbd>Copy</kbd>.</span></li>
-        <li><span><b>Paste it here</b>Come back and tap <kbd>Paste page</kbd> under the paper or the sheet. Do the next page the same way.</span></li>
+        <li><span><b>Copy a page in Lens</b>Open Google Lens (or the camera in the Google app, or Translate → <kbd>Camera</kbd>), point at the page, tap <kbd>Text</kbd> → <kbd>Select all</kbd> → <kbd>Copy</kbd>.</span></li>
+        <li><span><b>Paste it here</b>Tap <kbd>Paste page</kbd> under the question paper or the exam sheet. It's added straight away, no waiting.</span></li>
+        <li><span><b>Do every page</b>Repeat for each page of the paper and the sheet. MarkLens keeps them in order until you're done.</span></li>
+        <li><span><b>Find lost marks</b>Tap <kbd>Find where marks were lost</kbd> at the bottom. Every page is sorted at once and the dashboard fills in.</span></li>
       </ol>
-      <p class="hint lg-note">Lens is Google's app, so the page you scan goes to Google under Google's terms. MarkLens only receives the text you paste.<span id="lensAiNote" hidden> MarkLens's AI then sorts that text into questions and marks. No photo is sent.</span></p>
+      <p class="lg-tip"><b>Faster on Android:</b> switch on Gboard's clipboard, copy every page in Lens one after another, then come back once, tap the paste box here and tap each copied page in Gboard's clipboard.</p>
+      <p class="hint lg-note">Lens is Google's app, so the page you scan goes to Google under Google's terms. MarkLens only receives the text you paste.<span id="lensAiNote" hidden> When you tap Find, MarkLens's AI sorts that text into questions and marks. No photo is sent.</span></p>
     </div>
     <p class="notice risk" id="aiRisk" role="note" hidden><b>Upload at your own risk.</b> Photos, pasted text and answers that MarkLens's AI reads, sorts or grades go to an outside AI company (<span id="aiWho">the AI provider</span>). They may be saved and used to improve its output. Crop out your name, roll number and school first. The free on-phone reader keeps photos on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
     <div class="grid two">
@@ -309,6 +332,14 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
         <textarea id="sheet" spellcheck="false" aria-label="Exam sheet text"></textarea>
         <p class="hint" id="sheetHint"></p>
       </div>
+    </div>
+    <div class="finish" id="lensFinish" hidden>
+      <div class="fin-info">
+        <div class="fin-counts"><span class="fc" id="finPaper">Question paper: <b>not added yet</b></span><span class="fc" id="finSheet"><span>Exam sheet</span>: <b>not added yet</b></span></div>
+        <span class="status" id="finStatus" role="status"></span>
+        <div class="fin-bar" id="finBar" hidden><span></span></div>
+      </div>
+      <button type="button" class="btn go" id="lensGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/><path d="m7.8 10.6 1.9 1.9 3.5-3.6"/></svg><span>Find where marks were lost</span></button>
     </div>
     <div class="panel" style="margin-top:16px">
       <h3>Question breakdown <span class="hint" style="font-weight:400">Edit any cell and the dashboard updates.</span></h3>
@@ -365,6 +396,9 @@ const FIX = {
   'Unspecified':'Compare these answers with the marking scheme to find where each mark went, then tag the reason in the table.'
 };
 let rows = [], aiExtra = null, mode = 'marked', sampleData = true, sheetCount = 0;
+// Google Lens pages: pasted text waits ("pending") in the box under a --- Page N --- line until Find sorts it.
+const lens = { paper: [], sheet: [] }, pending = { paper: false, sheet: false };
+const MARK_LINE = /^-{3} Page \d+ -{3}$/m;
 let edits = {};                       // table changes kept across re-parsing, keyed by question number
 const shots = { paper: [], sheet: [] };  // photos: {blob, url}
 
@@ -435,7 +469,7 @@ function matchSheet(paper, sheet){
 }
 function rebuild(){
   if (mode !== 'marked') return;
-  const paper = parsePaper($('#paper').value), sheet = matchSheet(paper, parseSheet($('#sheet').value)), by = new Map();
+  const paper = parsePaper(liveText('paper')), sheet = matchSheet(paper, parseSheet(liveText('sheet'))), by = new Map();
   sheetCount = sheet.length;
   paper.forEach(({ n, ...p }) => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
   const seen = new Set();
@@ -454,13 +488,28 @@ function rebuild(){
   }
   rows = [...by.values()]; aiExtra = null;   // paper order, then anything found only on the sheet
   const missing = sheet.length ? paper.filter(p => !seen.has(p.q)).map(p => qName(p.q)) : [];
-  $('#paperStatus').textContent = paper.length ? `${paper.length} questions` : '';
-  $('#sheetStatus').textContent = sheet.length ? `${sheet.length} marks` + (missing.length ? ` · ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? '…' : ''} not found` : '') : '';
-  $('#sheetStatus').className = missing.length ? 'status err' : 'status';
+  $('#paperStatus').textContent = pending.paper ? `${pagesTxt(waiting('paper'))} waiting` : paper.length ? `${paper.length} questions` : '';
+  $('#sheetStatus').textContent = pending.sheet ? `${pagesTxt(waiting('sheet'))} waiting` : sheet.length ? `${sheet.length} marks` + (missing.length ? ` · ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? '…' : ''} not found` : '') : '';
+  $('#sheetStatus').className = pending.sheet ? 'status wait' : missing.length ? 'status err' : 'status';
+  $('#paperStatus').className = pending.paper ? 'status wait' : 'status';
   changed(true);
 }
-function changed(tbl){ if (tbl) renderTable(); renderDash(); $('#sampleFlag').hidden = !sampleData; save(); }
-function save(){ try { localStorage.setItem('marklens3', JSON.stringify({ paper: $('#paper').value, sheet: $('#sheet').value, rows, mode, sampleData, aiExtra, edits })); } catch {} }
+function changed(tbl){ if (tbl) renderTable(); renderDash(); $('#sampleFlag').hidden = !sampleData; updateFinish(); save(); }
+function save(){ try { localStorage.setItem('marklens3', JSON.stringify({ paper: $('#paper').value, sheet: $('#sheet').value, rows, mode, sampleData, aiExtra, edits, pending })); } catch {} }
+// The pasted pages in a box: text before the first --- Page N --- line is already sorted; each page after it waits.
+function splitLens(kind){
+  const text = $('#' + kind).value, i = text.search(MARK_LINE);
+  if (i < 0) return { done: text, pages: [] };
+  const pages = [];
+  for (const part of text.slice(i).split(/^(?=-{3} Page \d+ -{3}$)/m)) {
+    const m = part.match(/^-{3} Page (\d+) -{3}\n?([\s\S]*)$/);
+    if (m && m[2].trim()) pages.push({ n: +m[1], text: m[2].trim() });
+  }
+  return { done: text.slice(0, i).trim(), pages };
+}
+function liveText(kind){ return pending[kind] ? splitLens(kind).done : $('#' + kind).value; }
+const waiting = kind => lens[kind].filter(p => !p.sorted).length;
+const pagesTxt = n => `${n} ${n === 1 ? 'page' : 'pages'}`;
 
 /* ---- table ---- */
 function renderTable(){
@@ -516,6 +565,7 @@ const pc = p => p >= 75 ? 'var(--ok)' : p >= 50 ? 'var(--warn)' : 'var(--pen)';
 function renderDash(){
   const d = $('#dash');
   const tot = rows.reduce((a, r) => ({ got: a.got + r.got, max: a.max + r.max }), { got: 0, max: 0 });
+  if (pending.paper || pending.sheet) { d.innerHTML = `<div class="panel empty">Pages waiting: question paper ${waiting('paper')}, ${mode === 'ai' ? 'answers' : 'exam sheet'} ${waiting('sheet')}.<br>When every page is in, tap <b>${mode === 'ai' ? 'Grade and find lost marks' : 'Find where marks were lost'}</b>.</div>`; return; }
   if (!rows.length || !tot.max) { d.innerHTML = '<div class="panel empty">Your dashboard appears here once there are questions with marks.</div>'; return; }
   if (mode === 'marked' && !sheetCount && !rows.some(r => r.got > 0)) { d.innerHTML = '<div class="panel empty">The questions are ready. Add photos of your marked exam sheet to see where the marks went.</div>'; return; }
   const lost = tot.max - tot.got, pct = tot.got / tot.max * 100, topics = groupBy('topic'), types = groupBy('type');
@@ -621,9 +671,9 @@ function updateReadRow(kind){
   // Google Lens mode swaps the photo buttons for the paste box
   $('#' + kind + 'PhotoRow').hidden = L; $('#' + kind + 'Lens').hidden = !L; $('#' + kind + 'Shots').hidden = L || !n;
   if (kind === 'paper') { $('#paperReadRow').hidden = L || !n; $('#paperRead').textContent = `Read text from ${n} ${plural}`; return; }
-  $('#sheetRead').hidden = L || !n; $('#aiGo').hidden = mode !== 'ai';
+  $('#sheetRead').hidden = L || !n; $('#aiGo').hidden = mode !== 'ai' || L;
   $('#sheetRead').textContent = `${mode === 'ai' ? 'Read answers' : 'Read marks'} from ${n} ${plural}`;
-  $('#sheetReadRow').hidden = mode === 'marked' ? (L || !n) : false;
+  $('#sheetReadRow').hidden = L || (mode === 'marked' && !n);
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-rm]'); if (!b) return;
@@ -776,55 +826,120 @@ function setReader(r, keep){
   reader = r;
   for (const [id, v] of [['#rdLens', 'lens'], ['#rdDevice', 'device'], ['#rdAI', 'ai']]) $(id).setAttribute('aria-pressed', r === v);
   $('#lensGuide').hidden = r !== 'lens';
-  updateReadRow('paper'); updateReadRow('sheet');
+  updateReadRow('paper'); updateReadRow('sheet'); updateFinish();
   if (!keep) try { localStorage.setItem('marklens-reader2', r); } catch {}
 }
 $('#rdLens').onclick = () => setReader('lens');
 $('#rdDevice').onclick = () => setReader('device');
 $('#rdAI').onclick = () => setReader('ai');
 
-/* ---- Google Lens: the student copies a page's text in Lens and pastes it here, one page at a time ---- */
-// Lens reads handwriting far better than the readers above. Only the pasted text reaches MarkLens; when the
-// AI is on, that text (no photo) is sorted into questions or marks, which costs much less of the free AI allowance.
-const lens = { paper: [], sheet: [] }, lensBusy = { paper: false, sheet: false };
+/* ---- Google Lens: copy every page in Lens, paste them all here, then one tap sorts them and fills the dashboard ---- */
+// Lens reads handwriting far better than the readers above. Pasting only adds the page; nothing is sent until Find.
+// Find sends the text (no photo) to the AI in a few batches of pages, which uses little of the free AI allowance.
 function renderLens(kind){
   const list = lens[kind];
   $('#' + kind + 'Paste').querySelector('span').textContent = `Paste page ${list.length + 1}`;
-  $('#' + kind + 'Pages').innerHTML = list.map((p, i) => `<span class="chip${p.count ? '' : ' warn'}${i === list.length - 1 && p.fresh ? ' new' : ''}"><b>${p.count ? '✓' : '!'}</b>Page ${i + 1} · ${p.count} ${p.what}</span>`).join('')
+  $('#' + kind + 'Pages').innerHTML = list.map((p, i) => `<span class="chip${p.sorted ? '' : ' wait'}${p.fresh ? ' new' : ''}" title="${p.sorted ? 'Sorted' : 'Waiting for Find'}"><b>${p.sorted ? '✓' : '●'}</b>Page ${i + 1}</span>`).join('')
     + (list.length ? `<button type="button" class="linkbtn" data-lens-reset="${kind}">Start over</button>` : '');
   list.forEach(p => { p.fresh = false; });
 }
-function resetLens(kind){ lens[kind] = []; renderLens(kind); setSt('#' + kind + 'LensStatus', ''); }
-async function addLensPage(kind, raw){
-  const st = '#' + kind + 'LensStatus', ta = $('#' + kind), btn = $('#' + kind + 'Paste');
-  raw = String(raw || '').replace(/\r/g, '').replace(/\u00a0/g, ' ').trim();
+function resetLens(kind){ lens[kind] = []; pending[kind] = false; renderLens(kind); setSt('#' + kind + 'LensStatus', ''); }
+function addLensPage(kind, raw){
+  const st = '#' + kind + 'LensStatus', ta = $('#' + kind);
+  raw = String(raw || '').replace(/\r/g, '').replace(/ /g, ' ').replace(/^-{3} Page \d+ -{3}$/gm, '').trim();
   if (!raw) { setSt(st, 'Nothing was copied yet. In Lens tap Text, then Select all and Copy, and try again.', true); return; }
-  if (lensBusy[kind]) return;
-  lensBusy[kind] = true; btn.disabled = true;
   if (sampleData) { $('#paper').value = ''; $('#sheet').value = ''; sampleData = false; resetLens('paper'); resetLens('sheet'); }   // the first real page replaces the example
-  const page = lens[kind].length + 1, answers = kind === 'sheet' && mode === 'ai';
-  let text = answers ? tidyCommon(raw) : kind === 'paper' ? tidyPaper(raw) : tidySheet(raw), aiErr = '';
-  if (!answers && ai && ai.enabled) {
-    setSt(st, `Sorting page ${page} into ${kind === 'paper' ? 'questions' : 'marks'}…`);
-    try {
-      const j = await callAI({ task: 'tidy', kind, text: raw, first: page, paper: kind === 'sheet' ? $('#paper').value : '' },
-        s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
-      const t = clean(j.text); if (t) text = t;
-    } catch (e) { aiErr = errMsg(e, ERR.upstream); }
-  }
-  ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + text;
-  const what = answers ? 'answers' : kind === 'paper' ? 'questions' : 'marks';
-  const count = answers ? text.split('\n').filter(l => /^\s*Q?\s*\d/i.test(l)).length || 1 : kind === 'paper' ? parsePaper(text).length : parseSheet(text).length;
-  lens[kind].push({ count, what, fresh: true }); renderLens(kind);
+  const n = lens[kind].length + 1;
+  ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + `--- Page ${n} ---\n` + raw;
+  ta.scrollTop = ta.scrollHeight;
+  lens[kind].push({ fresh: true }); pending[kind] = true; renderLens(kind);
+  const other = kind === 'paper' ? 'exam sheet' : 'question paper';
+  setSt(st, `Page ${n} added. Copy the next page in Lens and paste again, or paste the ${other}.`);
+  setSt('#finStatus', '');
   edits = {};
-  if (mode === 'marked' || kind === 'paper') rebuild(); else { changed(false); }
-  const next = answers ? ' Paste the next page, or tap Grade with AI.' : ' Paste the next page, or check the text below.';
-  if (aiErr) setSt(st, `Page ${page} pasted, but it could not be sorted automatically: ${aiErr} Check the text below.`, true);
-  else if (!count) setSt(st, kind === 'paper' ? `Page ${page}: no questions found. Check that the copied text has the question numbers.`
-    : `Page ${page}: no marks found. Check that the teacher's marks were copied, or type them below as 2: 1/3.`, true);
-  else setSt(st, `Page ${page} added: ${answers ? 'answers' : count + ' ' + what} found.${next}`);
-  lensBusy[kind] = false; btn.disabled = false;
+  if (mode === 'marked') rebuild(); else changed(false);
 }
+function updateFinish(){
+  const box = $('#lensFinish'); if (!box) return;
+  box.hidden = reader !== 'lens';
+  for (const [kind, id] of [['paper', '#finPaper'], ['sheet', '#finSheet']]) {
+    const el = $(id), has = $('#' + kind).value.trim(), n = lens[kind].length;
+    const w = waiting(kind), [cls, txt] = !has ? ['', 'not added yet'] : pending[kind] && w ? ['wait', `${pagesTxt(w)} waiting`] : ['ok', n ? `${pagesTxt(n)} ready` : 'ready'];
+    el.className = 'fc ' + cls; el.querySelector('b').textContent = txt;
+  }
+  $('#finSheet span').textContent = mode === 'ai' ? 'Answers' : 'Exam sheet';
+  $('#lensGo span').textContent = mode === 'ai' ? 'Grade and find lost marks' : 'Find where marks were lost';
+}
+function finBar(i, n){ const b = $('#finBar'); b.hidden = !n; b.firstElementChild.style.width = (n ? Math.round(i / n * 100) : 0) + '%'; }
+// up to about 6,000 characters of pages per AI request
+function chunkPages(pages, max = 6000){
+  const out = []; let cur = null;
+  for (const p of pages) {
+    const block = `--- Page ${p.n} ---\n${p.text}`;
+    if (cur && cur.text.length + block.length + 2 > max) { out.push(cur); cur = null; }
+    if (!cur) cur = { first: p.n, last: p.n, text: block }; else { cur.text += '\n\n' + block; cur.last = p.n; }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+const unmark = t => t.replace(/^-{3} Page \d+ -{3}$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+let finding = false;
+async function findLostMarks(){
+  if (finding) return;
+  const st = '#finStatus', answersMode = mode === 'ai';
+  if (!$('#paper').value.trim()) { setSt(st, 'Paste the question paper first: copy each page in Google Lens, then tap Paste page.', true); $('#paperLens').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if (!$('#sheet').value.trim()) { setSt(st, answersMode ? 'Paste the answer sheet too.' : 'Paste the exam sheet too.', true); $('#sheetLens').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if (answersMode && !(ai && ai.enabled)) { setSt(st, ERR.not_configured, true); return; }
+  const P = splitLens('paper'), S = splitLens('sheet');
+  const jobs = [
+    ...(pending.paper ? chunkPages(P.pages).map(c => ({ kind: 'paper', c })) : []),
+    ...(pending.sheet && !answersMode ? chunkPages(S.pages).map(c => ({ kind: 'sheet', c })) : [])
+  ];
+  const total = jobs.length + (answersMode ? 1 : 0); let step = 0, aiFailed = false, aiOff = !(ai && ai.enabled);
+  finding = true; $('#lensGo').disabled = true; finBar(0, total);
+  const wait = s => setSt(st, `The free AI is busy. Trying again in ${s}s…`);
+  try {
+    const out = { paper: [], sheet: [] };
+    for (const { kind, c } of jobs) {
+      const pages = c.first === c.last ? `page ${c.first}` : `pages ${c.first}–${c.last}`;
+      setSt(st, `Sorting the ${kind === 'paper' ? 'question paper' : 'marks'}, ${pages}…`);
+      let text = '';
+      if (!aiOff) {
+        try {
+          const j = await callAI({ task: 'tidy', kind, text: c.text, first: c.first, last: c.last, paper: kind === 'sheet' ? (out.paper.length ? [P.done, ...out.paper].join('\n') : liveText('paper')) : '' }, wait);
+          text = clean(j.text);
+        } catch (e) { aiFailed = true; if (e && (e.code === 'limit' || e.code === 'not_configured')) aiOff = true; }   // used up for today: stop asking
+      }
+      // no AI, or it failed: the built-in rules sort this batch instead
+      if (!text) text = kind === 'paper' ? tidyPaper(unmark(c.text)) : tidySheet(unmark(c.text));
+      out[kind].push(text); finBar(++step, total);
+    }
+    if (pending.paper) { $('#paper').value = [P.done, ...out.paper].filter(x => x.trim()).join('\n'); pending.paper = false; }
+    if (pending.sheet && !answersMode) { $('#sheet').value = [S.done, ...out.sheet].filter(x => x.trim()).join('\n'); pending.sheet = false; }
+    sampleData = false; edits = {};
+    if (answersMode) {
+      if (pending.sheet) { $('#sheet').value = unmark($('#sheet').value); pending.sheet = false; }
+      changed(true);
+      setSt(st, 'Grading the answers… this can take up to a minute.');
+      const ok = await gradeAnswers($('#sheet').value.trim(), st);
+      finBar(++step, total);
+      if (!ok) return;
+    } else {
+      rebuild();
+      const qs = rows.length, marks = sheetCount;
+      if (!marks) { setSt(st, `Found ${qs} questions but no marks. Check that the teacher's marks were copied in Lens, or type them in the exam sheet box as 2: 1/3.`, true); return; }
+      const gap = qs - marks, note = (aiFailed ? " The AI couldn't sort some pages, so MarkLens's built-in rules did." : '')
+        + (gap > 0 ? ` ${gap} ${gap === 1 ? 'question has' : 'questions have'} no mark yet: check the exam sheet box and add them as 2: 1/3.` : '');
+      setSt(st, `Done: ${qs} ${qs === 1 ? 'question' : 'questions'} and ${marks} ${marks === 1 ? 'mark' : 'marks'} found.${note}`, !!note);
+    }
+    setTimeout(() => $('#dashboard').scrollIntoView({ behavior: 'smooth' }), 250);
+  } finally {
+    finding = false; $('#lensGo').disabled = false; setTimeout(() => finBar(0, 0), 900);
+    for (const k of ['paper', 'sheet']) if (!pending[k]) { lens[k].forEach(p => { p.sorted = true; }); renderLens(k); setSt('#' + k + 'LensStatus', ''); }
+    updateFinish(); save();
+  }
+}
+$('#lensGo').onclick = findLostMarks;
 for (const kind of ['paper', 'sheet']) {
   const zone = $('#' + kind + 'Zone');
   $('#' + kind + 'Paste').onclick = async () => {
@@ -836,10 +951,16 @@ for (const kind of ['paper', 'sheet']) {
       ? 'Nothing to paste, or this browser blocked it. Long-press the box next to the button and tap Paste.'
       : 'Long-press the box next to the button and tap Paste.', true);
   };
-  zone.addEventListener('paste', e => { const t = e.clipboardData && e.clipboardData.getData('text'); if (t) { e.preventDefault(); zone.value = ''; addLensPage(kind, t); } });
-  // some phone keyboards insert clipboard text without a paste event
-  zone.addEventListener('input', e => { if (/paste|replacement/i.test(e.inputType || '') && zone.value.trim()) { const t = zone.value; zone.value = ''; addLensPage(kind, t); } });
-  zone.addEventListener('blur', () => { if (zone.value.trim()) { const t = zone.value; zone.value = ''; addLensPage(kind, t); } });
+  const take = () => { const t = zone.value; zone.value = ''; if (t.trim()) addLensPage(kind, t); };
+  let zt;
+  zone.addEventListener('paste', e => { const t = e.clipboardData && e.clipboardData.getData('text'); if (t) { e.preventDefault(); clearTimeout(zt); zone.value = ''; addLensPage(kind, t); } });
+  // Gboard's clipboard and some keyboards insert text without a paste event: treat each insert as a page
+  zone.addEventListener('input', e => {
+    clearTimeout(zt);
+    if (/paste|replacement/i.test(e.inputType || '')) return take();
+    zt = setTimeout(() => { if (zone.value.trim().length >= 15) take(); }, 900);
+  });
+  zone.addEventListener('blur', () => { clearTimeout(zt); take(); });
 }
 // computers: Ctrl+V (⌘V on a Mac) instead of long-press
 if (matchMedia('(pointer:fine)').matches) for (const z of [$('#paperZone'), $('#sheetZone')]) z.placeholder = `…or click here and press ${/Mac/i.test(navigator.platform) ? '⌘V' : 'Ctrl+V'}`;
@@ -888,15 +1009,15 @@ $('#paperRead').onclick = () => readPhotos('paper');
 $('#sheetRead').onclick = () => readPhotos('sheet');
 
 /* ---- modes + AI grading ---- */
-const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. For handwriting, use Google Lens and paste each page. Remarks decide why marks were lost.';
-const HINT_AI = "Paste each page of the unmarked answers from Google Lens, add photos, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
+const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. For handwriting, paste every page from Google Lens and tap Find where marks were lost. Remarks decide why marks were lost.';
+const HINT_AI = "Paste every page of the unmarked answers from Google Lens, add photos, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
 let sessionSheetMarked = null;
 function setMode(m){
   mode = m; $('#modeMarked').setAttribute('aria-pressed', m === 'marked'); $('#modeAi').setAttribute('aria-pressed', m === 'ai');
   $('#sheetHint').textContent = m === 'ai' ? HINT_AI : HINT_MARKED;
   $('#sheetLbl').textContent = m === 'ai' ? 'Answers, pasted, typed or read from photos' : 'Marks found on the sheet';
   $('#sheet').placeholder = m === 'ai' ? 'Q1: x = 4\nQ2: (x-2)(x-3)\nQ3: b\n...' : '1: 2/2\n2: 1/3 sign error while factorising\n3: 2/5 concept not clear';
-  updateReadRow('sheet');
+  updateReadRow('sheet'); updateFinish();
 }
 $('#modeMarked').onclick = () => { if (mode === 'ai') $('#sheet').value = sessionSheetMarked ?? ''; resetLens('sheet'); setMode('marked'); rebuild(); };
 $('#modeAi').onclick = () => { if (mode === 'marked') sessionSheetMarked = $('#sheet').value; $('#sheet').value = ''; resetLens('sheet'); setMode('ai'); };
@@ -916,17 +1037,19 @@ $('#aiGo').onclick = async () => {
     if (!ok || !answers) { $('#aiGo').disabled = false; return; }
   }
   setSt(st, 'Grading… this can take up to a minute.');
+  if (await gradeAnswers(answers, st)) $('#dashboard').scrollIntoView({ behavior: 'smooth' });
+  $('#aiGo').disabled = false;
+};
+async function gradeAnswers(answers, st){
   try {
-    const { result: j } = await callAI({ task: 'grade', paper: $('#paper').value, answers, images: [] },
+    const { result: j } = await callAI({ task: 'grade', paper: liveText('paper'), answers, images: [] },
       s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
     rows = (j.rows || []).map((x, i) => ({ q: String(x.q ?? i + 1).trim() || String(i + 1), topic: String(x.topic || 'General'), type: TYPES.includes(x.type) ? x.type : 'Short answer', max: num(x.max), got: Math.max(0, Math.min(num(x.got), num(x.max))), cause: CAUSES.includes(x.cause) ? x.cause : 'Unspecified', feedback: String(x.feedback || '') }));
     aiExtra = { summary: String(j.summary || ''), plan: Array.isArray(j.study_plan) ? j.study_plan.map(String) : [] }; sampleData = false; edits = {};
-    setSt(st, `Graded ${rows.length} questions. This is a draft: check it against the marking scheme.`); changed(true); $('#dashboard').scrollIntoView({ behavior: 'smooth' });
-  } catch (e) {
-    setSt(st, errMsg(e, ERR.upstream), true);
-  }
-  $('#aiGo').disabled = false;
-};
+    setSt(st, `Graded ${rows.length} questions. This is a draft: check it against the marking scheme.`); changed(true);
+    return true;
+  } catch (e) { setSt(st, errMsg(e, ERR.upstream), true); return false; }
+}
 
 /* ---- wiring ---- */
 let t; const deb = () => { clearTimeout(t); t = setTimeout(() => { sampleData = false; rebuild(); }, 350); };
@@ -968,11 +1091,16 @@ Section D: Statistics
 $('#sample').onclick = loadSample;
 
 let saved = null; try { saved = JSON.parse(localStorage.getItem('marklens3') || localStorage.getItem('marklens2') || 'null'); } catch {}
-if (saved && Array.isArray(saved.rows) && saved.rows.length) {
+if (saved && Array.isArray(saved.rows) && (saved.rows.length || (saved.pending && (saved.pending.paper || saved.pending.sheet)))) {   // keep pasted pages across a reload
   $('#paper').value = saved.paper || ''; $('#sheet').value = saved.sheet || '';
   rows = saved.rows.map(r => ({ ...r, q: String(r.q), got: num(r.got), max: num(r.max) }));
   aiExtra = saved.aiExtra || null; edits = saved.edits || {}; sampleData = !!saved.sampleData;
-  sheetCount = parseSheet(saved.sheet || '').length;
+  for (const k of ['paper', 'sheet']) {
+    pending[k] = !!(saved.pending && saved.pending[k]) && MARK_LINE.test(saved[k] || '');
+    lens[k] = pending[k] ? splitLens(k).pages.map(() => ({})) : [];
+    renderLens(k);
+  }
+  sheetCount = parseSheet(liveText('sheet')).length;
   setMode(saved.mode === 'ai' ? 'ai' : 'marked'); changed(true);
 } else loadSample();
 

@@ -35,7 +35,7 @@ const PROVIDERS = {
 };
 
 const OUT_TOKENS = { paper: 1800, sheet: 900, answers: 1800, grade: 3000, tidy: 1500 };  // answer budget per job
-const MAX_TIDY = 12_000;           // characters of text pasted from Google Lens, per page
+const MAX_TIDY = 12_000;           // characters of text pasted from Google Lens, per request (the page sends up to about 6,000)
 const BACKUP_MODEL = '@cf/qwen/qwen3.8-27b';                                 // Workers AI copy of the same model
 const BACKUP_TIMEOUT = 60_000;                                                // ms to wait for the backup before saying "busy"
 const MAX_BODY = 9_000_000;        // bytes, about 6 phone photos after MarkLens shrinks them
@@ -70,8 +70,11 @@ export async function onRequestPost({ request, env }) {
   if (!s.key && !env.AI) return fail('not_configured', 503);
 
   // Only this site's own pages may call the function.
+  // Browsers send Origin on these POSTs; Sec-Fetch-Site covers any browser that leaves Origin out.
   const origin = request.headers.get('origin');
-  if (!origin || new URL(origin).host !== new URL(request.url).host) return fail('forbidden', 403);
+  let sameSite = false;
+  try { sameSite = origin ? new URL(origin).host === new URL(request.url).host : request.headers.get('sec-fetch-site') === 'same-origin'; } catch {}
+  if (!sameSite) return fail('forbidden', 403);
 
   const size = Number(request.headers.get('content-length') || 0);
   if (size > MAX_BODY) return fail('too_large', 413);
@@ -93,7 +96,7 @@ export async function onRequestPost({ request, env }) {
   if (task === 'tidy' && (images.length || !lens.trim())) return fail('bad_request', 400);
 
   const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 && n < 1000 ? n : d; };
-  const total = int(body.total, images.length), first = Math.min(int(body.first, 1), total), last = Math.min(Math.max(int(body.last, first), first), total);
+  const total = int(body.total, Math.max(images.length, int(body.last, 0), int(body.first, 0), 1)), first = Math.min(int(body.first, 1), total), last = Math.min(Math.max(int(body.last, first), first), total);
   const paper = String(body.paper || '').slice(0, MAX_PAPER);
   const answers = String(body.answers || '').slice(0, MAX_ANSWERS);
   if (task === 'grade' && (!paper.trim() || (!answers.trim() && !images.length))) return fail('bad_request', 400);
@@ -101,18 +104,20 @@ export async function onRequestPost({ request, env }) {
   const prompt = task === 'paper' ? paperPrompt(first, last, total)
     : task === 'sheet' ? sheetPrompt(first, last, total, paper)
     : task === 'answers' ? answersPrompt(first, last, total)
-    : task === 'tidy' ? tidyPrompt(kind, lens, first, paper)
+    : task === 'tidy' ? tidyPrompt(kind, lens, first, last, paper)
     : gradePrompt(paper, answers, images.length > 0);
 
+  // Sorting marks gives short lines, so it reserves less of the per-minute token allowance than sorting a paper.
+  const maxOut = task === 'tidy' && kind === 'sheet' ? 800 : OUT_TOKENS[task];
   let text, via = s.name;
   try {
     if (!s.key) throw { status: 503 };
-    text = await callModel(s, prompt, images, task === 'grade', OUT_TOKENS[task]);
+    text = await callModel(s, prompt, images, task === 'grade', maxOut);
   } catch (first) {
     // Groq busy, over its per-minute limit, or down: try the same model on Cloudflare Workers AI.
     let e = first;
     if (env.AI && (!first || [429, 413, 500, 502, 503, 504].includes(first.status) || !first.status)) {
-      try { text = await callWorkersAI(env, prompt, images, OUT_TOKENS[task]); via = 'Cloudflare Workers AI'; e = null; }
+      try { text = await callWorkersAI(env, prompt, images, maxOut); via = 'Cloudflare Workers AI'; e = null; }
       catch (second) { e = second && second.retryAfter ? second : first && first.status === 429 ? first : second; }
     }
     if (e) return failFor(e);
@@ -289,8 +294,9 @@ Rules:
 - ${SAFE}`;
 }
 
-function tidyPrompt(kind, text, page, paper) {
-  const intro = `Below is text that a student copied with Google Lens from page ${page} of ${kind === 'paper' ? 'an exam question paper' : "their exam answer sheet, which a teacher has already marked"}. Google Lens reads handwriting well, but it can break lines, merge columns, split a question over several lines, or put the teacher's marks and ticks out of place. It cannot show ticks and crosses, so judge from the marks written.`;
+function tidyPrompt(kind, text, first, last, paper) {
+  const where = first === last ? `page ${first}` : `pages ${first} to ${last}`;
+  const intro = `Below is text that a student copied with Google Lens from ${where} of ${kind === 'paper' ? 'an exam question paper' : "their exam answer sheet, which a teacher has already marked"}. Pages are separated by lines such as --- Page 2 ---; leave those lines out of your answer. Google Lens reads handwriting well, but it can break lines, merge columns, split a question over several lines, or put the teacher's marks and ticks out of place. It cannot show ticks and crosses, so judge from the marks written.`;
   const fmt = kind === 'paper'
     ? `Rewrite it as the question paper, in exactly this format and output nothing else:
 
