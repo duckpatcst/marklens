@@ -1097,22 +1097,33 @@ const omrWrong = () => Math.abs(num($('#omrWrong').value));
 // Answer key: "1-B", "Q2: D", "3) a", "4-AC" (either is right), "5-*" (bonus: everyone gets it), a row of letters "BDACB",
 // and "Section: Physics" (or "Physics:") lines that name the topic of the questions under them. "#Optics" tags one line.
 function parseKey(text){
-  const items = new Map(); let section = '';
+  const items = new Map(), starts = []; let section = '', tagged = new Set();
   for (const raw of String(text).split(/\r?\n/)) {
     const line = raw.trim(); if (!line) continue;
     const sec = line.match(/^(?:section|part|unit|chapter|subject|topic)\s*([A-Za-z0-9]{0,3})\s*[:\-–]\s*(.+)$/i) || line.match(/^([A-Za-z][A-Za-z &/-]{2,40}):\s*$/);
-    if (sec) { section = (sec[2] || sec[1]).trim(); continue; }
+    if (sec) { section = (sec[2] || sec[1]).trim(); starts.push({ topic: section, q: null }); continue; }
     const tag = (line.match(/#([A-Za-z][\w &-]*)/) || [])[1];
     let found = false;
     for (const m of line.matchAll(/(?:^|[\s,;])Q?(\d{1,3})\s*[-.):=]?\s*([A-Ha-h]{1,4}(?:\s*[,/&]\s*[A-Ha-h])*|\*)(?=$|[\s,;#?])/g)) {
       const q = +m[1]; if (q < 1 || q > 300) continue;
       items.set(q, { q, keys: m[2] === '*' ? '*' : [...new Set(m[2].toUpperCase().replace(/[^A-H]/g, ''))].sort().join(''), topic: (tag || section || 'General').trim() });
+      if (tag) tagged.add(q); else tagged.delete(q);
+      if (starts.length && starts[starts.length - 1].q === null) starts[starts.length - 1].q = q;   // a section starts at its first question
       found = true;
     }
     if (!found && /^[A-Ha-h][A-Ha-h\s,]+$/.test(line) && line.replace(/[^A-Ha-h]/g, '').length >= 2) {   // a row of letters: BDACB
       let q = items.size ? Math.max(...items.keys()) + 1 : 1;
+      if (starts.length && starts[starts.length - 1].q === null) starts[starts.length - 1].q = q;
       for (const ch of line.toUpperCase().replace(/[^A-H]/g, '')) items.set(q, { q: q++, keys: ch, topic: section || 'General' });
     }
+  }
+  // A question's topic follows its number: a line like "26-*" added at the end still belongs to the section that
+  // covers question 26 (here Physics, which starts at 1), not to the last section heading above it.
+  const ranges = starts.filter(x => x.q !== null).sort((a, b) => a.q - b.q);
+  if (ranges.length) for (const it of items.values()) {
+    if (tagged.has(it.q)) continue;
+    const r = ranges.filter(x => x.q <= it.q).pop();
+    if (r) it.topic = r.topic;
   }
   return [...items.values()].sort((a, b) => a.q - b.q);
 }

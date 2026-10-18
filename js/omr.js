@@ -1,8 +1,8 @@
 /* MarkLens OMR: the printable answer sheet's layout and the on-phone reader.
  *
  * Everything here runs in the browser: no photo leaves the device and no AI is used.
- * The sheet has four solid black corner squares and a 14-square code strip along the bottom that says how
- * many questions and options it has. The reader finds the four squares, maps the sheet with a perspective
+ * The sheet has four solid black corner squares and a code strip along the bottom that says how many questions
+ * and options it has (up to 200 questions, like a NEET sheet, on one A4 page). The reader finds the four squares, maps the sheet with a perspective
  * transform (so tilted, rotated or scaled photos work), reads the code, then scores every bubble by how much
  * darker its inside is than the paper just around it. That local comparison copes with shadows and uneven light.
  */
@@ -12,17 +12,18 @@
   const LETTERS = 'ABCDEFGH';
   const MARKS = [[15, 15], [195, 15], [195, 282], [15, 282]];   // corner square centres in mm: top-left, top-right, bottom-right, bottom-left
   const MARK_SIZE = 10;
-  const BITS = 14, BIT_Y = 282, BIT_X0 = 36, BIT_STEP = 9, BIT_SIZE = 4.5;
-  const MAX_Q = 100;
+  const BITS = 15, BIT_Y = 282, BIT_X0 = 36, BIT_STEP = 9, BIT_SIZE = 4.5;   // version 1 sheets (up to 100 questions) had 14 squares
+  const MAX_Q = 200;
 
   /* ---------- the sheet ---------- */
 
-  // Questions run down each column, then across: up to 25 per column, up to 4 columns.
+  // Questions run down each column, then across: up to 25 per column in up to 4 columns, or for 101 to 200
+  // questions (NEET has 180) 5 denser columns with a taller grid.
   function layout(nQ, nOpt) {
     nQ = Math.max(1, Math.min(MAX_Q, Math.round(nQ) || 1));
     nOpt = Math.max(2, Math.min(6, Math.round(nOpt) || 4));
-    const cols = Math.ceil(nQ / 25), rows = Math.ceil(nQ / cols);
-    const gx0 = 24, gx1 = 186, gy0 = 76, gy1 = 266;
+    const dense = nQ > 100, cols = dense ? 5 : Math.ceil(nQ / 25), rows = Math.ceil(nQ / cols);
+    const gx0 = 24, gx1 = 186, gy0 = dense ? 72 : 76, gy1 = dense ? 271 : 266;
     const colW = (gx1 - gx0) / cols, numW = 10;
     const pitchY = Math.min(9, (gy1 - gy0) / rows);
     const pitchX = Math.min(7.4, (colW - numW - 2) / nOpt);
@@ -36,24 +37,28 @@
       questions.push({ q, col, row, labelX: x0 - 1.4, y, opts });
     }
     const bits = encode(nQ, nOpt).map((on, i) => ({ on, x: BIT_X0 + i * BIT_STEP, y: BIT_Y }));
-    return { nQ, nOpt, cols, rows, r, pitchX, pitchY, gx0, gx1, gy0, gy1, colW, questions, bits };
+    return { nQ, nOpt, cols, rows, r, pitchX, pitchY, gx0, gx1, gy0, gy1, colW, questions, bits, dense };
   }
 
-  // 14 squares: 1, 7 bits of question count, 3 bits of (options - 2), 2-bit checksum, 1
+  // 15 squares: 1, 8 bits of question count, 3 bits of (options - 2), 2-bit checksum, 1
   function encode(nQ, nOpt) {
     const data = [];
-    for (let i = 6; i >= 0; i--) data.push((nQ >> i) & 1);
+    for (let i = 7; i >= 0; i--) data.push((nQ >> i) & 1);
     for (let i = 2; i >= 0; i--) data.push(((nOpt - 2) >> i) & 1);
     const sum = data.reduce((a, b) => a + b, 0) % 4;
     return [1, ...data, (sum >> 1) & 1, sum & 1, 1];
   }
+  // version 2 (15 squares, 8-bit count) first; then version 1 (14 squares, 7-bit count, sheets printed before 200-question support)
   function decode(bits) {
-    if (!bits || bits.length !== BITS || !bits[0] || !bits[BITS - 1]) return null;
-    const data = bits.slice(1, 11), sum = data.reduce((a, b) => a + b, 0) % 4;
-    if (((sum >> 1) & 1) !== bits[11] || (sum & 1) !== bits[12]) return null;
-    const nQ = data.slice(0, 7).reduce((a, b) => a * 2 + b, 0), nOpt = data.slice(7).reduce((a, b) => a * 2 + b, 0) + 2;
-    if (nQ < 1 || nQ > MAX_Q || nOpt < 2 || nOpt > 6) return null;
-    return { nQ, nOpt };
+    if (!bits || bits.length < 14) return null;
+    const read = (n, qBits) => {
+      if (!bits[0] || !bits[n - 1]) return null;
+      const data = bits.slice(1, n - 3), sum = data.reduce((a, b) => a + b, 0) % 4;
+      if (((sum >> 1) & 1) !== bits[n - 3] || (sum & 1) !== bits[n - 2]) return null;
+      const nQ = data.slice(0, qBits).reduce((a, b) => a * 2 + b, 0), nOpt = data.slice(qBits).reduce((a, b) => a * 2 + b, 0) + 2;
+      return nQ >= 1 && nQ <= MAX_Q && nOpt >= 2 && nOpt <= 6 ? { nQ, nOpt } : null;
+    };
+    return (bits.length >= 15 && bits[14] ? read(15, 8) : null) || (!bits[14] ? read(14, 7) : null);
   }
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -192,14 +197,15 @@
     return true;
   }
 
-  // the four corner squares: the largest group of 4 solid, compact, similar-sized blobs that make a big convex shape
-  function findCorners(list, w, h) {
+  // possible corner-square sets: groups of 4 solid, compact, similar-sized blobs that make a big convex shape,
+  // best first. Something dark on the table can look like a corner square, so read() checks each set in turn.
+  function findQuads(list, w, h) {
     const short = Math.min(w, h);
     const cand = list.filter(b => {
       const s = Math.max(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1);
       return s >= short * 0.012 && s <= short * 0.16 && b.iso > 0.55 && b.solid > 0.8;
     }).sort((a, b) => b.area - a.area).slice(0, 12);
-    let best = null, bestScore = 0;
+    const quads = [];
     for (let a = 0; a < cand.length; a++) for (let b = a + 1; b < cand.length; b++) for (let c = b + 1; c < cand.length; c++) for (let d = c + 1; d < cand.length; d++) {
       const four = [cand[a], cand[b], cand[c], cand[d]], areas = four.map(x => x.area);
       const ratio = Math.min(...areas) / Math.max(...areas);
@@ -208,10 +214,9 @@
       if (!convex(q)) continue;
       const A = polyArea(q);
       if (A < 0.1 * w * h) continue;
-      const score = A * Math.sqrt(ratio);
-      if (score > bestScore) { bestScore = score; best = q; }
+      quads.push({ q, score: A * Math.sqrt(ratio) });
     }
-    return best;
+    return quads.sort((a, b) => b.score - a.score).slice(0, 30).map(x => x.q);
   }
 
   function solve(A, b) {
@@ -278,31 +283,40 @@
     opts = opts || {};
     let img;
     try { img = await loadGray(src, opts.maxSide || 1800); } catch (e) { return { ok: false, error: 'photo' }; }
-    const corners = findCorners(blobs(darkMask(img), img.w, img.h), img.w, img.h);
-    if (!corners) return { ok: false, error: 'no_sheet' };
-    // try the 4 ways the sheet can be turned; the right one has a valid code strip
-    let H = null, code = null;
-    for (let k = 0; k < 4 && !code; k++) {
-      const q = [0, 1, 2, 3].map(i => corners[(i + k) % 4]);
-      const Hk = homography(MARKS, q.map(p => [p.cx, p.cy]));
-      if (!Hk) continue;
+    const quads = findQuads(blobs(darkMask(img), img.w, img.h), img.w, img.h);
+    if (!quads.length) return { ok: false, error: 'no_sheet' };
+    // A set of corners is accepted only when, turned the right way, the code strip decodes (or the layout is known
+    // from the answer key) AND the printed bubble outlines are where the map says. Otherwise the corners were wrong
+    // (something dark on the table, a cut-off sheet, another page) and reading would give wrong answers.
+    const expect = opts.expect && opts.expect.nQ ? { nQ: opts.expect.nQ, nOpt: opts.expect.nOpt || 4 } : null;
+    let H = null, code = null, L = null, corners = null, outline = 0, codeSeen = false;
+    const fits = (Hk, lay) => {
+      const Lk = layout(lay.nQ, lay.nOpt);
+      const rings = Lk.questions.flatMap(q => q.opts).filter((o, i) => i % 2 === 0)
+        .map(o => darkness(img, Hk, o.x, o.y, Lk.r * 1.15, Lk.r * 1.3, Lk.r * 1.6, Lk.r * 0.85).score);
+      const med = median(rings), seen = rings.filter(v => v >= 0.08).length / Math.max(1, rings.length);
+      return med >= 0.12 && seen >= 0.7 ? { L: Lk, outline: med } : null;   // real sheets: about 0.19 to 0.33
+    };
+    const turns = q => [0, 1, 2, 3].map(k => homography(MARKS, [0, 1, 2, 3].map(i => q[(i + k) % 4]).map(p => [p.cx, p.cy]))).filter(Boolean);
+    search:
+    for (const q of quads) for (const Hk of turns(q)) {
       const c = readCode(img, Hk);
-      if (c) { H = Hk; code = c; }
-      else if (k === 0) H = Hk;
+      if (!c) continue;
+      codeSeen = true;
+      const f = fits(Hk, c);
+      if (f) { H = Hk; code = c; L = f.L; outline = f.outline; corners = q; break search; }
     }
-    if (!H) return { ok: false, error: 'no_sheet' };
-    const lay = code || (opts.expect && opts.expect.nQ ? { nQ: opts.expect.nQ, nOpt: opts.expect.nOpt || 4 } : null);
-    if (!lay) return { ok: false, error: 'code' };
-    const L = layout(lay.nQ, lay.nOpt);
-    // safety check: the printed bubble outlines must be where the map says. If not, the corners were wrong
-    // (a cut-off sheet, another page) and reading would give wrong answers, so refuse instead.
-    const ringsAt = L.questions.flatMap(q => q.opts).filter((o, i) => i % 2 === 0)
-      .map(o => darkness(img, H, o.x, o.y, L.r * 1.15, L.r * 1.3, L.r * 1.6, L.r * 0.85).score);
-    const outline = median(ringsAt), seen = ringsAt.filter(v => v >= 0.08).length / Math.max(1, ringsAt.length);
-    if (outline < 0.12 || seen < 0.7) return { ok: false, error: code ? 'no_sheet' : 'code', outline };   // real sheets: 0.19 to 0.33
+    if (!H && expect) {                                   // code strip hidden or damaged: use the answer key's layout
+      search2:
+      for (const q of quads.slice(0, 10)) for (const Hk of turns(q)) {
+        const f = fits(Hk, expect);
+        if (f) { H = Hk; L = f.L; outline = f.outline; corners = q; break search2; }
+      }
+    }
+    if (!H) return { ok: false, error: codeSeen || expect ? 'no_sheet' : 'code' };
     const cells = L.questions.map(q => q.opts.map(o => darkness(img, H, o.x, o.y, L.r * 0.55, L.r * 1.25, L.r * 1.55)));
     const pxPerMm = median(cells.flat().map(c => c.pxmm));
-    if (pxPerMm < 2.6) return { ok: false, error: 'too_far' };
+    if (pxPerMm < 2.6 || L.r * pxPerMm < 4.6) return { ok: false, error: 'too_far' };   // small bubbles (dense sheets) need a closer photo
     // most bubbles are empty, so the median score says what "empty" looks like on this photo
     const base = median(cells.flat().map(c => c.score));
     const FILL = Math.min(0.5, Math.max(0.33, base + 0.25)), FAINT = Math.max(0.16, base + 0.08);   // a proper fill scores 0.5+, a tick about 0.3

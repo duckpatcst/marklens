@@ -18,7 +18,7 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 |---|---|
 | `index.html` | The MarkLens website |
 | `privacy.html` | The privacy notice that students see |
-| `omr.html` | Prints blank MarkLens OMR answer sheets (up to 100 questions, A–D or A–E) |
+| `omr.html` | Prints blank MarkLens OMR answer sheets (up to 200 questions on one A4 page, A–D or A–E) |
 | `js/omr.js` | The OMR sheet layout and the on-phone OMR reader |
 | (online) | The free on-phone photo reader, Tesseract 5.1.1 (Apache 2.0), loads from jsDelivr the first time |
 | `functions/api/ai.js` | The hidden helper that talks to the AI company. Your API key lives here, never in the page |
@@ -127,8 +127,8 @@ A per-minute limit (15 AI requests a minute per device) is always on, even witho
 
 Choose **OMR sheet** under Exam sheet. MarkLens reads its own printed OMR sheets on the phone: free, private, and with no AI, so AI limits don't apply.
 
-1. **Print sheets.** Tap **Print blank OMR sheets** (or open `omr.html`). Choose up to 100 questions and A–D or A–E, and print at 100% on A4. Photocopies work.
-2. **Answer key.** Fill one sheet with the right answers and scan it, or type the answers (`1-B`, `2-D`, or a row of letters like `BDACB`). Put `Section: Physics` lines before groups of questions to name their topics. `4-AC` accepts either option; `5-*` gives everyone the marks.
+1. **Print sheets.** Tap **Print blank OMR sheets** (or open `omr.html`). Choose up to 200 questions (enough for NEET's 180) and A–D or A–E, and print at 100% on A4. Photocopies work.
+2. **Answer key.** Fill one sheet with the right answers and scan it, or type the answers (`1-B`, `2-D`, or a row of letters like `BDACB`). Put `Section: Physics` lines before groups of questions to name their topics. `4-AC` accepts either option; `5-*` gives everyone the marks (NTA's rule for a dropped question). A question's topic follows its number, so a line added at the end still lands in the right section.
 3. **Marking scheme.** Set the marks for a right answer and the minus for a wrong one (NEET and JEE Main: 4 and 1). Two or more bubbles in one question count as wrong.
 4. **Students' sheets.** Take a photo of each filled sheet, keeping all four black corner squares in the photo, and tap **Read the OMR sheet**.
    - A check image circles what was read: green = read, orange = faint or unclear, red = more than one bubble.
@@ -138,7 +138,7 @@ Choose **OMR sheet** under Exam sheet. MarkLens reads its own printed OMR sheets
 
 If the corners or code can't be trusted (a cut-off sheet, another page), it refuses the photo rather than guess.
 
-In tests on 38 simulated phone photos it read all 1,950 filled answers correctly, and flagged every double mark. Faint marks and ticks were flagged for a look rather than guessed. Check the first few real sheets against the check image.
+In tests on 74 simulated phone photos of 20- to 200-question sheets it read all 6,421 filled answers correctly, and flagged every double mark. With NTA's official NEET (UG) 2026 re-exam final key (booklet code 50, with a dropped question and a two-answer question), a 180-question student sheet was read exactly and scored 545 / 720, the same as a hand calculation. Faint marks and ticks were flagged for a look rather than guessed. Check the first few real sheets against the check image.
 
 ## For schools and institutes: their own copy, their own AI
 

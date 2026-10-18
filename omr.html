@@ -52,14 +52,14 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
     <p class="lead">Choose the number of questions and options, then print one sheet per student. MarkLens reads a photo of the filled sheet on the phone itself: free, private, no AI.</p>
     <div class="form" role="group" aria-label="Sheet settings">
       <label class="wide">Exam name (printed at the top)<input id="title" maxlength="60" placeholder="Unit test 3 · Physics"></label>
-      <label>Questions<input id="nq" type="number" inputmode="numeric" min="1" max="100" value="60"></label>
+      <label>Questions (up to 200)<input id="nq" type="number" inputmode="numeric" min="1" max="200" value="60"></label>
       <label>Options<select id="no"><option value="4">A, B, C, D</option><option value="5">A, B, C, D, E</option></select></label>
       <div class="row"><button class="btn" id="print" type="button">Print sheet</button><a class="btn ghost" href="./">Back to MarkLens</a></div>
     </div>
     <div class="tips">
       <b>For the best reading</b>
       <ul>
-        <li>Print at 100% on A4 paper. Photocopies work too.</li>
+        <li>Print at 100% on A4 paper. Photocopies work too. Up to 200 questions fit on one sheet, enough for NEET's 180.</li>
         <li>Students fill one bubble per question completely with a dark pen or pencil, and rub out changes fully.</li>
         <li>For the answer key, fill one sheet with the correct answers and scan it in MarkLens first.</li>
         <li>When photographing, keep the sheet flat and the four black squares inside the photo.</li>
@@ -81,7 +81,7 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
     document.title = `MarkLens OMR sheet · ${n} questions`;
   };
   for (const el of ['#nq', '#no', '#title']) $(el).addEventListener('input', draw);
-  $('#nq').addEventListener('change', () => { const n = Math.max(1, Math.min(100, parseInt($('#nq').value, 10) || 60)); $('#nq').value = n; draw(); });
+  $('#nq').addEventListener('change', () => { const n = Math.max(1, Math.min(MarkLensOMR.MAX_Q, parseInt($('#nq').value, 10) || 60)); $('#nq').value = n; draw(); });
   $('#print').onclick = () => window.print();
   draw();
 })();
