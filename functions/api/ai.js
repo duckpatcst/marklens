@@ -2,38 +2,44 @@
  * MarkLens AI function (Cloudflare Pages Function, served at /api/ai).
  *
  * The page never sees an API key. It sends photos or text here; this function adds the
- * secret key, builds the instructions itself and calls the AI company. Because the
- * instructions live here, nobody can use your key for anything except MarkLens jobs.
+ * secret key, builds the instructions itself and calls the AI service. Because the
+ * instructions live here, nobody can use the key for anything except MarkLens jobs.
  *
- * Settings (Cloudflare dashboard > your Pages project > Settings > Variables and Secrets):
- *   GROQ_API_KEY     secret  Key from console.groq.com. Groq is the default.
- *   GEMINI_API_KEY   secret  Key from aistudio.google.com. Only used when AI_PROVIDER = gemini.
- *   AI_PROVIDER      text    "groq" (default) or "gemini". Google's terms do not allow Gemini
- *                            in apps likely to be used by people under 18.
- *   AI_MODEL         text    Optional. Overrides the model below if the provider renames it.
- *   DAILY_LIMIT      text    Optional. AI requests per visitor per day (default 40). Needs RATE_LIMIT.
- *   RATE_LIMIT       KV      Optional KV namespace binding that makes the daily limit stick.
- *   AI               Workers AI binding (optional). A free backup: when Groq is busy or over its
- *                            per-minute limit, the same Qwen model runs on Cloudflare instead.
+ * Bring your own AI: each school or institute runs MarkLens on its own Cloudflare account with
+ * its own AI, so it controls (and pays for) its own usage. Settings, in Cloudflare > the Pages
+ * project > Settings > Variables and Secrets:
+ *
+ *   AI_PROVIDER       text    groq (default) | openai | workers-ai | gemini
+ *                             openai = any OpenAI-compatible service: OpenAI, Azure OpenAI, OpenRouter,
+ *                             Together, Groq, or the institution's own server (Ollama, vLLM, LM Studio).
+ *   GROQ_API_KEY      secret  For groq: key from console.groq.com.
+ *   AI_BASE_URL       text    For openai: the service's address, e.g. https://api.openai.com/v1,
+ *                             https://openrouter.ai/api/v1, or https://ai.yourschool.in/v1 (own server).
+ *   AI_API_KEY        secret  For openai: the service's key. Leave out for a server that needs none.
+ *   AI_MODEL          text    Model name. Required for openai; optional elsewhere.
+ *   AI_VISION         text    "no" if the model cannot read photos: the AI reader is hidden, while Google Lens
+ *                             and AI grading (text only) keep working.
+ *   AI_NAME           text    Name shown to students, e.g. "OpenAI" or "our school's AI server".
+ *   AI_MAX_IMAGES     text    Photos per request (default 1). Paid plans can take more, which reads faster.
+ *   AI_AUTH_HEADER    text    Header for the key when it is not "Authorization: Bearer" (Azure OpenAI: api-key).
+ *   AI_HEADERS        secret  Extra headers as JSON, e.g. a Cloudflare Access service token for a campus server.
+ *   AI_MAX_TOKENS_FIELD text  max_completion_tokens (default) or max_tokens for older servers.
+ *   AI_TEMPERATURE    text    Default 0.1. "off" leaves it out (some reasoning models only allow their default).
+ *   AI_TIMEOUT_SECONDS text   How long to wait for an answer (default 90). Own servers can be slower.
+ *   GEMINI_API_KEY    secret  For gemini. Google's terms do not allow Gemini in apps likely to be used by under-18s.
+ *   AI                Workers AI binding (optional). The AI for workers-ai, and a free backup for the others.
+ *
+ * Limits (each device is counted on its own, so a whole school behind one Wi-Fi address is not one visitor):
+ *   DAILY_LIMIT       text    AI requests per device per day (default 40).
+ *   SITE_DAILY_LIMIT  text    AI requests per day for the whole site (default: no cap). A spend cap for paid AI.
+ *   BURST_LIMIT       text    AI requests per device per minute (default 15).
+ *   DB                D1 binding (recommended for schools): keeps the counts, 100,000 free writes a day.
+ *   RATE_LIMIT        KV binding: also works, but the free plan allows only 1,000 writes a day.
+ * If the counter storage is unavailable or over its free quota, MarkLens keeps going and counts in memory.
  */
 
-const PROVIDERS = {
-  groq: {
-    name: 'Groq',
-    keyVar: 'GROQ_API_KEY',
-    model: 'qwen/qwen3.8-27b',     // Groq's image-reading model (console.groq.com/docs/vision)
-    maxImages: 1,                  // one photo per request keeps each call inside Groq's free per-minute token limit
-    trains: false                  // Groq's terms: inputs are not used for training
-  },
-  gemini: {
-    name: 'Google Gemini',
-    keyVar: 'GEMINI_API_KEY',
-    model: 'gemini-3.8-flash',
-    maxImages: 6,
-    trains: true                   // free tier: Google may use inputs to improve products; human review
-  }
-};
-
+const GROQ = { name: 'Groq', base: 'https://api.groq.com/openai/v1', model: 'qwen/qwen3.8-27b' };
+const GEMINI_MODEL = 'gemini-3.8-flash';
 const OUT_TOKENS = { paper: 1800, sheet: 900, answers: 1800, grade: 3000, tidy: 1500 };  // answer budget per job
 const MAX_TIDY = 12_000;           // characters of text pasted from Google Lens, per request (the page sends up to about 6,000)
 const BACKUP_MODEL = '@cf/qwen/qwen3.8-27b';                                 // Workers AI copy of the same model
@@ -41,16 +47,35 @@ const BACKUP_TIMEOUT = 60_000;                                                //
 const MAX_BODY = 9_000_000;        // bytes, about 6 phone photos after MarkLens shrinks them
 const MAX_PAPER = 20_000;          // characters
 const MAX_ANSWERS = 20_000;
-const BURST = { limit: 15, windowMs: 60_000 };  // per visitor, per minute, best effort (one request per page)
+const MINUTE = 60_000;
+const IP_BURST = 300;               // per network address per minute: only a backstop, since a school shares one address
 const IMG_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 
 const burst = new Map();           // in-memory, per server instance
 
+const no = v => /^(no|false|0|off)$/i.test(String(v ?? '').trim());
+const posInt = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : d; };
+
 function settings(env) {
-  const id = String(env.AI_PROVIDER || 'groq').toLowerCase() === 'gemini' ? 'gemini' : 'groq';
-  const p = PROVIDERS[id];
-  return { id, ...p, key: env[p.keyVar] || '', model: env.AI_MODEL || p.model };
+  const p = String(env.AI_PROVIDER || 'groq').trim().toLowerCase();
+  const vision = !no(env.AI_VISION), maxImages = Math.min(6, posInt(env.AI_MAX_IMAGES, 1));
+  if (p === 'gemini') {
+    const key = env.GEMINI_API_KEY || '';
+    return { id: 'gemini', name: env.AI_NAME || 'Google Gemini', key, ok: !!key, model: env.AI_MODEL || GEMINI_MODEL, vision, maxImages: Math.min(6, posInt(env.AI_MAX_IMAGES, 6)), trains: true };
+  }
+  if (['openai', 'openai-compatible', 'custom', 'own'].includes(p)) {
+    const base = String(env.AI_BASE_URL || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/i, '');
+    let host = '';
+    try { const u = new URL(base); if (u.protocol === 'https:' || u.hostname === 'localhost') host = u.host; } catch {}
+    return { id: 'openai', name: env.AI_NAME || host || 'the AI service', key: env.AI_API_KEY || '', base, ok: !!(host && env.AI_MODEL), model: env.AI_MODEL || '', vision, maxImages, trains: false };
+  }
+  if (['workers-ai', 'workers', 'cloudflare'].includes(p)) {
+    return { id: 'workers', name: env.AI_NAME || 'Cloudflare Workers AI', ok: !!env.AI, model: env.AI_MODEL || BACKUP_MODEL, vision, maxImages, trains: false };
+  }
+  const key = env.GROQ_API_KEY || env.AI_API_KEY || '';
+  return { id: 'groq', name: env.AI_NAME || GROQ.name, key, base: GROQ.base, ok: !!key, model: env.AI_MODEL || GROQ.model, vision, maxImages, trains: false };
 }
+const hasBackup = (s, env) => !!env.AI && s.id !== 'workers';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
@@ -60,14 +85,14 @@ const fail = (error, status) => json({ error }, status);
 
 /* GET /api/ai — tells the page whether the AI reader is switched on, and which company runs it. */
 export async function onRequestGet({ env }) {
-  const s = settings(env);
-  return json({ enabled: !!s.key || !!env.AI, provider: s.id, providerName: s.name, maxImages: s.maxImages, trains: s.trains, backup: env.AI ? 'Cloudflare Workers AI' : null });
+  const s = settings(env), backup = hasBackup(s, env);
+  return json({ enabled: s.ok || backup, provider: s.id, providerName: s.name, vision: s.vision, maxImages: s.maxImages, trains: s.trains, backup: backup ? 'Cloudflare Workers AI' : null });
 }
 
 /* POST /api/ai — one MarkLens job: read a question paper, a marked sheet, typed answers, or grade. */
 export async function onRequestPost({ request, env }) {
-  const s = settings(env);
-  if (!s.key && !env.AI) return fail('not_configured', 503);
+  const s = settings(env), backup = hasBackup(s, env);
+  if (!s.ok && !backup) return fail('not_configured', 503);
 
   // Only this site's own pages may call the function.
   // Browsers send Origin on these POSTs; Sec-Fetch-Site covers any browser that leaves Origin out.
@@ -79,9 +104,12 @@ export async function onRequestPost({ request, env }) {
   const size = Number(request.headers.get('content-length') || 0);
   if (size > MAX_BODY) return fail('too_large', 413);
 
-  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
-  if (!takeBurst(ip)) return fail('busy', 429);
-  if (!(await takeDaily(env, ip))) return fail('limit', 429);
+  // Count each device (the ml_dev cookie set by the access gate), not each network address:
+  // every student on a school's Wi-Fi shares one address.
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown', dev = deviceId(request), who = dev ? 'd:' + dev : 'ip:' + ip;
+  if (!takeBurst(who, posInt(env.BURST_LIMIT, 15)) || !takeBurst('ip:' + ip, IP_BURST)) return fail('busy', 429);
+  const quota = await takeDaily(env, who);
+  if (quota !== 'ok') return fail(quota, 429);
 
   let body;
   try { body = await request.json(); } catch { return fail('bad_request', 400); }
@@ -90,6 +118,7 @@ export async function onRequestPost({ request, env }) {
 
   const images = Array.isArray(body.images) ? body.images : [];
   if (images.length > s.maxImages || !images.every(u => typeof u === 'string' && IMG_RE.test(u))) return fail('bad_request', 400);
+  if (images.length && !s.vision) return fail('no_vision', 400);
   if (task !== 'grade' && task !== 'tidy' && !images.length) return fail('bad_request', 400);
   // tidy: text the student copied with Google Lens, no photo. Only the text comes here.
   const kind = body.kind === 'sheet' ? 'sheet' : 'paper', lens = String(body.text || '').slice(0, MAX_TIDY);
@@ -111,16 +140,16 @@ export async function onRequestPost({ request, env }) {
   const maxOut = task === 'tidy' && kind === 'sheet' ? 800 : OUT_TOKENS[task];
   let text, via = s.name;
   try {
-    if (!s.key) throw { status: 503 };
-    text = await callModel(s, prompt, images, task === 'grade', maxOut);
+    if (!s.ok) throw { status: 503 };
+    text = await callModel(s, env, prompt, images, task === 'grade', maxOut);
   } catch (first) {
-    // Groq busy, over its per-minute limit, or down: try the same model on Cloudflare Workers AI.
+    // The main AI is busy, over its per-minute limit, or down: try the Qwen model on Cloudflare Workers AI.
     let e = first;
-    if (env.AI && (!first || [429, 413, 500, 502, 503, 504].includes(first.status) || !first.status)) {
+    if (backup && (!first || [429, 413, 500, 502, 503, 504].includes(first.status) || !first.status)) {
       try { text = await callWorkersAI(env, prompt, images, maxOut); via = 'Cloudflare Workers AI'; e = null; }
       catch (second) { e = second && second.retryAfter ? second : first && first.status === 429 ? first : second; }
     }
-    if (e) return failFor(e);
+    if (e) return failFor(e, images.length > 0);
   }
 
   if (task !== 'grade') return json({ text: stripFences(text), via });
@@ -129,30 +158,34 @@ export async function onRequestPost({ request, env }) {
   return json({ result, via });
 }
 
-function failFor(e) {
-    const st = e && e.status;
-    if (st === 429) {
-      const wait = Math.min(60, Math.max(1, Math.ceil(Number(e.retryAfter) || 20)));
-      return json({ error: 'busy', retry_after: wait }, 429);
-    }
-    if (st === 413) return fail('too_large', 413);          // photo or request bigger than the free plan allows at once
-    if (st === 400 || st === 422) return fail('image_rejected', 422);
-    return fail('upstream', 502);
+function failFor(e, hasImages) {
+  const st = e && e.status;
+  if (st === 429) {
+    const wait = Math.min(60, Math.max(1, Math.ceil(Number(e.retryAfter) || 20)));
+    return json({ error: 'busy', retry_after: wait }, 429);
+  }
+  // bigger than the plan allows in one go: a photo, or a long paper plus answers on a free per-minute limit
+  if (st === 413) return fail(hasImages ? 'too_large' : 'too_long', 413);
+  if (st === 401 || st === 403 || st === 404) return fail('ai_setup', 502);   // wrong key, address or model name
+  if ((st === 400 || st === 422) && hasImages) return fail('image_rejected', 422);
+  return fail('upstream', 502);
 }
 
 /* ---------- providers ---------- */
 
-async function callModel(s, prompt, images, wantJson, maxOut) {
-  return s.id === 'gemini' ? callGemini(s, prompt, images, wantJson) : callGroq(s, prompt, images, maxOut);
+async function callModel(s, env, prompt, images, wantJson, maxOut) {
+  if (s.id === 'gemini') return callGemini(s, prompt, images, wantJson);
+  if (s.id === 'workers') return callWorkersAI(env, prompt, images, maxOut, s.model);
+  return callOpenAI(s, env, prompt, images, maxOut);       // Groq and every OpenAI-compatible service
 }
 
-async function callWorkersAI(env, prompt, images, maxOut) {
+async function callWorkersAI(env, prompt, images, maxOut, model = BACKUP_MODEL) {
   let out, timer;
   try {
     // A slow backup reply must not hold the phone's connection open until it drops ("Failed to fetch").
     // Give up after BACKUP_TIMEOUT and tell the page to wait briefly; by then Groq's per-minute allowance is usually back.
     const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject({ status: 429, retryAfter: 5 }), BACKUP_TIMEOUT); });
-    out = await Promise.race([timeout, env.AI.run(BACKUP_MODEL, {
+    out = await Promise.race([timeout, env.AI.run(model, {
       temperature: 0.1,
       max_completion_tokens: maxOut,
       messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] }]
@@ -162,25 +195,37 @@ async function callWorkersAI(env, prompt, images, maxOut) {
     const m = String(err && err.message || err);
     throw { status: /429|rate|capacity|neuron|limit/i.test(m) ? 429 : 502 };
   } finally { clearTimeout(timer); }
-  const text = out?.choices?.[0]?.message?.content ?? out?.response ?? '';
-  if (!String(text).trim()) throw { status: 502 };
-  return String(text);
+  const text = dropThinking(out?.choices?.[0]?.message?.content ?? out?.response ?? '');
+  if (!text.trim()) throw { status: 502 };
+  return text;
 }
 
-async function callGroq(s, prompt, images, maxOut) {
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'authorization': `Bearer ${s.key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: s.model,
-      temperature: 0.1,
-      max_completion_tokens: maxOut || 1800,
-      messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] }]
-    })
-  });
+// OpenAI-style chat completions: Groq, OpenAI, Azure OpenAI, OpenRouter, Together, Ollama, vLLM, LM Studio...
+async function callOpenAI(s, env, prompt, images, maxOut) {
+  const headers = { 'content-type': 'application/json' };
+  if (s.key) {
+    const h = String(s.id === 'openai' && env.AI_AUTH_HEADER || '').trim().toLowerCase();
+    if (h && h !== 'authorization' && /^[a-z0-9-]+$/.test(h)) headers[h] = s.key; else headers.authorization = `Bearer ${s.key}`;
+  }
+  if (s.id === 'openai' && env.AI_HEADERS) {
+    try { for (const [k, v] of Object.entries(JSON.parse(env.AI_HEADERS))) if (typeof v === 'string' && /^[a-z0-9-]+$/i.test(k)) headers[k.toLowerCase()] = v; } catch {}
+  }
+  const body = {
+    model: s.model,
+    // plain text when there is no photo, so text-only servers understand it too
+    messages: [{ role: 'user', content: images.length ? [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] : prompt }]
+  };
+  const temp = String(env.AI_TEMPERATURE ?? '').trim();
+  if (!/^(off|none|default)$/i.test(temp)) body.temperature = temp !== '' && Number.isFinite(Number(temp)) ? Number(temp) : 0.1;
+  body[/^max_tokens$/i.test(String(env.AI_MAX_TOKENS_FIELD || '').trim()) ? 'max_tokens' : 'max_completion_tokens'] = maxOut || 1800;
+  const ms = posInt(env.AI_TIMEOUT_SECONDS, 90) * 1000;
+  let r;
+  try {
+    r = await fetch(s.base + '/chat/completions', { method: 'POST', headers, body: JSON.stringify(body), signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(ms) : undefined });
+  } catch (err) { throw { status: err && err.name === 'TimeoutError' ? 504 : 502 }; }   // server down or too slow
   if (!r.ok) throw { status: r.status, retryAfter: r.headers.get('retry-after') };
-  const j = await r.json();
-  return String(j?.choices?.[0]?.message?.content || '');
+  const j = await r.json().catch(() => null), c = j?.choices?.[0]?.message?.content;
+  return dropThinking(Array.isArray(c) ? c.map(p => (p && p.text) || '').join('') : c || '');
 }
 
 async function callGemini(s, prompt, images, wantJson) {
@@ -203,26 +248,78 @@ async function callGemini(s, prompt, images, wantJson) {
 
 /* ---------- limits ---------- */
 
-function takeBurst(ip) {
-  const now = Date.now(), list = (burst.get(ip) || []).filter(t => now - t < BURST.windowMs);
-  if (list.length >= BURST.limit) { burst.set(ip, list); return false; }
-  list.push(now); burst.set(ip, list);
-  if (burst.size > 5000) burst.clear();
+function deviceId(request) {
+  const m = (request.headers.get('cookie') || '').match(/(?:^|;\s*)ml_dev=([A-Za-z0-9_-]{16,64})(?:;|$)/);
+  return m ? m[1] : '';
+}
+
+function takeBurst(who, limit) {
+  const now = Date.now(), list = (burst.get(who) || []).filter(t => now - t < MINUTE);
+  if (list.length >= limit) { burst.set(who, list); return false; }
+  list.push(now); burst.set(who, list);
+  if (burst.size > 20000) burst.clear();
   return true;
 }
 
-async function takeDaily(env, ip) {
-  if (!env.RATE_LIMIT) return true;
-  const limit = Number(env.DAILY_LIMIT) > 0 ? Number(env.DAILY_LIMIT) : 40;
-  const key = `day:${new Date().toISOString().slice(0, 10)}:${ip}`;
-  const used = Number(await env.RATE_LIMIT.get(key)) || 0;
-  if (used >= limit) return false;
-  await env.RATE_LIMIT.put(key, String(used + 1), { expirationTtl: 172800 });
-  return true;
+// 'ok', 'limit' (this device is done for today) or 'site_limit' (the whole site's daily allowance is used up)
+async function takeDaily(env, who) {
+  const day = new Date().toISOString().slice(0, 10), lim = posInt(env.DAILY_LIMIT, 40), site = posInt(env.SITE_DAILY_LIMIT, 0);
+  try {
+    if (env.DB) return await dailyD1(env.DB, day, who, lim, site);
+    if (env.RATE_LIMIT) return await dailyKV(env.RATE_LIMIT, day, who, lim, site);
+  } catch (err) {
+    // e.g. the free KV plan's 1,000 writes a day are used up: keep the site working, count in memory
+    console.warn('MarkLens: usage counter unavailable, counting in memory for now:', String((err && err.message) || err));
+  }
+  return dailyMemory(day, who, lim, site);
+}
+
+let d1Ready = false;
+async function dailyD1(db, day, who, lim, site) {
+  if (!d1Ready) {
+    await db.prepare('CREATE TABLE IF NOT EXISTS ml_usage (day TEXT NOT NULL, who TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, who))').run();
+    d1Ready = true;
+  }
+  const { results = [] } = await db.prepare('SELECT who, n FROM ml_usage WHERE day = ?1 AND who IN (?2, ?3)').bind(day, who, '*site').all();
+  const n = Object.fromEntries(results.map(r => [r.who, Number(r.n) || 0]));
+  if (site && (n['*site'] || 0) >= site) return 'site_limit';
+  if ((n[who] || 0) >= lim) return 'limit';
+  const up = 'INSERT INTO ml_usage (day, who, n) VALUES (?1, ?2, 1) ON CONFLICT (day, who) DO UPDATE SET n = n + 1';
+  await db.batch([db.prepare(up).bind(day, who), db.prepare(up).bind(day, '*site')]);   // '*site' = the day's total
+  if (Math.random() < 0.02) {                                   // now and then, forget devices after 35 days
+    const old = new Date(Date.now() - 35 * 864e5).toISOString().slice(0, 10);
+    await db.prepare("DELETE FROM ml_usage WHERE day < ?1 AND who <> '*site'").bind(old).run();
+  }
+  return 'ok';
+}
+
+async function dailyKV(kv, day, who, lim, site) {
+  const dk = `day:${day}:${who}`, sk = `day:${day}:*site`;
+  const [d, t] = await Promise.all([kv.get(dk), site ? kv.get(sk) : null]);
+  if (site && (Number(t) || 0) >= site) return 'site_limit';
+  if ((Number(d) || 0) >= lim) return 'limit';
+  await Promise.all([
+    kv.put(dk, String((Number(d) || 0) + 1), { expirationTtl: 172800 }),
+    site ? kv.put(sk, String((Number(t) || 0) + 1), { expirationTtl: 172800 }) : null
+  ]);
+  return 'ok';
+}
+
+const mem = { day: '', n: new Map() };
+function dailyMemory(day, who, lim, site) {
+  if (mem.day !== day) { mem.day = day; mem.n.clear(); }
+  const d = mem.n.get(who) || 0, t = mem.n.get('*site') || 0;
+  if (site && t >= site) return 'site_limit';
+  if (d >= lim) return 'limit';
+  mem.n.set(who, d + 1); mem.n.set('*site', t + 1);
+  if (mem.n.size > 20000) mem.n.clear();
+  return 'ok';
 }
 
 /* ---------- output clean-up ---------- */
 
+// some open models (Qwen3, DeepSeek R1) write their reasoning in <think> tags before the answer
+function dropThinking(t) { return String(t || '').replace(/<think>[\s\S]*?<\/think>\s*/gi, '').replace(/^[\s\S]*?<\/think>\s*/i, ''); }
 function stripFences(t) { return String(t).replace(/^\s*```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/, '').trim(); }
 function parseJson(t) {
   const s = stripFences(t);

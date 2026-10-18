@@ -658,10 +658,14 @@ for (const kind of ['paper', 'sheet']) for (const src of ['Cam', 'Pick']) {
 /* ---- AI reader and grader, through this site's own /api/ai function ---- */
 // The page never holds an API key. /api/ai (functions/api/ai.js) adds the key, writes the
 // instructions and calls the AI company, so the key cannot be copied or misused from here.
-let ai = null;   // {enabled, provider, providerName, maxImages, trains}
+let ai = null;   // {enabled, provider, providerName, vision, maxImages, trains, backup}
 const ERR = {
   busy: 'The AI reader is busy or its free limit is used up for now. Wait a few minutes, or use the free on-phone reader.',
-  limit: "You have used today's AI requests on this site. Try again tomorrow, or use the free on-phone reader.",
+  limit: "You have used today's AI requests on this device. Try again tomorrow, or use the free on-phone reader.",
+  site_limit: "Today's AI allowance for this site is used up for everyone. It resets at 5:30 am India time. Until then, use the on-phone reader or type the marks.",
+  too_long: 'This paper and these answers are too long for the AI plan in one go. Grade part of the paper at a time, or ask the site owner to use a bigger AI plan.',
+  ai_setup: "The AI service did not accept this site's settings (key, address or model name). Tell the person who runs this site.",
+  no_vision: "This site's AI cannot read photos. Use Google Lens or the on-phone reader instead.",
   too_large: 'This photo is too large for the free AI plan. Retake it slightly further away, or crop it to the answers.',
   image_rejected: 'The AI could not open this photo. Retake it as a normal camera photo (JPEG) and try again.',
   upstream: 'The AI service had a problem. Wait a minute and try again.',
@@ -1062,10 +1066,10 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
 (async () => {
   try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
   if (!ai || !ai.enabled) { ai = null; return; }
-  $('#modeAi').hidden = false; $('#rdAI').hidden = false;
+  $('#modeAi').hidden = false; $('#rdAI').hidden = ai.vision === false;   // a text-only model still sorts Lens text and grades
   $('#aiWho').textContent = ai.backup ? `${ai.providerName}, or ${ai.backup} as a backup` : ai.providerName; $('#aiRisk').hidden = false;
   $('#lensAiNote').hidden = false;
-  if (savedReader === 'ai') setReader('ai', true);
+  if (savedReader === 'ai' && ai.vision !== false) setReader('ai', true);
 })();
 </script>
 </body>

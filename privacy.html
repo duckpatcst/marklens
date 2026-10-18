@@ -53,7 +53,7 @@ small{color:var(--mute)}
     <tbody>
       <tr><td><b>On this phone · free</b></td><td>Nowhere. The photo is read inside your browser by Tesseract, free open-source software. The first time, your browser downloads Tesseract from jsDelivr, a public code library network; only the software is downloaded, never your photos.</td><td>Only your own device.</td></tr>
       <tr><td><b>Google Lens</b></td><td>You scan the page in Google's own app (Google Lens, the Google app or Google Translate), so the photo goes to Google under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's privacy policy</a>. You then paste the text into MarkLens. If the site's AI is switched on, that text, but no photo, goes through this website's server to the AI company below to be sorted into questions and marks.</td><td>Google, for the scan. The AI company, for the pasted text.</td></tr>
-      <tr><td><b>AI reader</b> and <b>AI grading</b></td><td>Through this website's server, which does not save them, to the AI company the site owner has chosen (normally Groq, with Cloudflare Workers AI as a backup when Groq is busy; Google Gemini only on sites for adults).</td><td>The AI company, under its own terms. See below.</td></tr>
+      <tr><td><b>AI reader</b> and <b>AI grading</b></td><td>Through this website's server, which does not save them, to the AI service the site owner has chosen<span id="aiNow"></span>. This is normally Groq, with Cloudflare Workers AI as a backup when Groq is busy. A school or institute may instead use its own AI account or its own AI server. Google Gemini is used only on sites for adults.</td><td>The AI company, under its own terms. See below.</td></tr>
     </tbody>
   </table></div>
 
@@ -68,7 +68,7 @@ small{color:var(--mute)}
   <h2>What MarkLens itself keeps</h2>
   <ul>
     <li>Your question paper text, marks and dashboard are saved only in this browser, on this device, so they are still there next time. Clearing your browser's site data deletes them.</li>
-    <li>This website's server passes AI requests through without saving the photos or text. It counts how many AI requests each internet address makes each day, to stop abuse. That count is deleted after two days.</li>
+    <li>This website's server passes AI requests through without saving the photos or text. To share the AI fairly and stop abuse, it gives each browser a random device id (a cookie that says nothing about you) and counts how many AI requests that device makes each day. The counts are deleted after a few weeks at most.</li>
     <li>MarkLens has no accounts, no adverts and no tracking.</li>
   </ul>
 
@@ -86,5 +86,11 @@ small{color:var(--mute)}
   <h2>Changing your mind</h2>
   <p>You can stop using the AI reader at any time by choosing <b>On this phone · free</b>. Photos already sent to an AI company cannot be recalled by MarkLens; contact that company about their data.</p>
 </main>
+<script>
+/* shows which AI service this copy of MarkLens is set up to use */
+fetch('/api/ai', { headers: { accept: 'application/json' } }).then(r => r.ok ? r.json() : null).then(a => {
+  if (a && a.enabled && a.providerName) document.getElementById('aiNow').textContent = ' (on this site: ' + a.providerName + (a.backup ? ', with ' + a.backup + ' as a backup' : '') + ')';
+}).catch(() => {});
+</script>
 </body>
 </html>
