@@ -25,23 +25,38 @@
   // "Q1" for plain numbers; section labels such as "B2" are shown as they are
   const qName = q => /^\d/.test(String(q)) ? 'Q' + q : String(q);
   const PART = String.raw`(?:\(\s*(?:[a-h]|[ivx]{1,4})\s*\)|(?:[a-h]|[ivx]{1,4})\))`;   // (a)  b)  (iii)
+  // "## Physics > Optics > Lenses" at the end of a question names its subject, chapter and topic. Two parts are
+  // "Subject > Chapter" when the first is a subject name, otherwise "Chapter > Topic"; one part is a subject or a chapter.
+  function splitNote(s){
+    const p = String(s || '').split(/\s*[>›»]\s*/).map(x => x.trim()).filter(Boolean);
+    if (!p.length) return {};
+    if (p.length >= 3) return { asSubject: p[0], chapter: p[1], sub: p.slice(2).join(', ') };
+    if (p.length === 2) return INS.canonSubject(p[0]) ? { asSubject: p[0], chapter: p[1] } : { chapter: p[0], sub: p[1] };
+    return INS.canonSubject(p[0]) ? { asSubject: p[0] } : { chapter: p[0] };
+  }
+  // the question as a student would search for it: no topic note, #tag or marks label
+  const MARKS_TAIL = /\s*(?:[\[(]\s*\d+(?:\.\d+)?\s*(?:[x×*]\s*\d+(?:\.\d+)?\s*=\s*\d+(?:\.\d+)?\s*)?(?:[Mm]arks?|[Mm])?\s*[\])]|\d+(?:\.\d+)?\s*(?:[Mm]arks?\b|M\b))\s*$/;
+  const plainText = t => String(t || '').replace(/#[A-Za-z][\w &-]*/g, ' ').replace(/\btopic\s*[:\-]\s*[^\]\)|,#]+/i, ' ').replace(MARKS_TAIL, '').replace(/\s+/g, ' ').trim();
+
   function parsePaper(text){
     const qs = []; let section = '', secId = '', subject = '', cur = null;
     const lineRe = new RegExp(String.raw`^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)\s*(?:[.):\-]\s*|(?=${PART}))(.+)`, 'i');
-    for (const raw of halves(text).split(/\r?\n/)) {
-      const line = raw.trim(); if (!line) continue;
+    halves(text).split(/\r?\n/).forEach((raw, idx) => {
+      const line = raw.trim(); if (!line) return;
       // "Subject: Physics", or a line that is only a subject name (PHYSICS), starts a subject; its sections are its lessons
       const subj = line.match(/^subject\s*[:\-–]\s*(.+)$/i) || (line.length <= 40 && INS.canonSubject(line.replace(/[:.]$/, '')) ? [line, line.replace(/[:.]$/, '')] : null);
-      if (subj) { subject = subj[1].trim(); section = ''; secId = ''; cur = null; continue; }
+      if (subj) { subject = subj[1].trim(); section = ''; secId = ''; cur = null; return; }
       const sec = line.match(/^(?:section|part|unit|chapter|lesson)\s+(\w+)\s*[:\-–]?\s*(.*)$/i);
-      if (sec) { secId = sec[1].toUpperCase(); section = sec[2] ? sec[2].trim() : ''; cur = null; continue; }
+      if (sec) { secId = sec[1].toUpperCase(); section = sec[2] ? sec[2].trim() : ''; cur = null; return; }
       const m = line.match(lineRe);
-      if (m) { cur = { n: +m[1], text: m[2], section, secId, subject }; qs.push(cur); } else if (cur) cur.text += ' ' + line;
-    }
+      if (m) { cur = { n: +m[1], text: m[2], section, secId, subject, first: idx, line: idx }; qs.push(cur); } else if (cur) { cur.text += ' ' + line; cur.line = idx; }
+    });
+    // the "## ..." note comes off the question before anything else reads it
+    for (const o of qs) { const k = o.text.indexOf('##'); o.note = k >= 0 ? splitNote(o.text.slice(k + 2)) : {}; if (k >= 0) o.text = o.text.slice(0, k).trim(); }
     // Papers that restart numbering in each section (A1-5, B1-5) get section labels, so no question overwrites another.
     const restarts = new Set(qs.map(o => o.n)).size < qs.length;
     const tags = qs.map(o => (o.text.match(/#([A-Za-z][\w &-]*)/) || o.text.match(/\btopic\s*[:\-]\s*([^\]\)|,#]+)/i) || [])[1] || '');
-    const where = INS.classify(qs.map((o, i) => ({ subject: o.subject, heading: o.section, tag: tags[i], text: o.text })));
+    const where = INS.classify(qs.map((o, i) => ({ subject: o.subject, heading: o.section, tag: tags[i], text: o.text, ...o.note })));
     return qs.map((o, i) => {
       // [1×5=5] or (2 x 3 = 6) -> the total; otherwise the last marks label wins, so f(2) inside the question is not
       // read as marks; lowercase "m" alone is metres. A question split into parts (a) [2] (b) [3] gets the sum of the parts.
@@ -51,8 +66,22 @@
       const parts = (o.text.match(new RegExp(PART, 'gi')) || []).length;
       const max = parts >= 2 && firm.length >= 2 ? firm.reduce((a, mk) => a + val(mk), 0) : all.length ? val(all.at(-1)) : 0;
       const sid = o.secId || 'S' + (1 + qs.slice(0, i).filter(p => p.n === o.n).length);
-      return { q: restarts ? sid + (/^\d/.test(sid) ? '.' : '') + o.n : String(o.n), n: o.n, subject: where[i].subject, topic: where[i].lesson, type: guessType(o.text, max), max };
+      return { q: restarts ? sid + (/^\d/.test(sid) ? '.' : '') + o.n : String(o.n), n: o.n, subject: where[i].subject, topic: where[i].lesson, sub: where[i].topic,
+        type: guessType(o.text, max), max, text: plainText(o.text), first: o.first, line: o.line };
     });
+  }
+  // Writes "## Subject > Chapter > Topic" notes onto the paper's question lines (replacing older notes), so the topics
+  // the AI found stay in the text the student can read and correct. notes: Map or object, question label -> note.
+  function annotatePaper(text, notes){
+    const get = q => notes instanceof Map ? notes.get(q) : notes[q];
+    const lines = String(text).split(/\r?\n/);
+    for (const p of parsePaper(text)) {
+      const note = String(get(p.q) || '').replace(/[\r\n#]+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!note) continue;
+      for (let k = p.first; k <= p.line; k++) lines[k] = lines[k].replace(/\s*##[^#]*$/, '');
+      lines[p.line] = lines[p.line].replace(/\s+$/, '') + ' ## ' + note;
+    }
+    return lines.join('\n');
   }
   function parseSheet(text){
     // an optional section letter first (A1, B-2), as in papers that restart numbering per section
@@ -110,66 +139,129 @@
     return out;
   }
 
-  // Answer key: "1-B", "Q2: D", "3) a", "4-AC" (either is right), "5-*" (bonus: everyone gets it), a row of letters "BDACB".
+  // "Marks: +4 -1", "Marking: 4, -1", "Marks: +4 -2 partial", "Marks: +2 0 all", "Marks: +2 -2/3" -> { right, wrong, multi }
+  const MARKS_LINE = /^mark(?:s|ing)?(?:\s+scheme)?\s*[:=\-–]\s*(.*\d.*)$/i;
+  function parseMarks(rest){
+    const nums = (String(rest).match(/[-−–]?\s*\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?/g) || []).map(s => {
+      const [a, b] = s.replace(/[-−–\s]/g, '').split('/'); return b ? num(a) / num(b) : num(a);
+    });
+    if (!nums.length || !(nums[0] > 0)) return null;
+    const multi = /partial/i.test(rest) ? 'partial' : /\b(all|exact)\b/i.test(rest) ? 'all' : /\b(any|either)\b/i.test(rest) ? 'any' : '';
+    return { right: Math.abs(nums[0]), wrong: Math.abs(nums[1] || 0), multi };
+  }
+  // Answer key: "1-B", "Q2: D", "3) a", "4-AC" (either is right, unless a Marks line or the exam says all of them),
+  // "5-*" (bonus: everyone gets it), a row of letters "BDACB", and numerical answers "21 = 12" or "22 = 2.30 to 2.35".
   // "Subject: Physics" (or a heading that names a subject, like "Section A: Physics") starts a subject; "Chapter: Optics"
-  // (or any other heading, such as "Section B: Optics" or "Optics:") starts a lesson inside it. "#Optics" tags one line.
+  // (or any other heading, such as "Section B: Optics" or "Optics:") starts a lesson inside it. "#Optics" tags one line,
+  // and "## Optics > Lenses" names the chapter and topic of the questions on that line. "Marks: +4 -2 partial" sets the
+  // marking for the questions after it.
   function parseKey(text){
-    const items = new Map(), heads = [], tagged = new Map(); let subject = '', lesson = '';
+    const items = new Map(), heads = [], markHeads = [], tagged = new Map(), noted = new Map(); let subject = '', lesson = '';
+    const startAt = (list, q) => { const open = list.length && list[list.length - 1].q === null ? list[list.length - 1] : null; if (open) open.q = q; };   // a heading starts at its first question
     for (const raw of String(text).split(/\r?\n/)) {
-      const line = raw.trim(); if (!line) continue;
+      let line = raw.trim(); if (!line) continue;
+      const mk = line.match(MARKS_LINE);
+      if (mk) { const marks = parseMarks(mk[1]); if (marks) { markHeads.push({ marks, q: null }); continue; } }
       const h = line.match(/^(section|part|unit|chapter|lesson|subject|topic)\s*[A-Za-z0-9]{0,3}\s*[:\-–]\s*(.+)$/i) || line.match(/^()([A-Za-z][A-Za-z &/-]{2,40}):\s*$/);
       if (h) {
         const name = h[2].trim();
         if (/^subject$/i.test(h[1]) || INS.canonSubject(name)) { subject = name; lesson = ''; } else lesson = name;
         heads.push({ subject, lesson, q: null }); continue;
       }
+      const k = line.indexOf('##'), note = k >= 0 ? splitNote(line.slice(k + 2)) : null;
+      if (k >= 0) line = line.slice(0, k).trim();
       const tag = (line.match(/#([A-Za-z][\w &-]*)/) || [])[1];
-      const open = heads.length && heads[heads.length - 1].q === null ? heads[heads.length - 1] : null;   // a heading starts at its first question
+      const add = (q, it) => {
+        items.set(q, { q, said: subject, lesson, ...it });
+        if (tag) tagged.set(q, tag.trim()); else tagged.delete(q);
+        if (note) noted.set(q, note); else noted.delete(q);
+        startAt(heads, q); startAt(markHeads, q);
+      };
       let found = false;
+      for (const m of line.matchAll(/(?:^|[\s,;])Q?(\d{1,3})\s*[-.):]?\s*=\s*(-?\d+(?:\.\d+)?)(?:\s*(?:to|\.\.|–|~)\s*(-?\d+(?:\.\d+)?))?(?=$|[\s,;#?])/gi)) {
+        const q = +m[1]; if (q < 1 || q > 300) continue;
+        const a = num(m[2]), b = m[3] !== undefined ? num(m[3]) : a;
+        add(q, { keys: '', num: { lo: Math.min(a, b), hi: Math.max(a, b) } }); found = true;
+      }
       for (const m of line.matchAll(/(?:^|[\s,;])Q?(\d{1,3})\s*[-.):=]?\s*([A-Ha-h]{1,4}(?:\s*[,/&]\s*[A-Ha-h])*|\*)(?=$|[\s,;#?])/g)) {
         const q = +m[1]; if (q < 1 || q > 300) continue;
-        items.set(q, { q, keys: m[2] === '*' ? '*' : [...new Set(m[2].toUpperCase().replace(/[^A-H]/g, ''))].sort().join(''), said: subject, lesson });
-        if (tag) tagged.set(q, tag.trim()); else tagged.delete(q);
-        if (open && open.q === null) open.q = q;
-        found = true;
+        add(q, { keys: m[2] === '*' ? '*' : [...new Set(m[2].toUpperCase().replace(/[^A-H]/g, ''))].sort().join('') }); found = true;
       }
       if (!found && /^[A-Ha-h][A-Ha-h\s,]+$/.test(line) && line.replace(/[^A-Ha-h]/g, '').length >= 2) {   // a row of letters: BDACB
         let q = items.size ? Math.max(...items.keys()) + 1 : 1;
-        if (open) open.q = q;
-        for (const ch of line.toUpperCase().replace(/[^A-H]/g, '')) items.set(q, { q: q++, keys: ch, said: subject, lesson });
+        for (const ch of line.toUpperCase().replace(/[^A-H]/g, '')) add(q++, { keys: ch });
       }
     }
-    // A question's subject and lesson follow its number: a line like "26-*" added at the end still belongs to the
-    // heading that covers question 26, not to the last heading above it.
-    const ranges = heads.filter(x => x.q !== null).sort((a, b) => a.q - b.q);
+    // A question's subject, lesson and marking follow its number: a line like "26-*" added at the end still belongs to
+    // the heading that covers question 26, not to the last heading above it.
+    const ranges = heads.filter(x => x.q !== null).sort((a, b) => a.q - b.q), mranges = markHeads.filter(x => x.q !== null).sort((a, b) => a.q - b.q);
     const list = [...items.values()].sort((a, b) => a.q - b.q);
-    for (const it of list) { const r = ranges.filter(x => x.q <= it.q).pop(); if (r) { it.said = r.subject; it.lesson = r.lesson; } }
-    const where = INS.classify(list.map(it => ({ subject: it.said, heading: it.lesson, tag: tagged.get(it.q) || '' })));
-    return list.map((it, i) => ({ q: it.q, keys: it.keys, said: it.said, subject: where[i].subject, topic: where[i].lesson }));
+    for (const it of list) {
+      const r = ranges.filter(x => x.q <= it.q).pop(); if (r) { it.said = r.subject; it.lesson = r.lesson; }
+      const mr = mranges.filter(x => x.q <= it.q).pop(); it.marks = mr ? mr.marks : null;
+    }
+    const where = INS.classify(list.map(it => ({ subject: it.said, heading: it.lesson, tag: tagged.get(it.q) || '', ...(noted.get(it.q) || {}) })));
+    return list.map((it, i) => ({ q: it.q, keys: it.keys, num: it.num || null, marks: it.marks, said: it.said, subject: where[i].subject, topic: where[i].lesson, sub: where[i].topic }));
   }
-  // The student's marks: "7: C", "8: -" (blank), "9: AB" (more than one bubble), "10: D ?" (check the photo)
+  // The student's answers: "7: C", "8: -" (blank), "9: AB" (more than one bubble), "10: D ?" (check the photo),
+  // "21: 12" or "22: -0.5" (a numerical answer)
   function parseOmrAnswers(text){
     const m = new Map();
     for (const raw of String(text).split(/\r?\n/)) {
-      const x = raw.match(/^\s*Q?(\d{1,3})\s*[-.):=]?\s*([A-Ha-h]{1,6}|[-–—]|blank)?\s*(\?)?\s*$/i);
+      const x = raw.match(/^\s*Q?(\d{1,3})\s*[-.):=]?\s*([A-Ha-h]{1,6}|-?\d+(?:\.\d+)?|[-–—]|blank)?\s*(\?)?\s*$/i);
       if (!x) continue;
-      m.set(+x[1], { marked: x[2] && /^[A-H]+$/i.test(x[2]) ? [...new Set(x[2].toUpperCase())].sort().join('') : '', check: !!x[3] });
+      const v = x[2] || '', isNum = /^-?\d/.test(v);
+      m.set(+x[1], { marked: /^[A-H]+$/i.test(v) ? [...new Set(v.toUpperCase())].sort().join('') : '', num: isNum ? num(v) : null, check: !!x[3] });
     }
     return m;
   }
+  const keyLabel = k => k.keys === '*' ? 'any' : k.num ? (k.num.lo === k.num.hi ? String(k.num.lo) : `${k.num.lo} to ${k.num.hi}`) : k.keys;
 
-  // key text from a scanned key sheet, keeping the subjects and chapters already typed for those questions
+  // Marks for one answer. k: a parseKey item; a: a parseOmrAnswers entry (or nothing for a blank);
+  // d: { right, wrong, multi } from the marking scheme boxes and the exam type, used when no Marks line covers k.
+  // multi (for a key with several letters): 'any' = any of them is right (NTA), 'partial' = all of them, with a mark
+  // for each right option chosen when no wrong one is (JEE Advanced), 'all' = all of them, no part marks (GATE MSQ).
+  function scoreAnswer(k, a, d = {}){
+    const sch = k.marks || {}, right = sch.right ?? d.right ?? 1, wrong = sch.wrong ?? d.wrong ?? 0, multi = sch.multi || d.multi || 'any';
+    a = a || { marked: '', num: null };
+    const many = k.keys && k.keys.length > 1 && k.keys !== '*' && multi !== 'any';
+    const type = k.num ? 'Numerical' : many ? 'Multiple correct' : 'MCQ';
+    const marked = a.num != null ? String(a.num) : a.marked || '–';
+    const out = (got, cause) => ({ got, max: right, cause, type, marked, key: keyLabel(k) });
+    if (k.keys === '*') return out(right, 'None');                                    // a dropped question: marks for everyone
+    if (k.num) {
+      if (a.num == null) return a.marked ? out(-wrong, 'Wrong answer') : out(0, 'Incomplete / unattempted');
+      return a.num >= k.num.lo - 1e-9 && a.num <= k.num.hi + 1e-9 ? out(right, 'None') : out(-wrong, 'Wrong answer');
+    }
+    const m = a.marked || '';
+    if (!m) return a.num != null ? out(-wrong, 'Wrong option') : out(0, 'Incomplete / unattempted');
+    if (many) {
+      const K = new Set(k.keys), M = [...m];
+      if (M.some(c => !K.has(c))) return out(-wrong, 'Wrong option');
+      if (M.length === K.size) return out(right, 'None');
+      return multi === 'partial' ? out(Math.min(right - 0.5, M.length * right / 4), 'Incomplete / unattempted') : out(0, 'Incomplete / unattempted');
+    }
+    if (m.length > 1) return out(-wrong, 'Bubbling error');                           // more than one bubble counts as wrong
+    return k.keys.includes(m) ? out(right, 'None') : out(-wrong, 'Wrong option');
+  }
+
+  // key text from a scanned key sheet, keeping the subjects, chapters and marking already typed for those questions,
+  // and the numerical answers, which an OMR sheet cannot hold
   function keyText(answers, old){
-    const prev = new Map(parseKey(old).map(k => [k.q, k])), out = []; let cs = null, cl = null;
-    for (const a of answers) {
-      if (!a.marked) continue;
-      const k = prev.get(a.q), sub = k ? k.said : '', les = k && k.topic !== 'General' ? k.topic : '';
+    const before = parseKey(old), prev = new Map(before.map(k => [k.q, k])), seen = new Set(), out = []; let cs = null, cl = null, cm = null;
+    const scanned = answers.filter(a => a.marked).map(a => ({ q: a.q, line: `${a.q}-${a.marked}${a.flag ? ' ?' : ''}` }));
+    for (const k of before) if (k.num && !answers.some(a => a.q === k.q && a.marked)) scanned.push({ q: k.q, line: `${k.q} = ${keyLabel(k)}` });
+    scanned.sort((a, b) => a.q - b.q);
+    for (const a of scanned) {
+      if (seen.has(a.q)) continue; seen.add(a.q);
+      const k = prev.get(a.q), sub = k ? k.said : '', les = k && k.topic !== 'General' ? k.topic : '', mk = k && k.marks ? `Marks: +${k.marks.right} ${k.marks.wrong ? '-' + k.marks.wrong : '0'}${k.marks.multi ? ' ' + k.marks.multi : ''}` : '';
       if (sub !== cs) { if (sub) out.push(`Subject: ${sub}`); cs = sub; cl = null; }
       if (les !== cl) { if (les) out.push(`Chapter: ${les}`); else if (cl && sub) out.push(`Subject: ${sub}`); cl = les; }
-      out.push(`${a.q}-${a.marked}${a.flag ? ' ?' : ''}`);
+      if (mk !== cm) { if (mk) out.push(mk); cm = mk; }
+      out.push(a.line);
     }
     return out.join('\n');
   }
 
-  return { CAUSE_WORDS, guessType, classifyCause, halves, qName, PART, parsePaper, parseSheet, matchSheet, tidyCommon, tidyPaper, tidySheet, chunkPages, parseKey, parseOmrAnswers, keyText };
+  return { CAUSE_WORDS, guessType, classifyCause, halves, qName, PART, splitNote, plainText, parsePaper, annotatePaper, parseSheet, matchSheet, tidyCommon, tidyPaper, tidySheet, chunkPages, parseMarks, parseKey, parseOmrAnswers, scoreAnswer, keyLabel, keyText };
 });

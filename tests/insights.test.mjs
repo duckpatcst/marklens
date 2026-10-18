@@ -36,16 +36,17 @@ test('subject headings, chapters and tags', () => {
     { subject: 'Physics', heading: 'Optics' }, { subject: 'Physics', heading: '' }, { heading: 'Physics' },
     { subject: 'Chemistry', tag: 'Mole concept' }, { subject: 'Science', text: 'State Ohm\'s law' }, { subject: 'Zoology', heading: '' }
   ]);
-  assert.deepEqual(c, [
+  assert.deepEqual(c.map(({ subject, lesson }) => ({ subject, lesson })), [
     { subject: 'Physics', lesson: 'Optics' }, { subject: 'Physics', lesson: 'General' }, { subject: 'Physics', lesson: 'General' },
     { subject: 'Chemistry', lesson: 'Mole concept' }, { subject: 'Science', lesson: 'Current electricity' }, { subject: 'Zoology', lesson: 'General' }
   ]);
+  assert.equal(c[4].topic, 'Ohm\'s law and resistance');   // the topic inside the lesson, from the question's words
 });
 
 test('the paper\'s subject wins over a look-alike word', () => {
   // "angle" alone would be Geometry; in a Physics paper the velocity makes it Motion
   const c = I.classify([{ heading: 'Physics' }, { heading: 'Physics', text: 'A ball is thrown with velocity 20 m/s at an angle of 30 degrees' }]);
-  assert.deepEqual(c[1], { subject: 'Physics', lesson: 'Motion' });
+  assert.deepEqual(c[1], { subject: 'Physics', lesson: 'Motion', topic: 'Projectile motion' });
   assert.equal(I.lessonFor('Find cos 60 + sin 30').lesson, 'Trigonometry');
   assert.equal(I.lessonFor('Calculate the cost of fencing'), null);   // "cos" inside "cost" is not trigonometry
 });
@@ -78,12 +79,34 @@ test('the example paper: totals, ranked plan and what is within reach', () => {
   assert.deepEqual(a.subjects[0].lessons.map(l => l.name), ['Trigonometry', 'Geometry', 'Algebra', 'Statistics']);
 });
 
-test('the next 10 hours add up to 10 and follow the marks within reach', () => {
-  const s = I.analyze(EXAMPLE).split;
+test('study time as percentages: whole numbers that add up to 100, most to the most marks within reach', () => {
+  const s = I.analyze(EXAMPLE).share;
   assert.equal(s.by, 'lesson');
-  assert.equal(s.parts.reduce((a, p) => a + p.hours, 0), 10);
-  assert.equal(s.parts[0].name, 'Geometry');
-  for (const p of s.parts) assert.equal(p.hours * 2, Math.round(p.hours * 2));   // half hours
+  assert.equal(s.parts.reduce((a, p) => a + p.pct, 0), 100);
+  for (const p of s.parts) assert.ok(Number.isInteger(p.pct) && p.pct > 0);
+  assert.equal(s.parts[0].name, 'Geometry');                         // the most marks to win back (+3.6) and slow to fix
+  const habits = s.parts.find(p => p.kind === 'habit');
+  assert.ok(habits, 'exam habits get a share of their own');
+  assert.deepEqual(habits.inner.map(x => x.name).sort(), ['Careless slips', 'Units and signs']);
+  assert.equal(habits.inner.reduce((a, x) => a + x.pct, 0), habits.pct);
+  // more marks to win back means more time, other things equal
+  const two = I.timeShare([{ kind: 'study', subject: 'Physics', lesson: 'Optics', gain: 8, hours: 2 }, { kind: 'study', subject: 'Chemistry', lesson: 'Mole concept', gain: 2, hours: 2 }],
+    [{ name: 'Physics', gain: 8 }, { name: 'Chemistry', gain: 2 }]);
+  assert.equal(two.by, 'subject');
+  assert.ok(two.parts[0].name === 'Physics' && two.parts[0].pct > two.parts[1].pct);
+  assert.equal(two.parts[0].pct + two.parts[1].pct, 100);
+  assert.deepEqual(I.toPercents([1, 1, 1]), [34, 33, 33]);
+});
+
+test('weak topics: biggest losses first, with each topic\'s share of the paper', () => {
+  const R = EXAMPLE.map(r => ({ ...r, sub: r.q === '4' ? 'Angle sum property' : r.q === '6' ? 'Pythagoras theorem' : '' }));
+  const T = I.analyze(R).topics;
+  assert.equal(T[0].name, 'Trigonometry');                           // 5 marks lost
+  const pyth = T.find(t => t.name === 'Pythagoras theorem');
+  assert.equal(pyth.lesson, 'Geometry'); assert.equal(pyth.level, 'weak');
+  assert.equal(Math.round(pyth.portion * 10) / 10, 10.5);             // 4 of the paper's 38 marks
+  assert.equal(T.reduce((a, t) => a + t.max, 0), 38);                // every mark belongs to one topic
+  assert.ok(T.find(t => t.name === 'Algebra' && t.level === 'shaky'));
 });
 
 test('a multiple-choice test across subjects: focus subject, negative marks and bubbling', () => {
@@ -95,8 +118,8 @@ test('a multiple-choice test across subjects: focus subject, negative marks and 
   const a = I.analyze(R, { omr: true });
   assert.equal(a.total.got, 21);
   assert.equal(a.subjects[0].name, 'Physics');                       // the most marks to win back
-  assert.equal(a.split.by, 'subject');
-  assert.equal(a.split.parts[0].name, 'Physics');
+  assert.equal(a.share.by, 'subject');
+  assert.equal(a.share.parts.filter(p => p.kind === 'study')[0].name, 'Physics');
   assert.equal(a.plan[0].title, 'Bubbling mistakes');                // fastest fix
   const optics = a.plan.find(p => p.title === 'Optics');
   assert.equal(optics.lost, 14);                                     // 2 wrong x (4 + 1) + 1 blank x 4
@@ -106,7 +129,7 @@ test('a multiple-choice test across subjects: focus subject, negative marks and 
 
 test('nothing to plan when nothing was lost', () => {
   const a = I.analyze([row(1, 'Maths', 'Algebra', 2, 2), row(2, 'Maths', 'Algebra', 3, 3)]);
-  assert.equal(a.plan.length, 0); assert.equal(a.reachAll, 5); assert.equal(a.split.parts.length, 0); assert.equal(a.quick, null);
+  assert.equal(a.plan.length, 0); assert.equal(a.reachAll, 5); assert.equal(a.share.parts.length, 0); assert.equal(a.quick, null);
 });
 
 test('my papers: progress and the subjects that keep costing marks', () => {
@@ -117,4 +140,23 @@ test('my papers: progress and the subjects that keep costing marks', () => {
   assert.deepEqual(A.papers.map(p => p.name), ['Unit test 1', 'Unit test 2']);   // oldest first
   assert.equal(A.subjects[0].name, 'Physics'); assert.equal(A.subjects[0].lost, 11);
   assert.equal(A.lessons[0].name, 'Optics'); assert.equal(A.lessons[0].papers, 2);
+});
+
+test('topics inside lessons, from the question\'s own words', () => {
+  assert.equal(I.topicFor('An object is placed 30 cm from a convex lens of focal length 20 cm', 'Optics'), 'Lenses');
+  assert.equal(I.topicFor('Explain total internal reflection with a diagram', 'Optics'), 'Refraction');
+  assert.equal(I.topicFor('Magnifying power of a compound microscope', 'Ray optics and optical instruments', 'Physics'), 'Optical instruments');
+  assert.equal(I.topicFor('In a monohybrid cross between Tt and Tt find the ratio', 'Genetics', 'Biology'), 'Mendelian inheritance');
+  assert.equal(I.topicFor('Find the probability of drawing a red ball from a bag', 'Statistics'), 'Probability');
+  assert.equal(I.topicFor('Anything at all', 'A lesson nobody knows'), '');
+  // a note on the question wins over the guess
+  assert.equal(I.classify([{ heading: 'Optics', text: 'focal length of a lens', chapter: 'Ray optics', sub: 'Lens formula' }])[0].topic, 'Lens formula');
+});
+
+test('exam subjects: SSC and bank section names', () => {
+  assert.equal(I.canonSubject('General Intelligence and Reasoning'), 'Reasoning');
+  assert.equal(I.canonSubject('Quantitative Aptitude'), 'Quantitative aptitude');
+  assert.equal(I.canonSubject('English Comprehension'), 'English');
+  assert.equal(I.canonSubject('General Awareness'), 'General awareness');
+  assert.equal(I.canonSubject('GK'), 'General awareness');
 });

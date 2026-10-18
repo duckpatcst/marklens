@@ -4,7 +4,7 @@
    a dashed edge) and every number is also written out, so nothing depends on colour alone. */
 (function () {
   'use strict';
-  const I = window.MarkLensInsights;
+  const I = window.MarkLensInsights, E = window.MarkLensExams;
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = n => String(Math.round(n * 10) / 10);
   const signed = n => (n < 0 ? '−' : '') + fmt(Math.abs(n));
@@ -12,11 +12,15 @@
   const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
   const qName = q => /^\d/.test(String(q)) ? 'Q' + q : String(q);
   const qList = qs => { const a = qs.map(qName); return a.length <= 5 ? a.join(', ') : `${a.slice(0, 4).join(', ')} +${a.length - 4} more`; };
-  const grade = p => p >= 90 ? 'A+' : p >= 80 ? 'A' : p >= 70 ? 'B' : p >= 60 ? 'C' : p >= 50 ? 'D' : 'F';
+  const plus = n => (n < 0 ? '−' : '+') + String(Math.round(Math.abs(n) * 100) / 100);
+  const clip = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t; };
+  const safeUrl = u => /^https?:\/\//i.test(String(u || '')) ? String(u) : '';
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'source'; } };
   const hours = h => h < 1 ? `${Math.round(h * 60)} min` : `${String(h).replace('.5', '½').replace('.25', '¼').replace('.75', '¾')} h`;
   const still = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
   const lessonName = l => l === 'General' ? 'Other questions' : l;
   const PAPERS = 'marklens-papers';
+  const LEVEL = { weak: 'Weak', shaky: 'Needs work', strong: 'Strong' };
 
   const SHORT = {
     'Careless / calculation': 'Five minutes of checking at the end wins most of them back.',
@@ -31,7 +35,9 @@
 
   const picked = new Map();   // plan item id -> in the student's plan (default: the first three)
   const last = new Map();     // animation key -> value on screen
-  let seen = false, io = null, root = null, st = null, an = null, showAll = false;
+  const notes = { answers: '', topics: '' };   // progress lines for the AI buttons, kept across redraws
+  let seen = false, io = null, root = null, st = null, an = null, showAll = false, showAllTopics = false, showAllAns = false, lastKey = null;
+  const exam = () => (st && st.exam) || (E ? E.get('general') : { id: 'general' });
 
   const isPicked = (p, i) => picked.has(p.id) ? picked.get(p.id) : i < 3;
   const planned = () => an.plan.filter(isPicked);
@@ -62,16 +68,33 @@
     if (!P.length) return `<p class="db-lead"><b>Nothing to win back here.</b> ${t.lost > 0 ? 'The few marks lost are too small to plan around.' : 'Full marks on every question.'}</p>`;
     const out = [], q = an.quick;
     if (q && q.gain >= 0.5) out.push(`<b>Fastest marks:</b> ${esc(q.title.toLowerCase().replace(/^./, c => c.toUpperCase()))} cost you ${fmt(q.lost)} marks in ${esc(qList(q.qs))}. ${esc(SHORT[q.cause] || '')} <span class="gain">+${fmt(q.gain)}</span> in about ${hours(q.hours)}.`);
-    const subs = an.subjects.filter(s => s.gain > 0);
-    if (subs.length > 1) {
-      const s = subs[0], share = Math.round(s.gain / subs.reduce((a, x) => a + x.gain, 0) * 100);
-      out.push(`<b>Focus subject: ${esc(s.name || 'Other')}.</b> It holds ${share}% of the marks within reach (<span class="gain">+${fmt(s.gain)}</span>), more than any other subject.`);
+    // the focus follows the study-time split below, so the two always agree
+    const study = an.share.parts.filter(p => p.kind === 'study');
+    if (an.share.by === 'subject' && study.length) {
+      const s = study[0], ins = s.inner.slice(0, 2).map(x => x.name);
+      out.push(`<b>Focus subject: ${esc(s.name)}.</b> Give it ${s.pct}% of your study time: <span class="gain">+${fmt(s.gain)}</span> marks to win back${ins.length ? ` in ${esc(ins.join(' and '))}` : ''}.`);
     } else {
-      const ls = (subs[0] ? subs[0].lessons : []).filter(l => l.gain > 0 && l.name !== 'General').sort((a, b) => b.gain - a.gain).slice(0, 2);
-      if (ls.length) out.push(`<b>Focus ${ls.length > 1 ? 'lessons' : 'lesson'}: ${esc(ls.map(l => l.name).join(' and '))}.</b> ${ls.length > 1 ? 'They hold' : 'It holds'} <span class="gain">+${fmt(ls.reduce((a, l) => a + l.gain, 0))}</span> of the ${fmt(an.reachAll - Math.max(0, t.got))} marks within reach.`);
+      const ls = study.filter(p => !/other questions$/i.test(p.name)).slice(0, 2);
+      if (ls.length) out.push(`<b>Focus ${ls.length > 1 ? 'lessons' : 'lesson'}: ${esc(ls.map(l => l.name).join(' and '))}.</b> ${ls.length > 1 ? 'They get' : 'It gets'} ${ls.reduce((a, l) => a + l.pct, 0)}% of your study time and ${ls.length > 1 ? 'hold' : 'holds'} <span class="gain">+${fmt(ls.reduce((a, l) => a + l.gain, 0))}</span> of the ${fmt(an.reachAll - Math.max(0, t.got))} marks within reach.`);
     }
     if (!out.length) out.push(`<b>Biggest win:</b> ${esc(P[0].title)}, <span class="gain">+${fmt(P[0].gain)}</span> in about ${hours(P[0].hours)}.`);
+    const g = guessLine(); if (g) out.push(g);
     return out.map(x => `<p class="db-lead">${x}</p>`).join('');
+  }
+
+  // Negative marking: how sure to be before answering, and what this student's own attempts say
+  function guessLine(){
+    const sc = st.scheme;
+    if (st.mode !== 'omr' || !sc || !(sc.wrong > 0) || !E) return '';
+    const be = Math.round(E.breakEven(sc.right, sc.wrong) * 100), k = sc.options || 4;
+    const g0 = E.guessValue(sc.right, sc.wrong, k, 0), g1 = E.guessValue(sc.right, sc.wrong, k, 1);
+    const R = st.rows.filter(r => r.max > 0 && r.key !== 'any' && r.type !== 'Numerical');
+    const tried = R.filter(r => r.marked && r.marked !== '–'), right = tried.filter(r => r.cause === 'None').length;
+    const blanks = R.filter(r => !r.marked || r.marked === '–').length, pen = R.reduce((a, r) => a + Math.max(0, -r.got), 0), acc = tried.length ? right / tried.length : 0;
+    let you = '';
+    if (tried.length >= 5 && acc >= 0.75 && blanks >= 2) you = ` You were right on ${Math.round(acc * 100)}% of your attempts and left ${blanks} blank, so answering the ones where you can rule out an option should add marks.`;
+    else if (tried.length >= 5 && acc < 0.5 && pen > 0) you = ` Wrong answers took away ${fmt(pen)} marks: answer only when you can rule out at least two options.`;
+    return `<b>When to guess (+${fmt(sc.right)} / −${fmt(sc.wrong)}):</b> answer when you are at least ${be}% sure. A blind guess is worth ${plus(g0)} on average; ruling out one option makes it ${plus(g1)}.${you}`;
   }
 
   function stats(){
@@ -84,23 +107,31 @@
       else if (c.wrong) s.push([String(c.wrong), 'Wrong answers']);
       s.push([String(c.blank), c.blank === 1 ? 'Question left blank' : 'Questions left blank']);
       if (c.multi) s.push([String(c.multi), 'With more than one bubble']);
+      if (c.part) s.push([String(c.part), 'Part marks (some options missed)']);
     } else {
       s.push([`−${fmt(Math.max(0, t.lost))}`, 'Marks lost']);
       s.push([`${c.full}/${c.n}`, 'Full marks']);
       if (c.part) s.push([String(c.part), 'Part marks']);
       if (c.zero + c.blank) s.push([String(c.zero + c.blank), c.blank ? 'No marks or left blank' : 'No marks']);
     }
+    const ex = exam();
+    if (ex.pass && an.subjects.length > 1) {
+      const below = an.subjects.filter(x => x.pct < ex.pass);
+      s.push([`${an.subjects.length - below.length}/${an.subjects.length}`, below.length ? `Subjects above the ${ex.pass}% pass mark` : `Subjects passed (${ex.pass}% needed)`]);
+    }
     return `<div class="db-stats">${s.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>`;
   }
 
   function hero(){
-    const t = an.total, p = pct(t.got, t.max), reach = reachNow(), n = planned().length;
+    const t = an.total, p = pct(t.got, t.max), reach = reachNow(), n = planned().length, ex = exam();
+    const g = E ? E.grade(p, ex) : { stamp: '', title: '', pass: null };
+    const passNote = g.pass === null || ex.grading === 'percent' ? '' : `<span class="db-pass ${g.pass ? 'ok' : 'no'}">${g.pass ? `Above the ${ex.pass}% pass mark` : `Below the ${ex.pass}% pass mark`}</span>`;
     return `<section class="panel db-hero" aria-label="Your score">
       <div class="db-nums">
         <div class="db-score">
-          <div class="db-k">Your score</div>
+          <div class="db-k">Your score${ex.id !== 'general' ? ` <span class="db-examname">${esc(ex.name)}</span>` : ''}</div>
           <div class="db-big" data-k="score" aria-label="Score ${fmt(t.got)} of ${fmt(t.max)}"><span data-n="${t.got}" data-key="n-got">${fmt(t.got)}</span><small>/ ${fmt(t.max)}</small></div>
-          <div class="db-sub"><span class="db-stamp" title="Grade">${grade(p)}</span><span><b data-n="${p}" data-key="n-pct" data-int="1">${Math.round(p)}</b>%</span></div>
+          <div class="db-sub">${g.stamp ? `<span class="db-stamp${g.stamp.length > 3 ? ' word' : ''}" title="${esc(g.title)}" aria-label="${esc(g.title)}">${esc(g.stamp)}</span>` : ''}<span class="db-pct"><b data-n="${p}" data-key="n-pct" data-int="1">${Math.round(p)}</b>%</span>${passNote}</div>
         </div>
         <div class="db-reach">
           <div class="db-k">Within reach</div>
@@ -147,22 +178,45 @@
     return `<ul class="ls">${ls.slice(0, limit).map(rows).join('')}</ul><details class="ls-more"><summary>All ${ls.length} lessons</summary><ul class="ls">${ls.slice(limit).map(rows).join('')}</ul></details>`;
   }
 
+  // one subject: the topics panel already shows its lessons
   function subjects(){
-    const S = an.subjects;
-    if (S.length > 1) {
-      return `<section class="panel db-subj"><h3>Subjects</h3><p class="hint">Most marks to win back first. Hatched: marks within reach.</p>
-        ${S.map(s => {
-          const named = s.lessons.some(l => l.name !== 'General');
-          return `<div class="sj"><div class="sj-head"><h4>${esc(s.name || 'Other')}</h4><span class="sj-pct">${Math.round(s.pct)}%</span><span class="sj-gain">${s.gain > 0 ? `+${fmt(s.gain)} within reach` : 'Nothing to win back'}</span></div>
-            ${mini(s.got, s.max, s.gain, 's:' + s.name)}<div class="sj-sub">${fmt(s.got)} of ${fmt(s.max)} marks</div>
-            ${named ? lessonRows(s, 's:' + s.name, 3) : ''}</div>`;
-        }).join('')}
-        ${st.mode === 'omr' && !S.some(s => s.lessons.some(l => l.name !== 'General')) ? '<p class="hint">Add lines like <span class="mono">Chapter: Optics</span> under each subject in the answer key to see the weak lessons too.</p>' : ''}
-      </section>`;
-    }
-    const s = S[0];
-    return `<section class="panel db-subj"><h3>Lessons${s.name ? ` in ${esc(s.name)}` : ''}</h3><p class="hint">Weakest first. Hatched: marks within reach.</p>
-      <ul class="ls big">${s.lessons.map(l => `<li><span class="ls-name">${esc(lessonName(l.name))}<small>${fmt(l.got)} of ${fmt(l.max)}${l.gain > 0 ? `<b class="gain">+${fmt(l.gain)}</b>` : ''}</small></span>${mini(l.got, l.max, l.gain, 'l:' + l.name)}<span class="ls-v">${Math.round(l.pct)}%</span></li>`).join('')}</ul>
+    const S = an.subjects, ex = exam();
+    if (S.length < 2) return '';
+    return `<section class="panel db-subj"><h3>Subjects</h3><p class="hint">Most marks to win back first. Hatched: marks within reach.${ex.pass ? ` Pass mark: ${ex.pass}% in each subject.` : ''}</p>
+      ${S.map(s => {
+        const named = s.lessons.some(l => l.name !== 'General'), below = ex.pass && s.pct < ex.pass;
+        return `<div class="sj"><div class="sj-head"><h4>${esc(s.name || 'Other')}</h4><span class="sj-pct">${Math.round(s.pct)}%</span><span class="sj-gain">${s.gain > 0 ? `+${fmt(s.gain)} within reach` : 'Nothing to win back'}</span></div>
+          ${mini(s.got, s.max, s.gain, 's:' + s.name)}<div class="sj-sub">${fmt(s.got)} of ${fmt(s.max)} marks${below ? ` · <b class="below">below the ${ex.pass}% pass mark</b>` : ''}</div>
+          ${named ? lessonRows(s, 's:' + s.name, 3) : ''}</div>`;
+      }).join('')}
+      ${st.mode === 'omr' && !S.some(s => s.lessons.some(l => l.name !== 'General')) ? '<p class="hint">Add lines like <span class="mono">Chapter: Optics</span> under each subject in the answer key, or add the question paper, to see the weak lessons too.</p>' : ''}
+    </section>`;
+  }
+
+  // Weak topics: the finest level known for each question, biggest losses first. Each bar is as long as the topic's
+  // share of the paper, so a big portion scored badly stands out from a one-mark slip.
+  function topics(){
+    const T = an.topics.filter(t => t.max > 0);
+    if (!T.length) return '';
+    const big = Math.max(...T.map(t => t.max)), multi = an.subjects.length > 1, shown = showAllTopics ? T : T.slice(0, 8);
+    const anySub = T.some(t => t.sub), lessonsOnly = !anySub;
+    const row = t => {
+      const ctx = [multi ? t.subject : '', t.sub && t.lesson !== 'General' ? t.lesson : ''].filter(Boolean).join(' › ');
+      return `<li class="tp">
+        <div class="tp-head"><span class="tp-name">${esc(t.sub || (t.lesson !== 'General' ? t.lesson : t.subject ? `${t.subject}, other questions` : 'Other questions'))}</span><span class="tp-lvl ${t.level}">${LEVEL[t.level]}</span></div>
+        ${ctx ? `<div class="tp-ctx">${esc(ctx)}</div>` : ''}
+        <div class="tp-bar" style="width:${Math.max(10, t.max / big * 100).toFixed(1)}%">${mini(t.got, t.max, t.gain, 't:' + t.id)}</div>
+        <div class="tp-sub"><span class="mono">${Math.max(0, Math.round(t.pct))}%</span><span>${signed(t.got)} of ${fmt(t.max)} marks</span><span>${Math.round(t.portion)}% of the paper</span>${t.lostQs.length ? `<span>lost in ${esc(qList(t.lostQs))}</span>` : ''}</div>
+      </li>`;
+    };
+    const canAI = st.ai && st.ai.topics && st.rows.some(r => r.text);
+    return `<section class="panel db-topics"><h3>${lessonsOnly ? (multi ? 'Weak lessons' : `Lessons${an.subjects[0] && an.subjects[0].name ? ' in ' + esc(an.subjects[0].name) : ''}`) : 'Weak topics'}</h3>
+      <p class="hint">Biggest losses first. Each bar is as long as the ${lessonsOnly ? 'lesson' : 'topic'}'s share of the paper: blue is what you scored, hatched is what you can win back.</p>
+      <ol class="tps">${shown.map(row).join('')}</ol>
+      ${T.length > 8 ? `<button type="button" class="btn fi-more" data-more-topics>${showAllTopics ? 'Show fewer' : `Show all ${T.length}`}</button>` : ''}
+      ${canAI ? `<div class="tp-ai"><button type="button" class="btn" data-topics>${anySub ? 'Check the topics with AI' : 'Find the topic of every question with AI'}</button><span class="tp-st" role="status">${esc(notes.topics)}</span></div>
+        <p class="hint">${anySub ? 'Topics come from the question paper\'s words.' : 'Lessons come from the paper\'s headings.'} The AI reads every question and names its chapter and topic; you can change them in the table.</p>`
+        : !anySub && st.rows.some(r => r.text) ? '<p class="hint">Add <span class="mono">## Chapter &gt; Topic</span> at the end of a question line to name its topic.</p>' : ''}
     </section>`;
   }
 
@@ -185,7 +239,7 @@
       ${body}<div class="qlegend">${legend}</div><p class="qdetail" aria-live="polite"></p><div class="qtip" role="tooltip" hidden></div></section>`;
   }
   function tipText(r, s){
-    const where = [r.subject, r.topic && r.topic !== 'General' ? r.topic : ''].filter(Boolean).join(', ');
+    const where = [r.subject, r.topic && r.topic !== 'General' ? r.topic : '', r.sub].filter(Boolean).join(', ');
     const marks = `${fmt(r.got)} of ${fmt(r.max)} marks`;
     const omr = r.marked !== undefined ? (r.key === 'any' ? 'dropped question, full marks for all' : `marked ${r.marked === '–' ? 'nothing' : r.marked}, answer ${r.key}`) : '';
     return `${qName(r.q)}${where ? ', ' + where : ''}: ${marks}. ${omr ? omr + '. ' : ''}${s === 'full' ? '' : (r.cause && r.cause !== 'None' ? r.cause : STATUS[s] || '')}`.trim();
@@ -197,7 +251,7 @@
     const top = Math.max(...C.map(c => c.lost));
     const row = c => `<div class="cb"><span>${esc(c.name)}</span><span class="bar"><span data-w="${pct(c.lost, top)}" data-key="c:${esc(c.name)}"></span></span><span class="mono">−${fmt(c.lost)}</span></div>`;
     const habits = C.filter(c => c.kind === 'habit'), study = C.filter(c => c.kind === 'study');
-    const types = st.mode !== 'omr' ? weakType() : '';
+    const types = weakType();
     return `<section class="panel db-causes"><h3>Why marks were lost</h3>
       ${habits.length ? `<h4>Exam habits <small>fixable before the next test</small></h4>${habits.map(row).join('')}` : ''}
       ${study.length ? `<h4>Gaps in learning <small>need the lesson again</small></h4>${study.map(row).join('')}` : ''}
@@ -211,13 +265,62 @@
     return w ? `<p class="hint db-type"><b>${esc(w.n)} questions</b> scored ${Math.round(w.p)}% against ${Math.round(p)}% overall. Practise this question style on its own.</p>` : '';
   }
 
-  function split(){
-    const S = an.split;
+  // Where study time should go, as a share of whatever time the student has
+  function share(){
+    const S = an.share;
     if (!S.parts.length) return '';
-    const chips = h => { let s = ''; for (let k = 0; k < Math.floor(h); k++) s += '<i></i>'; if (h % 1) s += '<i class="half"></i>'; return s; };
-    return `<section class="panel db-split"><h3>Your next 10 hours</h3><p class="hint">How to share revision time ${S.by === 'subject' ? 'between subjects' : 'between lessons'}: time follows the marks within reach.</p>
-      ${S.parts.map(p => `<div class="hr"><span>${esc(lessonName(p.name))}</span><span class="chips" aria-hidden="true">${chips(p.hours)}</span><span class="mono">${hours(p.hours)}</span></div>`).join('')}
+    const row = p => `<li class="sh ${p.kind}">
+        <div class="sh-head"><span class="sh-name">${esc(p.name)}</span><span class="sh-pct"><b data-n="${p.pct}" data-key="sh:${esc(p.name)}" data-int="1">${p.pct}</b>%</span></div>
+        <span class="sh-bar" aria-hidden="true"><span data-w="${p.pct}" data-key="shb:${esc(p.name)}"></span></span>
+        <div class="sh-sub"><span class="gain">+${fmt(p.gain)}</span><span>${p.kind === 'habit' ? 'marks from timed practice and a checking routine' : 'marks to win back with study'}</span>${p.inner.length ? `<span class="sh-in">${p.inner.slice(0, 3).map(x => `${esc(x.name)} ${x.pct}%`).join(' · ')}${p.inner.length > 3 ? ' · …' : ''}</span>` : ''}</div>
+      </li>`;
+    return `<section class="panel db-share"><h3>Where your study time should go</h3>
+      <p class="hint">The share of your revision time for each ${S.by === 'subject' ? 'subject' : 'lesson'}, set to win back the most marks: more marks to win back, and slower ones to fix, get more time.</p>
+      <ol class="shs" aria-label="Study time by ${S.by}">${S.parts.map(row).join('')}</ol>
+      <p class="hint sh-eg">Use these shares for whatever time you have before the next test. Inside each ${S.by === 'subject' ? 'subject' : 'lesson'}, follow the order of “Where to focus”.</p>
     </section>`;
+  }
+
+  /* ---------- correct answers for the questions where marks were lost ---------- */
+
+  const lostRows = () => st.rows.map((r, i) => ({ r, i })).filter(x => x.r.max > 0 && x.r.got < x.r.max && x.r.key !== 'any');
+  const searchText = r => clip(String(r.text || '').replace(/\s+/g, ' '), 220);
+  function answers(){
+    const L = lostRows();
+    if (!L.length) return '';
+    const withText = L.filter(x => x.r.text), got = withText.filter(x => st.answerOf && st.answerOf(x.r)).length, todo = withText.length - got;
+    const canAI = !!(st.ai && st.ai.solve), shown = showAllAns ? L : L.slice(0, 8), omrNoText = st.mode === 'omr' && !withText.length;
+    const via = st.ai && st.ai.search ? ` The AI searches ${esc(st.ai.search)} first and lists the sources it used.` : '';
+    const intro = omrNoText
+      ? `The right option for each of the ${L.length} questions you lost marks on. Add the question paper under the answer key to get worked answers and search links.`
+      : `For the ${L.length} ${L.length === 1 ? 'question' : 'questions'} where you lost marks.${canAI ? via : ' Tap Search Google to see each answer on the web.'}`;
+    return `<section class="panel db-ans"><div class="an-headrow"><div><h3>Correct answers</h3><p class="hint">${intro}</p></div>
+        ${canAI && todo ? `<button type="button" class="btn primary" data-solve-all>${got ? `Find the other ${todo}` : `Find ${todo === 1 ? 'the answer' : `all ${todo} answers`}`}</button>` : ''}</div>
+      <p class="an-st" role="status">${esc(notes.answers)}</p>
+      <ol class="anl">${shown.map(item).join('')}</ol>
+      ${L.length > 8 ? `<button type="button" class="btn fi-more" data-more-ans>${showAllAns ? 'Show fewer' : `Show all ${L.length}`}</button>` : ''}
+      ${canAI && withText.length ? `<p class="hint">Answers are written by AI from search results and can be wrong, so check them against your textbook or teacher. The question text goes to this site's AI company${st.ai.search ? ` and to ${esc(st.ai.search)}` : ''}; <a class="inline" href="privacy.html">privacy notice</a>.</p>` : ''}
+    </section>`;
+  }
+  function item({ r, i }){
+    const a = st.answerOf ? st.answerOf(r) : null, canAI = !!(st.ai && st.ai.solve);
+    const where = [an.subjects.length > 1 ? r.subject : '', r.topic && r.topic !== 'General' ? r.topic : (a && a.chapter) || '', r.sub || (a && a.topic) || ''].filter(Boolean);
+    const q = searchText(r), lost = r.max - r.got;
+    return `<li class="an" data-i="${i}">
+      <div class="an-top"><span class="an-q">${esc(qName(r.q))}</span><span class="an-where">${esc(where.join(' › '))}</span><span class="an-lost">−${fmt(lost)}</span></div>
+      ${r.text ? `<p class="an-text">${esc(clip(r.text, 300))}</p>` : ''}
+      ${r.key ? `<p class="an-key"><span>Right answer <b>${esc(r.key)}</b></span><span>You answered <b>${esc(r.marked || '–')}</b></span></p>` : ''}
+      ${a ? solution(a) : ''}
+      ${r.text ? `<div class="an-links">${canAI && !a ? `<button type="button" class="an-get" data-solve="${i}">Get the answer</button>` : ''}<a href="https://www.google.com/search?q=${encodeURIComponent(q)}" target="_blank" rel="noopener">Search Google</a><a href="https://www.youtube.com/results?search_query=${encodeURIComponent(clip(q, 120) + ' solution')}" target="_blank" rel="noopener">Video solutions</a></div>` : ''}
+    </li>`;
+  }
+  function solution(a){
+    const src = (a.sources || []).filter(s => safeUrl(s.url));
+    return `<div class="an-sol${a.confidence === 'low' ? ' low' : ''}">
+      <p class="an-ans"><span class="an-k">Answer</span>${esc(a.answer)}</p>
+      ${a.working ? `<details class="an-work"><summary>Worked solution</summary><p>${esc(a.working).replace(/\n/g, '<br>')}</p></details>` : ''}
+      <p class="an-src">${src.length ? `Sources: ${src.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener nofollow">${esc(clip(s.title || host(s.url), 70))}</a>`).join(' · ')}` : `Worked out by the AI${a.search ? `: ${esc(a.search)} had no result that matched` : ''}.`}${a.confidence === 'low' ? ' <b class="an-low">The AI is unsure: check this one with your teacher.</b>' : ''}</p>
+    </div>`;
   }
 
   function examiner(){
@@ -333,6 +436,14 @@
         updateReach(); return;
       }
       if (e.target.closest('[data-more]')) { showAll = !showAll; const sec = root.querySelector('.db-plan'); sec.outerHTML = plan(); return; }
+      if (e.target.closest('[data-more-topics]')) { showAllTopics = !showAllTopics; redraw('topics'); return; }
+      if (e.target.closest('[data-more-ans]')) { showAllAns = !showAllAns; redraw('answers'); return; }
+      const tb = e.target.closest('[data-topics]');
+      if (tb && st.onTopics) { tb.disabled = true; st.onTopics(); return; }
+      const all = e.target.closest('[data-solve-all]');
+      if (all && st.onSolve) { all.disabled = true; st.onSolve(lostRows().map(x => x.r).filter(r => r.text && !(st.answerOf && st.answerOf(r)))); return; }
+      const one = e.target.closest('[data-solve]');
+      if (one && st.onSolve) { one.disabled = true; one.textContent = 'Finding the answer…'; st.onSolve([st.rows[+one.dataset.solve]].filter(Boolean)); return; }
       const qt = e.target.closest('.db-map .qtiles .qt'); if (qt) { tip(qt, true); return; }
       const del = e.target.closest('[data-del]');
       if (del) { storePapers(loadPapers().filter(p => p.id !== del.dataset.del)); redrawPapers('Removed.'); }
@@ -361,19 +472,36 @@
 
   /* ---------- entry point ---------- */
 
-  // state: { rows, mode: 'marked' | 'ai' | 'omr', aiExtra, sample, paperKey }
+  // state: { rows, mode: 'marked' | 'ai' | 'omr', aiExtra, sample, paperKey, exam (from exams.js), scheme: { right, wrong,
+  //          options } for OMR, ai: { solve, topics, search } when the site's AI is on, answerOf(row) -> saved answer,
+  //          onSolve(rows), onTopics() }
   function render(el, state){
+    if (state.paperKey !== lastKey) { notes.answers = ''; notes.topics = ''; showAllAns = false; showAllTopics = false; lastKey = state.paperKey; }   // a new paper starts clean
     root = el; st = state; an = I.analyze(state.rows, { omr: state.mode === 'omr' });
     const known = new Set(an.plan.map(p => p.id));
     for (const k of [...picked.keys()]) if (!known.has(k)) picked.delete(k);
     el.innerHTML = `<div class="db">
       ${hero()}
-      <div class="db-cols"><div class="db-col">${plan()}${causes()}</div><div class="db-col">${subjects()}${qmap()}${split()}</div></div>
+      <div class="db-cols"><div class="db-col">${plan()}${topics()}</div><div class="db-col">${share()}${subjects()}${qmap()}${causes()}</div></div>
+      ${answers()}
       ${examiner()}
       ${papers()}
     </div>`;
     wire(el); prime(); watch();
   }
+  // redraw one part without touching the rest (the AI buttons fill these in while the student reads)
+  function redraw(part){
+    if (!root || !st) return;
+    const sec = root.querySelector(part === 'topics' ? '.db-topics' : '.db-ans'), html = part === 'topics' ? topics() : answers();
+    if (sec) sec.outerHTML = html || '<span hidden></span>';
+    const n = root.querySelector(part === 'topics' ? '.db-topics' : '.db-ans');
+    if (n) n.querySelectorAll('[data-w]').forEach(x => { x.style.transition = 'none'; x.style.width = x.dataset.w + '%'; });
+  }
+  function note(part, msg){
+    notes[part] = msg || '';
+    const el = root && root.querySelector(part === 'topics' ? '.tp-st' : '.an-st');
+    if (el) el.textContent = notes[part];
+  }
 
-  window.MarkLensDash = { render, analyze: rows => I.analyze(rows) };
+  window.MarkLensDash = { render, redraw, note, analyze: rows => I.analyze(rows) };
 })();

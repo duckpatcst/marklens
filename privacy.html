@@ -55,6 +55,7 @@ small{color:var(--mute)}
       <tr><td><b>On this phone · free</b></td><td>Nowhere. The photo is read inside your browser by Tesseract, free open-source software. The first time, your browser downloads Tesseract from jsDelivr, a public code library network; only the software is downloaded, never your photos.</td><td>Only your own device.</td></tr>
       <tr><td><b>Google Lens</b></td><td>You scan the page in Google's own app (Google Lens, the Google app or Google Translate), so the photo goes to Google under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's privacy policy</a>. You then paste the text into MarkLens. If the site's AI is switched on, that text, but no photo, goes through this website's server to the AI company below to be sorted into questions and marks.</td><td>Google, for the scan. The AI company, for the pasted text.</td></tr>
       <tr><td><b>AI reader</b> and <b>AI grading</b></td><td>Through this website's server, which does not save them, to the AI service the site owner has chosen<span id="aiNow"></span>. This is normally Groq, with Cloudflare Workers AI as a backup when Groq is busy. A school or institute may instead use its own AI account or its own AI server. Google Gemini is used only on sites for adults.</td><td>The AI company, under its own terms. See below.</td></tr>
+      <tr><td><b>Correct answers</b> and <b>AI topics</b></td><td>Only when you tap <b>Get the answer</b>, <b>Find all answers</b> or <b>Find the topic of every question</b>. The question's text (never a photo), its subject and chapter, the right option from your answer key and the option you chose go through this website's server to the same AI company. For answers, the question text is first searched on a search service<span id="searchNow"></span>: Wikipedia unless the site owner has chosen a web search service such as Tavily, Serper (Google results) or Brave. Links to Google and YouTube searches open those sites only when you tap them. If the site keeps a shared answer store, worked answers are kept for up to 90 days, linked to the question's words only, so classmates with the same paper get them without searching again.</td><td>The AI company and the search service, under their own terms.</td></tr>
     </tbody>
   </table></div>
 
@@ -62,13 +63,14 @@ small{color:var(--mute)}
   <ul>
     <li><b>Groq</b> (default). Groq's services agreement says it does not use what you send to train AI models. It may process and briefly keep requests to run the service, keep it reliable and check misuse. Read <a href="https://console.groq.com/docs/legal/services-agreement" target="_blank" rel="noopener">Groq's services agreement</a>.</li>
     <li><b>Cloudflare Workers AI</b> (backup). When Groq is busy, the same AI model runs on Cloudflare, the company that already hosts MarkLens. Read <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare's privacy policy</a>.</li>
+    <li><b>Search services</b> (for correct answers). <a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy" target="_blank" rel="noopener">Wikipedia's privacy policy</a> covers its search. A site owner who chooses Tavily, Serper or Brave instead is bound by that company's terms.</li>
     <li><b>Google Gemini</b> (only if the site owner switches it on). On its free service, Google says it uses what you send to provide, improve and develop its products, and that human reviewers may read it. Google also says its API must not be used in apps likely to be used by people under 18. Read <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Google's Gemini API terms</a>.</li>
   </ul>
   <p><small>These companies can change their terms at any time. Their own pages are the final word.</small></p>
 
   <h2>What MarkLens itself keeps</h2>
   <ul>
-    <li>Your question paper text, marks and dashboard, and any papers you save under My papers, are saved only in this browser, on this device, so they are still there next time. Clearing your browser's site data deletes them.</li>
+    <li>Your question paper text, marks, dashboard, the exam you chose and the correct answers you looked up, and any papers you save under My papers, are saved only in this browser, on this device, so they are still there next time. Clearing your browser's site data deletes them.</li>
     <li>This website's server passes AI requests through without saving the photos or text. To share the AI fairly and stop abuse, it gives each browser a random device id (a cookie that says nothing about you) and counts how many AI requests that device makes each day. The counts are deleted after a few weeks at most.</li>
     <li>MarkLens has no accounts, no adverts and no tracking.</li>
   </ul>
@@ -81,8 +83,8 @@ small{color:var(--mute)}
     <li>If you are unsure, use the on-phone reader. It works without sending anything.</li>
   </ul>
 
-  <h2>Grades are drafts</h2>
-  <p>AI grading can be wrong. Treat it as practice feedback, not an official mark, and check it against your teacher's marking scheme.</p>
+  <h2>Grades and answers are drafts</h2>
+  <p>AI grading and AI-written answers can be wrong. Treat them as practice feedback, not an official mark or answer key, and check them against your textbook and your teacher's marking scheme.</p>
 
   <h2>Changing your mind</h2>
   <p>You can stop using the AI reader at any time by choosing <b>On this phone · free</b>. Photos already sent to an AI company cannot be recalled by MarkLens; contact that company about their data.</p>
@@ -91,6 +93,7 @@ small{color:var(--mute)}
 /* shows which AI service this copy of MarkLens is set up to use */
 fetch('/api/ai', { headers: { accept: 'application/json' } }).then(r => r.ok ? r.json() : null).then(a => {
   if (a && a.enabled && a.providerName) document.getElementById('aiNow').textContent = ' (on this site: ' + a.providerName + (a.backup ? ', with ' + a.backup + ' as a backup' : '') + ')';
+  if (a && a.enabled && a.search) document.getElementById('searchNow').textContent = ' (on this site: ' + a.search + ')';
 }).catch(() => {});
 </script>
 </body>

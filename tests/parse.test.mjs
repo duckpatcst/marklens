@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const P = createRequire(import.meta.url)('../js/parse.js');
-const { parsePaper, parseSheet, matchSheet, parseKey, parseOmrAnswers, keyText, classifyCause, tidyPaper, tidySheet, chunkPages } = P;
+const { parsePaper, annotatePaper, parseSheet, matchSheet, parseKey, parseOmrAnswers, scoreAnswer, keyText, classifyCause, tidyPaper, tidySheet, chunkPages } = P;
 
 test('papers that restart numbering in each section get section labels', () => {
   const p = parsePaper('Section A: Algebra\n1. Solve x [2]\n2. Factor [3]\nSection B: Geometry\n1. Area of circle [3]\n2. Prove [5]');
@@ -76,7 +76,9 @@ test('a scanned key keeps the subjects and chapters typed before', () => {
 
 test('student OMR answer lines', () => {
   const a = parseOmrAnswers('1: B\n2: -\n3: AC\n4: d ?\n5: blank\nnotes here');
-  assert.deepEqual([...a.entries()], [[1, { marked: 'B', check: false }], [2, { marked: '', check: false }], [3, { marked: 'AC', check: false }], [4, { marked: 'D', check: true }], [5, { marked: '', check: false }]]);
+  assert.deepEqual([...a.entries()].map(([q, x]) => [q, x.marked, x.check]), [[1, 'B', false], [2, '', false], [3, 'AC', false], [4, 'D', true], [5, '', false]]);
+  const n = parseOmrAnswers('21: 12\n22: -0.5\n23: 4.25 ?');
+  assert.deepEqual([...n.values()].map(x => [x.num, x.marked, x.check]), [[12, '', false], [-0.5, '', false], [4.25, '', true]]);
 });
 
 test('Google Lens text: tidy rules and page batches', () => {
@@ -84,4 +86,55 @@ test('Google Lens text: tidy rules and page batches', () => {
   assert.equal(tidySheet('Q1 2 out of 3 careless'), '1: 2/3 careless');
   const c = chunkPages([{ n: 1, text: 'a'.repeat(4000) }, { n: 2, text: 'b'.repeat(4000) }, { n: 3, text: 'c' }]);
   assert.deepEqual(c.map(x => [x.first, x.last]), [[1, 1], [2, 3]]);
+});
+
+test('topic notes on question lines: read, kept off the question, and written back', () => {
+  const text = 'Subject: Physics\n1. Find the focal length of a lens [3] ## Optics > Lens formula\n2. State Ohm\'s law [2]\n3. Define\n   momentum. [1] ## Physics > Laws of motion > Momentum';
+  const p = parsePaper(text);
+  assert.deepEqual(p.map(x => [x.q, x.subject, x.topic, x.sub, x.max]), [['1', 'Physics', 'Optics', 'Lens formula', 3], ['2', 'Physics', 'Current electricity', 'Ohm\'s law and resistance', 2], ['3', 'Physics', 'Laws of motion', 'Momentum', 1]]);
+  assert.equal(p[0].text, 'Find the focal length of a lens');             // no marks label, no note
+  const again = annotatePaper(text, new Map([['1', 'Physics > Ray optics > Thin lens formula'], ['3', 'Laws of motion > Impulse']]));
+  assert.match(again, /^1\. Find the focal length of a lens \[3\] ## Physics > Ray optics > Thin lens formula$/m);   // replaces the old note
+  assert.match(again, /^   momentum\. \[1\] ## Laws of motion > Impulse$/m);                                    // on the question's last line
+  assert.equal(again.split('\n').length, text.split('\n').length);
+  assert.deepEqual(parsePaper(again).map(x => x.sub), ['Thin lens formula', 'Ohm\'s law and resistance', 'Impulse']);
+});
+
+test('answer keys: numerical answers, ranges and marking lines', () => {
+  const k = parseKey('Subject: Maths\nMarks: +4 -1\n1-B\n21 = 12\n22 = 2.30 to 2.35\nMarks: +4 -2 partial\n23-ACD\nMarks: +2 -2/3\n24-C');
+  assert.deepEqual(k.map(x => [x.q, x.keys, x.num && [x.num.lo, x.num.hi]]), [[1, 'B', null], [21, '', [12, 12]], [22, '', [2.3, 2.35]], [23, 'ACD', null], [24, 'C', null]]);
+  assert.deepEqual(k[0].marks, { right: 4, wrong: 1, multi: '' });
+  assert.deepEqual(k[3].marks, { right: 4, wrong: 2, multi: 'partial' });
+  assert.equal(Math.round(k[4].marks.wrong * 1000) / 1000, 0.667);
+  assert.equal(parseKey('Q5 = -3')[0].num.lo, -3);
+  // a heading for questions added at the end still applies by number
+  assert.equal(parseKey('Marks: +3 -1\n1-A\nMarks: +4 0\n10 = 7\n2-B').find(x => x.q === 2).marks.right, 3);
+});
+
+test('scoring: single answer, either option, bonus, numerical, JEE Advanced partial marks, GATE MSQ', () => {
+  const d = { right: 4, wrong: 1 };
+  const key = s => parseKey(s)[0], ans = s => parseOmrAnswers('1: ' + s).get(1), sc = (k, a, o = d) => { const r = scoreAnswer(key(k), a === null ? undefined : ans(a), o); return [r.got, r.cause]; };
+  assert.deepEqual(sc('1-B', 'B'), [4, 'None']);
+  assert.deepEqual(sc('1-B', 'C'), [-1, 'Wrong option']);
+  assert.deepEqual(sc('1-B', null), [0, 'Incomplete / unattempted']);
+  assert.deepEqual(sc('1-B', 'BC'), [-1, 'Bubbling error']);
+  assert.deepEqual(sc('1-A,C', 'C'), [4, 'None']);                   // NTA: either option is right
+  assert.deepEqual(sc('1-*', null), [4, 'None']);                    // dropped question
+  assert.deepEqual(sc('1 = 2.30 to 2.35', '2.32'), [4, 'None']);
+  assert.deepEqual(sc('1 = 12', '13'), [-1, 'Wrong answer']);
+  assert.equal(scoreAnswer(key('1 = 12'), ans('12'), d).type, 'Numerical');
+  const adv = { right: 4, wrong: 2, multi: 'partial' };
+  assert.deepEqual(sc('1-ACD', 'ACD', adv), [4, 'None']);
+  assert.deepEqual(sc('1-ACD', 'AD', adv), [2, 'Incomplete / unattempted']);   // two right options, none wrong: +2
+  assert.deepEqual(sc('1-ACD', 'AB', adv), [-2, 'Wrong option']);
+  assert.equal(scoreAnswer(key('1-ACD'), ans('A'), adv).type, 'Multiple correct');
+  assert.deepEqual(sc('1-AC', 'A', { right: 2, wrong: 0, multi: 'all' }), [0, 'Incomplete / unattempted']);   // GATE MSQ: all or nothing
+  // a Marks line in the key wins over the boxes
+  assert.deepEqual(scoreAnswer(parseKey('Marks: +3 -1\n1-B')[0], ans('C'), d).got, -1);
+  assert.deepEqual(scoreAnswer(parseKey('Marks: +3 -1\n1-B')[0], ans('B'), d).max, 3);
+});
+
+test('a scanned key keeps numerical answers and marking lines typed before', () => {
+  const kt = keyText([{ q: 1, marked: 'B' }, { q: 2, marked: 'C' }], 'Marks: +4 -1\n1-A\n2-A\n3 = 12');
+  assert.equal(kt, 'Marks: +4 -1\n1-B\n2-C\n3 = 12');
 });

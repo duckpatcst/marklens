@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Photograph a question paper and exam sheet. MarkLens shows where your marks went and builds a revision plan.">
+<meta name="description" content="Photograph a question paper and exam sheet. MarkLens shows where your marks went, the right answers, your weak topics and where to spend your study time.">
 <meta name="theme-color" content="#f1f4f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0c131c" media="(prefers-color-scheme: dark)">
 <title>MarkLens</title>
@@ -134,6 +134,14 @@ td.ans.ok{color:var(--ok)}
 .notice.risk{background:color-mix(in srgb,var(--pen) 8%,var(--surface));border-color:color-mix(in srgb,var(--pen) 35%,var(--line));border-left:3px solid var(--pen)}
 a.inline{color:var(--blue)}
 
+/* exam picker: sets the marking scheme, sections and grading the dashboard uses */
+.exampick{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0 0 18px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.exampick .exam-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;min-width:0}
+.exampick select{flex:1 1 260px;min-width:0;width:100%;max-width:420px;min-height:42px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);font-weight:600;text-overflow:ellipsis}
+.exampick .hint{margin:0}
+.omrpaper{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.omrpaper summary{cursor:pointer;font-weight:600;font-size:.88rem}
+.omrpaper textarea{margin-top:10px;min-height:130px;background:var(--surface)}
 /* reader picker: three tiles, the chosen one inked in */
 .readers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;margin:0 0 14px}
 .rd{position:relative;display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;min-height:64px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s}
@@ -194,6 +202,7 @@ textarea.ld-zone{min-height:0;height:46px;resize:none;font:.86rem var(--f-body);
 /* table */
 .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px}
+table.wide{min-width:780px}
 th,td{padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}
 th{font:600 .68rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 td input,td select{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;padding:4px;font-size:.88rem}
@@ -205,7 +214,7 @@ td button{border:0;background:none;color:var(--mute);cursor:pointer}
 @media(pointer:coarse){
   .btn{min-height:44px}
   .seg button{min-height:42px;padding-inline:14px}
-  textarea,td input,td select{font-size:16px}
+  textarea,td input,td select,.exampick select{font-size:16px}
   td input,td select{min-height:40px}
   td input[type=number]{width:72px}
   td button{min-width:40px;min-height:40px}
@@ -227,8 +236,8 @@ td button{border:0;background:none;color:var(--mute);cursor:pointer}
 .gain{color:var(--st-full);font-weight:700;white-space:nowrap}
 .db-cols{display:grid;gap:16px;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:start}
 .db-col{display:grid;gap:16px;min-width:0}
-/* one column on phones, in reading order: plan, lessons, question map, causes, time */
-@media(max-width:860px){.db-cols,.db-col{display:contents}.db-plan{order:1}.db-subj{order:2}.db-map{order:3}.db-causes{order:4}.db-split{order:5}.db-exam{order:6}.db-papers{order:7}}
+/* one column on phones, in reading order: plan, study time, weak topics, correct answers, subjects, map, causes */
+@media(max-width:860px){.db-cols,.db-col{display:contents}.db-plan{order:1}.db-share{order:2}.db-topics{order:3}.db-ans{order:4}.db-subj{order:5}.db-map{order:6}.db-causes{order:7}.db-exam{order:8}.db-papers{order:9}}
 /* the hero: score and what is within reach, on a school ruler */
 .db-hero{padding:22px 22px 18px;background:var(--paper);background-image:repeating-linear-gradient(transparent 0 31px,color-mix(in srgb,var(--blue) 6%,transparent) 31px 32px)}
 .db-nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px;align-items:start}
@@ -237,9 +246,14 @@ td button{border:0;background:none;color:var(--mute);cursor:pointer}
 .db-big small{font:500 clamp(.95rem,2.4vw,1.3rem) var(--f-mono);color:var(--mute);letter-spacing:0}
 .db-reach .db-big>span{color:var(--st-full)}
 .db-sub{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:.9rem;min-height:34px}
-.db-sub>span:last-child{font:600 1.05rem var(--f-mono)}
+.db-sub>span.db-pct{font:600 1.05rem var(--f-mono)}
 .db-reach .db-sub{display:block;color:var(--mute);font-size:.86rem}
 .db-stamp{font:700 1.3rem/1 var(--f-mono);color:var(--pen);border:2.5px solid var(--pen);border-radius:50%/60%;padding:4px 12px;transform:rotate(-6deg);display:inline-block}
+.db-stamp.word{font-size:1rem;text-transform:uppercase;letter-spacing:.04em}
+.db-sub>.db-pass{font:600 .8rem var(--f-body);padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.db-pass.ok{color:var(--st-full)}.db-pass.no{color:var(--st-lost)}
+.db-examname{display:inline-block;margin-left:6px;font:600 .66rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--mute);vertical-align:1px}
+.sj-sub b.below{color:var(--st-lost)}
 .ruler{position:relative;margin:24px 0 2px}
 .ruler-track{display:flex;height:30px;border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:var(--surface)}
 .r-got,.r-reach,.mr>span,.cb .bar>span{display:block;height:100%;transition:width .9s cubic-bezier(.2,.7,.2,1)}
@@ -328,10 +342,60 @@ td button{border:0;background:none;color:var(--mute);cursor:pointer}
 .bar{height:9px;background:var(--line);border-radius:5px;overflow:hidden}
 .cb .bar>span{background:var(--st-lost);border-radius:5px}
 .db-type{margin-top:14px}
-.hr{display:grid;grid-template-columns:minmax(90px,38%) minmax(0,1fr) auto;gap:10px;align-items:center;margin:10px 0;font-size:.88rem}
-.chips{display:flex;flex-wrap:wrap;gap:3px}
-.chips i{width:13px;height:18px;border-radius:3px;background:color-mix(in srgb,var(--ink) 82%,transparent)}
-.chips i.half{background:linear-gradient(to right,color-mix(in srgb,var(--ink) 82%,transparent) 50%,var(--line) 50%)}
+/* where study time should go: one row per subject, the bar is the percentage itself */
+.shs{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:14px}
+.sh-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.sh-name{font:700 1rem/1.25 var(--f-display);letter-spacing:-.01em}
+.sh-pct{font:800 1.45rem/1 var(--f-display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sh-pct b{font:inherit}
+.sh-bar{display:block;height:12px;margin:7px 0 5px;border-radius:6px;background:var(--line);overflow:hidden}
+.sh-bar>span{display:block;height:100%;border-radius:6px;background:var(--st-score);transition:width .9s cubic-bezier(.2,.7,.2,1)}
+.sh.habit .sh-bar>span{background:repeating-linear-gradient(135deg,var(--st-full) 0 4px,color-mix(in srgb,var(--st-full) 45%,var(--surface)) 4px 8px)}
+.sh-sub{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:.8rem;color:var(--mute)}
+.sh-sub .sh-in{flex-basis:100%;color:var(--ink)}
+.sh-eg{margin-top:14px}
+/* weak topics: bar length = the topic's share of the paper */
+.tps{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:13px}
+.tp-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.tp-name{font:700 .98rem/1.25 var(--f-display);letter-spacing:-.01em;min-width:0}
+.tp-lvl{flex:0 0 auto;font:600 .7rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;border:1px solid currentColor}
+.tp-lvl.weak{color:var(--st-lost)}.tp-lvl.shaky{color:var(--warn)}.tp-lvl.strong{color:var(--st-full)}
+.tp-ctx{font-size:.78rem;color:var(--mute);margin-top:1px}
+.tp-bar{min-width:56px}.tp-bar .mr{margin:6px 0 4px}
+.tp-sub{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:.78rem;color:var(--mute)}
+.tp-sub .mono{color:var(--ink);font-weight:600}
+.tp-ai{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:14px}
+.tp-st,.an-st{font-size:.84rem;color:var(--blue)}
+.an-st:empty{display:none}
+/* correct answers for the questions where marks were lost */
+.an-headrow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px 20px;flex-wrap:wrap}
+.an-headrow>div{flex:1 1 280px;min-width:0}
+.an-st{margin:10px 0 0}
+.anl{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px}
+.an{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--paper);min-width:0;display:flex;flex-direction:column;gap:8px}
+.an-top{display:flex;align-items:baseline;gap:8px}
+.an-q{font:600 .86rem var(--f-mono);color:var(--pen);border:1.5px solid var(--pen);border-radius:50%/60%;padding:0 7px;transform:rotate(-4deg);flex:0 0 auto}
+.an-where{font-size:.78rem;color:var(--mute);flex:1;min-width:0}
+.an-lost{font:600 .84rem var(--f-mono);color:var(--st-lost);flex:0 0 auto}
+.an-text{margin:0;font-size:.88rem;overflow-wrap:anywhere}
+.an-key{margin:0;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.84rem;color:var(--mute)}
+.an-key b{font-family:var(--f-mono);color:var(--ink)}
+.an-key span:first-child b{color:var(--st-full)}
+.an-sol{border-left:3px solid var(--st-full);padding:2px 0 2px 10px;display:grid;gap:4px}
+.an-sol.low{border-left-color:var(--warn)}
+.an-ans{margin:0;font-size:.92rem;font-weight:600;overflow-wrap:anywhere}
+.an-k{display:inline-block;margin-right:8px;font:600 .66rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--st-full)}
+.an-work summary{cursor:pointer;font-size:.82rem;color:var(--blue)}
+.an-work p{margin:6px 0 0;font:.84rem/1.6 var(--f-mono);overflow-wrap:anywhere}
+.an-src{margin:0;font-size:.78rem;color:var(--mute);overflow-wrap:anywhere}
+.an-src a{color:var(--blue)}
+.an-low{color:var(--warn);font-weight:600}
+.an-links{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:auto;font-size:.82rem}
+.an-links a{color:var(--blue)}
+.an-get{min-height:34px;padding:5px 12px;border-radius:999px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer;font-size:.82rem;font-weight:600}
+.an-get[disabled]{opacity:.6;cursor:wait}
+@media(hover:hover){.an-get:hover{background:var(--blue);border-color:var(--blue);color:#fff}}
+@media(pointer:coarse){.an-get{min-height:44px}.an-links a{padding:8px 0}}
 .pp-save{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .pp-save input{flex:1 1 200px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--bg)}
 .pp-st{min-height:1.2em;margin:6px 0 0;font-size:.84rem;color:var(--ok)}
@@ -347,7 +411,7 @@ ol.plan{margin:6px 0 0;padding-left:20px}ol.plan li{margin-bottom:8px}
 .fb .mono{font-weight:600}
 svg text{fill:var(--mute);font:500 11px var(--f-mono)}
 @media(pointer:coarse){.fi-add{min-height:44px}.pp-list button{min-height:44px}}
-@media(prefers-reduced-motion:reduce){.r-got,.r-reach,.mr>span,.cb .bar>span{transition:none}.live.ping i{animation:none}}
+@media(prefers-reduced-motion:reduce){.r-got,.r-reach,.mr>span,.cb .bar>span,.sh-bar>span{transition:none}.live.ping i{animation:none}}
 .empty{color:var(--mute);padding:28px;text-align:center}
 .sample-flag{display:inline-block;margin-left:8px;font:600 .66rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);border-radius:5px;padding:2px 7px;color:var(--mute);vertical-align:middle}
 footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--line);color:var(--mute);font-size:.85rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -366,7 +430,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
     <div>
       <div class="eyebrow">Exam analysis for students</div>
       <h1 style="margin-top:14px">See exactly where your <em>marks went.</em></h1>
-      <p class="lead">Scan the question paper and your exam sheet with Google Lens or your camera. MarkLens shows which subjects, lessons and habits cost you marks, and what to fix first to win the most back.</p>
+      <p class="lead">Scan the question paper and your exam sheet with Google Lens or your camera. For school tests, board papers, NEET, JEE, CUET and more, MarkLens shows the right answers to what you got wrong, the topics you are weak in, and where to spend your study time to win the most marks back.</p>
       <div class="cta"><a class="btn primary" href="#analyze">Analyze a paper</a><a class="btn" href="#dashboard">See the dashboard</a></div>
     </div>
     <div class="script" aria-label="Example of a marked exam script">
@@ -384,12 +448,17 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   <div class="steps" id="how">
     <div class="step"><span class="eyebrow">Step 1 · Paper</span><h3>Scan the question paper</h3><p>Take a photo of each page or pick them from your gallery. Google Lens reads them, and MarkLens finds the questions, marks and topics.</p></div>
     <div class="step"><span class="eyebrow">Step 2 · Sheet</span><h3>Scan your exam sheet</h3><p>Google Lens reads handwriting best. Already marked? MarkLens finds the marks and the teacher's remarks. Not marked yet? The AI reader can grade your answers.</p></div>
-    <div class="step"><span class="eyebrow">Step 3 · Dashboard</span><h3>See where to focus</h3><p>MarkLens ranks the subjects, lessons and exam habits that win back the most marks for your study time.</p></div>
+    <div class="step"><span class="eyebrow">Step 3 · Dashboard</span><h3>See where to focus</h3><p>MarkLens finds the topic of every question, shows the right answers with their sources, and shares your study time between subjects to win back the most marks.</p></div>
   </div>
 
   <section id="analyze">
     <div class="sec-head"><div><h2>Analyzer</h2><p>An example paper is loaded so you can see how it works. Replace it with your own pages.</p></div>
       <div class="row" style="margin:0"><button class="btn" id="sample">Reload example</button><button class="btn" id="clear">Clear all</button></div></div>
+    <div class="exampick" id="examPick">
+      <label class="eyebrow" for="exam">Which exam is this?</label>
+      <div class="exam-row"><select id="exam" aria-describedby="examAbout"></select></div>
+      <p class="hint" id="examAbout"></p>
+    </div>
     <div class="eyebrow" id="readersLbl" style="margin:0 0 10px">How should MarkLens read your pages?</div>
     <div class="readers" id="readers" role="group" aria-label="How to read your pages">
       <button type="button" class="rd" id="rdLens" aria-pressed="true"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg></span><span><b>Google Lens</b><small>Best for handwriting. Take photos; each one opens in Google Lens.</small></span><span class="pick">Recommended</span></button>
@@ -408,15 +477,15 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
       <p class="hint lg-note">Lens is Google's app, so photos you open in it go to Google under Google's terms. MarkLens only receives the text you copy.<span id="lensAiNote" hidden> MarkLens's AI then sorts that text into questions and marks. No photo is sent to it.</span></p>
     </div>
     <p class="notice" id="omrNote" role="note" hidden><b>OMR sheets are read on this phone:</b> free, private and no AI. Print blank sheets with <a class="inline" href="omr.html" target="_blank" rel="noopener">Print OMR sheets</a>, scan one filled with the right answers (or type them), then scan each student's sheet.</p>
-    <p class="notice risk" id="aiRisk" role="note" hidden><b>Upload at your own risk.</b> Photos, text from Google Lens and answers that MarkLens's AI reads, sorts or grades go to an outside AI company (<span id="aiWho">the AI provider</span>). They may be saved and used to improve its output. Crop out your name, roll number and school first. The free on-phone reader keeps photos on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
+    <p class="notice risk" id="aiRisk" role="note" hidden><b>Upload at your own risk.</b> Photos, text from Google Lens and answers that MarkLens's AI reads, sorts or grades go to an outside AI company (<span id="aiWho">the AI provider</span>). They may be saved and used to improve its output.<span id="aiSearchNote" hidden> When you ask for correct answers, the question text is also searched on <span id="aiSearch">the web</span>.</span> Crop out your name, roll number and school first. The free on-phone reader keeps photos on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
     <div class="grid two">
       <div class="panel">
         <h3 id="paperTitle">Question paper</h3>
         <div class="omrbox" id="omrKeyBox" hidden>
           <div class="omr-scheme">
-            <label>Marks for a right answer<input id="omrRight" type="number" inputmode="decimal" step="0.25" min="0.25" value="1"></label>
-            <label>Minus for a wrong answer<input id="omrWrong" type="number" inputmode="decimal" step="0.25" min="0" value="0"></label>
-            <p class="hint">For NEET and JEE Main, use 4 and 1. A blank answer scores 0.</p>
+            <label>Marks for a right answer<input id="omrRight" type="number" inputmode="decimal" step="any" min="0.25" value="1"></label>
+            <label>Minus for a wrong answer<input id="omrWrong" type="number" inputmode="decimal" step="any" min="0" value="0"></label>
+            <p class="hint" id="omrSchemeHint">Choose the exam above to fill these in. A blank answer scores 0. Sections marked differently: put a line like <span class="mono">Marks: +4 -2 partial</span> before them in the key.</p>
           </div>
           <div class="row" style="margin:0"><a class="btn" href="omr.html" target="_blank" rel="noopener" id="omrPrint">Print blank OMR sheets</a></div>
         </div>
@@ -430,6 +499,11 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
         <div class="readlbl"><span id="paperLbl">Question paper text</span><span class="status" id="paperStatus"></span></div>
         <textarea id="paper" spellcheck="false" aria-label="Question paper text" placeholder="Section A: Algebra&#10;1. Solve 2x+3=11 [2]&#10;2. Factorise x^2-5x+6 [3]"></textarea>
         <p class="hint" id="paperHint">Scan each page flat, in good light, with all four edges in frame. Fix anything misread. Marks are read from [5], (5 marks) or 5M. Lines like "Subject: Physics" and "Section A: Optics" name the subject and lesson.</p>
+        <details class="omrpaper" id="omrPaperBox" hidden>
+          <summary>Add the question paper (optional): topics and worked answers</summary>
+          <textarea id="omrPaper" spellcheck="false" aria-label="Question paper text for this multiple-choice test" placeholder="1. A convex lens has a focal length of 20 cm. Where is the image of an object 30 cm away? a) 60 cm b) 40 cm c) 12 cm d) 20 cm&#10;2. ..."></textarea>
+          <p class="hint">Paste the paper's text, copied with Google Lens or from the PDF. Question numbers must match the key. MarkLens uses it to find the topic of each question and, with the AI, to show worked answers.</p>
+        </details>
       </div>
       <div class="panel">
         <h3>Exam sheet</h3>
@@ -483,6 +557,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 </dialog>
 
 <script src="js/omr.js"></script>
+<script src="js/exams.js"></script>
 <script src="js/insights.js"></script>
 <script src="js/parse.js"></script>
 <script src="js/dashboard.js"></script>
@@ -492,15 +567,18 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 const fmt = n => String(Math.round(n * 10) / 10);
-const TYPES = ['MCQ', 'Short answer', 'Long answer'];
-const CAUSES = ['None','Concept gap','Careless / calculation','Incomplete / unattempted','Units & signs','Presentation','Time management','Wrong option','Bubbling error','Unspecified'];
-const INS = window.MarkLensInsights;
+const TYPES = ['MCQ', 'Short answer', 'Long answer', 'Numerical', 'Multiple correct'];
+const CAUSES = ['None','Concept gap','Careless / calculation','Incomplete / unattempted','Units & signs','Presentation','Time management','Wrong option','Wrong answer','Bubbling error','Unspecified'];
+const INS = window.MarkLensInsights, EX = window.MarkLensExams;
 // the text parsers live in js/parse.js, where the tests can reach them
-const { guessType, classifyCause: classify, halves, qName, parsePaper, parseSheet, matchSheet, tidyCommon, tidyPaper, tidySheet, chunkPages, parseKey, parseOmrAnswers, keyText } = window.MarkLensParse;
+const { guessType, classifyCause: classify, halves, qName, parsePaper, annotatePaper, parseSheet, matchSheet, tidyCommon, tidyPaper, tidySheet, chunkPages, parseKey, parseOmrAnswers, scoreAnswer, keyText } = window.MarkLensParse;
 const SUBJECT_NAMES = INS.SUBJECTS.map(x => x[0]);
 let rows = [], aiExtra = null, mode = 'marked', sampleData = true, sheetCount = 0;
 let edits = {};                       // table changes kept across re-parsing, keyed by question number
+let examId = 'general';               // which exam this is: marking scheme, sections and grading (js/exams.js)
+let solved = {};                      // correct answers found so far, keyed by the question's text (see qHash)
 const shots = { paper: [], sheet: [] };  // photos: {blob, url}
+const exam = () => EX.get(examId);
 
 /* ---- parsing ---- */
 function rebuild(){
@@ -508,7 +586,7 @@ function rebuild(){
   if (mode !== 'marked') return;
   const paper = parsePaper($('#paper').value), sheet = matchSheet(paper, parseSheet($('#sheet').value)), by = new Map();
   sheetCount = sheet.length;
-  paper.forEach(({ n, ...p }) => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
+  paper.forEach(({ n, first, line, ...p }) => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
   const seen = new Set();
   sheet.forEach(s => {
     seen.add(s.q);
@@ -521,7 +599,7 @@ function rebuild(){
     if (deleted) { by.delete(k); continue; }
     const r = by.get(k);
     if (r) Object.assign(r, f);
-    else if (added) by.set(k, { q: k, subject: f.subject || '', topic: f.topic || 'General', type: f.type || 'Short answer', max: num(f.max), got: num(f.got), cause: f.cause || 'Unspecified' });
+    else if (added) by.set(k, { q: k, subject: f.subject || '', topic: f.topic || 'General', sub: f.sub || '', type: f.type || 'Short answer', max: num(f.max), got: num(f.got), cause: f.cause || 'Unspecified' });
   }
   rows = [...by.values()]; aiExtra = null;   // paper order, then anything found only on the sheet
   const missing = sheet.length ? paper.filter(p => !seen.has(p.q)).map(p => qName(p.q)) : [];
@@ -534,17 +612,20 @@ function changed(tbl){
   if (tbl) renderTable(); renderDash(); $('#sampleFlag').hidden = !sampleData; save();
   const live = $('#live'); live.classList.remove('ping'); void live.offsetWidth; live.classList.add('ping');   // the dot pulses once on every update
 }
-function save(){ try { localStorage.setItem('marklens3', JSON.stringify({ paper: $('#paper').value, sheet: $('#sheet').value, rows, mode, sampleData, aiExtra, edits, omr: { right: $('#omrRight').value, wrong: $('#omrWrong').value, keyIsExample } })); } catch {} }
+function save(){
+  const keep = Object.entries(solved).slice(-400);   // the newest answers; older ones are found again if needed
+  try { localStorage.setItem('marklens3', JSON.stringify({ paper: $('#paper').value, sheet: $('#sheet').value, omrPaper: $('#omrPaper').value, rows, mode, exam: examId, sampleData, aiExtra, edits, solved: Object.fromEntries(keep), omr: { right: $('#omrRight').value, wrong: $('#omrWrong').value, keyIsExample } })); } catch {}
+}
 
 /* ---- table ---- */
 function renderTable(){
   if (!rows.length) { $('#tableWrap').innerHTML = '<div class="empty">No questions yet. Add photos of the paper and sheet above, or reload the example.</div>'; return; }
   const opt = (a, v) => a.map(x => `<option${x === v ? ' selected' : ''}>${esc(x)}</option>`).join('');
   if (mode === 'omr') {   // OMR: what was marked against the key; marks follow the marking scheme
-    $('#tableWrap').innerHTML = `<table><thead><tr><th>Q</th><th>Subject</th><th>Lesson</th><th>Marked</th><th>Key</th><th>Marks</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
+    $('#tableWrap').innerHTML = `<table class="wide"><thead><tr><th>Q</th><th>Subject</th><th>Chapter</th><th>Topic</th><th>Marked</th><th>Key</th><th>Marks</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
     rows.map((r, i) => `<tr data-i="${i}"><td><input data-k="q" value="${esc(r.q)}" style="width:56px" aria-label="Question number"></td>
       <td><input data-k="subject" value="${esc(r.subject || '')}" list="subjectList" aria-label="Subject"></td>
-      <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Lesson"></td>
+      <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Chapter"></td><td><input data-k="sub" value="${esc(r.sub || '')}" aria-label="Topic"></td>
       <td class="ans ${r.cause === 'None' ? 'ok' : r.marked && r.marked !== '–' ? 'bad' : ''}">${esc(r.marked || '–')}</td><td class="ans">${esc(r.key || '')}</td>
       <td><input type="number" inputmode="decimal" step="0.25" data-k="got" value="${num(r.got)}" aria-label="Marks"></td>
       <td><input type="number" inputmode="decimal" step="0.25" min="0" data-k="max" value="${num(r.max)}" aria-label="Maximum marks"></td>
@@ -552,10 +633,10 @@ function renderTable(){
       <td><button data-del="${i}" aria-label="Remove question">✕</button></td></tr>`).join('') + '</tbody></table>';
     return;
   }
-  $('#tableWrap').innerHTML = `<table><thead><tr><th>Q</th><th>Subject</th><th>Lesson</th><th>Type</th><th>Awarded</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
+  $('#tableWrap').innerHTML = `<table class="wide"><thead><tr><th>Q</th><th>Subject</th><th>Chapter</th><th>Topic</th><th>Type</th><th>Awarded</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
   rows.map((r, i) => `<tr data-i="${i}"><td><input data-k="q" value="${esc(r.q)}" style="width:56px" aria-label="Question number"></td>
     <td><input data-k="subject" value="${esc(r.subject || '')}" list="subjectList" aria-label="Subject"></td>
-    <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Lesson"></td><td><select data-k="type" aria-label="Type">${opt(TYPES, r.type)}</select></td>
+    <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Chapter"></td><td><input data-k="sub" value="${esc(r.sub || '')}" aria-label="Topic"></td><td><select data-k="type" aria-label="Type">${opt(TYPES, r.type)}</select></td>
     <td><input type="number" inputmode="decimal" step="0.5" min="0" data-k="got" value="${num(r.got)}" aria-label="Marks awarded"></td>
     <td><input type="number" inputmode="decimal" step="0.5" min="0" data-k="max" value="${num(r.max)}" aria-label="Maximum marks"></td>
     <td><select data-k="cause" aria-label="Cause">${opt(CAUSES, r.cause)}</select></td>
@@ -587,20 +668,85 @@ $('#tableWrap').addEventListener('click', e => {
   rows.splice(+d, 1); sampleData = false; changed(true);
 });
 $('#addRow').onclick = () => {
-  const r = { q: String(Math.max(0, ...rows.map(x => num(String(x.q).match(/\d+(?:\.\d+)?$/)?.[0]))) + 1), subject: rows.length ? rows[rows.length - 1].subject || '' : '', topic: 'General', type: 'Short answer', max: 5, got: 0, cause: 'Unspecified' };
+  const r = { q: String(Math.max(0, ...rows.map(x => num(String(x.q).match(/\d+(?:\.\d+)?$/)?.[0]))) + 1), subject: rows.length ? rows[rows.length - 1].subject || '' : '', topic: 'General', sub: '', type: 'Short answer', max: 5, got: 0, cause: 'Unspecified' };
   rows.push(r); edits[r.q] = { ...r, added: true }; sampleData = false; changed(true);
 };
 
 /* ---- dashboard (drawn by js/dashboard.js from the analysis in js/insights.js) ---- */
 // a short fingerprint of this paper, so saving it again updates the saved copy instead of adding a second one
-const paperKey = () => { let h = 0; for (const c of mode + '|' + $('#paper').value + '|' + $('#sheet').value) h = (h * 31 + c.charCodeAt(0)) | 0; return 'k' + (h >>> 0).toString(36); };
+// (topic notes "## ..." are left out, so finding topics with the AI does not make it a different paper)
+const paperKey = () => { let h = 0; for (const c of mode + '|' + $('#paper').value.replace(/[ \t]*##[^\n]*/g, '') + '|' + $('#sheet').value) h = (h * 31 + c.charCodeAt(0)) | 0; return 'k' + (h >>> 0).toString(36); };
 function renderDash(){
   const d = $('#dash');
   const tot = rows.reduce((a, r) => ({ got: a.got + r.got, max: a.max + r.max }), { got: 0, max: 0 });
   if (!rows.length || !tot.max) { d.innerHTML = '<div class="panel empty">Your dashboard appears here once there are questions with marks.</div>'; return; }
   if (mode === 'marked' && !sheetCount && !rows.some(r => r.got > 0)) { d.innerHTML = '<div class="panel empty">The questions are ready. Add photos of your marked exam sheet to see where the marks went.</div>'; return; }
   if (mode === 'omr' && !sheetCount) { d.innerHTML = '<div class="panel empty">The answer key is ready. Scan a student\'s OMR sheet to see where the marks went.</div>'; return; }
-  MarkLensDash.render(d, { rows, mode, aiExtra, sample: sampleData, paperKey: paperKey() });
+  MarkLensDash.render(d, { rows, mode, aiExtra, sample: sampleData, paperKey: paperKey(), exam: exam(),
+    scheme: mode === 'omr' ? { right: omrRight(), wrong: omrWrong(), options: omrOptions() } : null,
+    ai: ai && ai.enabled ? { solve: true, topics: true, search: ai.search || null } : null,
+    answerOf, onSolve: solveRows, onTopics: findTopics });
+}
+
+/* ---- correct answers and topics, from the site's own /api/ai function ---- */
+// An answer belongs to the question's words (and its key), not its number, so it survives re-reading the paper.
+const qHash = r => {
+  const t = String(r.text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + '|' + String(r.key || '').toUpperCase();
+  let h = 0x811c9dc5; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return 'a' + (h >>> 0).toString(36) + t.length.toString(36);
+};
+const answerOf = r => (r && r.text && solved[qHash(r)]) || null;
+const examName = () => exam().id === 'general' ? '' : exam().name;
+let solving = false, waiting = [];
+async function solveRows(list){
+  if (!ai || !ai.enabled) return;
+  if (solving) { waiting.push(...list); MarkLensDash.note('answers', 'Added to the list: it is looked up next.'); return; }   // asked while busy: looked up next
+  const todo = [...new Set(list)].filter(r => r && r.text && !answerOf(r));
+  if (!todo.length) { MarkLensDash.redraw('answers'); return; }
+  solving = true;
+  const per = Math.max(1, Math.min(4, ai.solveMax || 4)), n = todo.length; let lastErr = null;
+  for (let i = 0; i < n; i += per) {
+    const batch = todo.slice(i, i + per);
+    MarkLensDash.note('answers', n > 1 ? `Searching and working out answers: ${i} of ${n} done…` : 'Searching and working out the answer…');
+    try {
+      const j = await callAI({ task: 'solve', exam: examName(), questions: batch.map(r => ({ q: r.q, text: r.text, subject: r.subject || '', chapter: r.topic || '', topic: r.sub || '', type: r.type || '', key: r.key || '', marked: r.marked || '', max: r.max })) },
+        s => MarkLensDash.note('answers', `The free AI is busy. Trying again in ${s}s…`));
+      for (const a of (j.answers || [])) {
+        const r = batch.find(x => String(x.q).toLowerCase() === String(a.q).toLowerCase());
+        if (r && a.answer) solved[qHash(r)] = { answer: String(a.answer), working: String(a.working || ''), chapter: String(a.chapter || ''), topic: String(a.topic || ''), confidence: a.confidence || 'medium',
+          sources: (Array.isArray(a.sources) ? a.sources : []).filter(x => x && /^https?:\/\//i.test(x.url)).slice(0, 3).map(x => ({ title: String(x.title || ''), url: String(x.url) })), search: String(a.search || '') };
+      }
+    } catch (e) { lastErr = e; if (e && ['limit', 'site_limit', 'not_configured', 'forbidden', 'ai_setup', 'offline'].includes(e.code)) break; }
+    save(); MarkLensDash.redraw('answers');
+  }
+  solving = false;
+  const ok = todo.filter(answerOf).length;
+  MarkLensDash.note('answers', !ok ? errMsg(lastErr, 'No answers came back. Try again in a minute.')
+    : ok < n ? `Found ${ok} of ${n} answers.${lastErr ? ' ' + errMsg(lastErr, '') : ' Tap Get the answer to try the others again.'}` : n === 1 ? 'Found the answer.' : `Found all ${n} answers.`);
+  MarkLensDash.redraw('answers');
+  if (waiting.length) { const next = waiting; waiting = []; solveRows(next.filter(r => rows.includes(r))); }
+}
+// The AI names the subject, chapter and topic of every question; the notes are written onto the paper text
+// ("## Physics > Optics > Lenses"), where the student can read and correct them.
+async function findTopics(){
+  if (!ai || !ai.enabled) return;
+  const ta = mode === 'omr' ? $('#omrPaper') : $('#paper'), qs = parsePaper(ta.value).filter(p => p.text);
+  if (!qs.length) { MarkLensDash.note('topics', 'Add the question paper text first.'); MarkLensDash.redraw('topics'); return; }
+  const per = Math.min(30, ai.topicsMax || 30), label = new Map(qs.map(p => [p.q.toUpperCase(), p.q])), found = new Map(); let lastErr = null;
+  for (let i = 0; i < qs.length; i += per) {
+    MarkLensDash.note('topics', qs.length > per ? `Finding topics: questions ${i + 1} to ${Math.min(qs.length, i + per)} of ${qs.length}…` : 'Finding the topic of every question…');
+    try {
+      const j = await callAI({ task: 'topics', exam: examName(), questions: qs.slice(i, i + per).map(p => ({ q: p.q, text: p.text.slice(0, 400) })) },
+        s => MarkLensDash.note('topics', `The free AI is busy. Trying again in ${s}s…`));
+      for (const line of clean(j.text).split('\n')) {
+        const m = line.match(/^\s*\[?\s*Q?\.?\s*([A-Za-z]?\d+(?:\.\d+)?)\s*\]?\s*[:.)-]?\s*##\s*(.+)$/i), q = m && label.get(m[1].toUpperCase());
+        if (q) found.set(q, m[2].trim());
+      }
+    } catch (e) { lastErr = e; break; }
+  }
+  if (found.size) { ta.value = annotatePaper(ta.value, found); edits = Object.fromEntries(Object.entries(edits).map(([k, e]) => { if (e.added) return [k, e]; const { topic, sub, subject, ...rest } = e; return [k, rest]; })); rebuild(); }
+  MarkLensDash.note('topics', found.size ? `Found the topic of ${found.size} of ${qs.length} questions.${lastErr ? ' ' + errMsg(lastErr, '') : ''}` : errMsg(lastErr, 'The AI did not name any topics. Try again.'));
+  MarkLensDash.redraw('topics');
 }
 
 /* ---- photos: camera or gallery, on Android, iOS and desktop ---- */
@@ -959,8 +1105,8 @@ $('#sheetRead').onclick = () => readPhotos('sheet');
 const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. For handwriting, choose Google Lens above. Remarks decide why marks were lost.';
 const HINT_AI = "Add photos of the unmarked answer sheet and tap Read answers, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
 const HINT_PAPER = 'Scan each page flat, in good light, with all four edges in frame. Fix anything misread. Marks are read from [5], (5 marks) or 5M. Lines like "Subject: Physics" and "Section A: Optics" name the subject and lesson.';
-const HINT_OMR_KEY = 'One answer per line, like 1-B, or a row of letters like BDACB. Put "Subject: Physics" before each subject and "Chapter: Optics" before each chapter to see which lessons cost marks. Or scan an OMR sheet filled with the right answers.';
-const HINT_OMR = 'One line per question, like 7: C. A dash means left blank, and ? means check the photo. Fix anything the photo got wrong; the dashboard updates.';
+const HINT_OMR_KEY = 'One answer per line, like 1-B, or a row of letters like BDACB. Numerical answers: 21 = 12, or 22 = 2.30 to 2.35. Put "Subject: Physics" before each subject and "Chapter: Optics" before each chapter to see which lessons cost marks. Or scan an OMR sheet filled with the right answers.';
+const HINT_OMR = 'One line per question, like 7: C, or 21: 12 for a numerical answer. A dash means left blank, and ? means check the photo. Fix anything the photo got wrong; the dashboard updates.';
 // Each sheet type keeps its own text, and written papers and OMR keep their own left-hand box (question paper or answer key).
 const sheetByMode = {}, paperByGroup = {}, sampleByGroup = {}, grp = m => m === 'omr' ? 'omr' : 'written';
 function setMode(m){
@@ -973,7 +1119,8 @@ function setMode(m){
   $('#paperLbl').textContent = omr ? 'Correct answers' : 'Question paper text';
   $('#paper').placeholder = omr ? 'Subject: Physics\nChapter: Optics\n1-B\n2-D\n3-A' : 'Section A: Algebra\n1. Solve 2x+3=11 [2]\n2. Factorise x^2-5x+6 [3]';
   $('#paperHint').textContent = omr ? HINT_OMR_KEY : HINT_PAPER;
-  $('#omrKeyBox').hidden = !omr; $('#omrNote').hidden = !omr;
+  $('#omrKeyBox').hidden = !omr; $('#omrNote').hidden = !omr; $('#omrPaperBox').hidden = !omr;
+  if (omr && $('#omrPaper').value.trim()) $('#omrPaperBox').open = true;   // a paper already there stays in view
   $('#readersLbl').hidden = omr; $('#readers').hidden = omr; $('#lensGuide').hidden = omr || reader !== 'lens';
   $('#aiRisk').hidden = omr || !ai;
   if (!omr) { $('#paperCheck').hidden = true; $('#sheetCheck').hidden = true; }
@@ -1009,10 +1156,12 @@ $('#aiGo').onclick = async () => {
   }
   setSt(st, 'Grading… this can take up to a minute.');
   try {
-    const { result: j } = await callAI({ task: 'grade', paper: $('#paper').value, answers, images: [] },
+    const { result: j } = await callAI({ task: 'grade', paper: $('#paper').value, answers, images: [], exam: examName() },
       s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
-    const where = INS.classify((j.rows || []).map(x => ({ subject: String(x.subject || ''), heading: String(x.topic || '') })));
-    rows = (j.rows || []).map((x, i) => ({ q: String(x.q ?? i + 1).trim() || String(i + 1), subject: where[i].subject, topic: where[i].lesson, type: TYPES.includes(x.type) ? x.type : 'Short answer', max: num(x.max), got: Math.max(0, Math.min(num(x.got), num(x.max))), cause: CAUSES.includes(x.cause) ? x.cause : 'Unspecified', feedback: String(x.feedback || '') }));
+    const pq = new Map(parsePaper($('#paper').value).map(p => [String(p.q).toUpperCase(), p]));
+    const pick = x => pq.get(String(x.q ?? '').trim().replace(/^Q\.?\s*/i, '').toUpperCase());
+    const where = INS.classify((j.rows || []).map(x => { const p = pick(x); return { subject: String(x.subject || ''), heading: String(x.topic || ''), text: p ? p.text : '', sub: p ? p.sub : '' }; }));
+    rows = (j.rows || []).map((x, i) => { const p = pick(x); return { q: String(x.q ?? i + 1).trim() || String(i + 1), subject: where[i].subject, topic: where[i].lesson, sub: where[i].topic, text: p ? p.text : '', type: TYPES.includes(x.type) ? x.type : 'Short answer', max: num(x.max), got: Math.max(0, Math.min(num(x.got), num(x.max))), cause: CAUSES.includes(x.cause) ? x.cause : 'Unspecified', feedback: String(x.feedback || '') }; });
     aiExtra = { summary: String(j.summary || ''), plan: Array.isArray(j.study_plan) ? j.study_plan.map(String) : [] }; sampleData = false; edits = {};
     setSt(st, `Graded ${rows.length} questions. This is a draft: check it against the marking scheme.`); changed(true); $('#dashboard').scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
@@ -1025,19 +1174,20 @@ $('#aiGo').onclick = async () => {
 let keyIsExample = false;   // the example key must never be used to mark a real sheet
 const omrRight = () => Math.max(0.25, num($('#omrRight').value) || 1);
 const omrWrong = () => Math.abs(num($('#omrWrong').value));
+const omrOptions = () => { let n = 4; for (const k of parseKey($('#paper').value)) if (k.keys && k.keys !== '*') n = Math.max(n, 'ABCDEFGH'.indexOf(k.keys.slice(-1)) + 1); return n; };
 function rebuildOmr(){
-  const key = parseKey($('#paper').value), ans = parseOmrAnswers($('#sheet').value), right = omrRight(), wrong = omrWrong();
+  const ex = exam(), key = parseKey($('#paper').value), ans = parseOmrAnswers($('#sheet').value), d = { right: omrRight(), wrong: omrWrong(), multi: ex.multi || 'any' };
+  // the optional question paper gives each question its words, and a topic when the key names none
+  const paper = new Map(); for (const p of parsePaper($('#omrPaper').value)) if (!paper.has(p.n)) paper.set(p.n, p);
   sheetCount = ans.size;
   rows = key.map(k => {
-    const m = (ans.get(k.q) || { marked: '' }).marked;
-    let got, cause;
-    if (k.keys === '*') { got = right; cause = 'None'; }                                  // bonus question
-    else if (!m) { got = 0; cause = 'Incomplete / unattempted'; }
-    else if (m.length > 1) { got = -wrong; cause = 'Bubbling error'; }                     // more than one bubble counts as wrong
-    else if (k.keys.includes(m)) { got = right; cause = 'None'; }
-    else { got = -wrong; cause = 'Wrong option'; }
-    return { q: String(k.q), subject: k.subject, topic: k.topic, type: 'MCQ', max: right, got, cause, marked: m || '–', key: k.keys === '*' ? 'any' : k.keys };
+    const s = scoreAnswer(k, ans.get(k.q), d), p = paper.get(k.q);
+    const subject = k.said ? k.subject : (EX.sectionOf(ex, k.q) || (p && p.subject) || k.subject);   // the key's Subject lines, else the exam's sections
+    const same = p && (!subject || p.subject === subject);
+    const topic = k.topic !== 'General' ? k.topic : same ? p.topic : 'General';
+    return { q: String(k.q), subject, topic, sub: k.sub || (p ? (same && p.topic === topic ? p.sub : INS.topicFor(p.text, topic, subject)) : '') || '', text: p ? p.text : '', type: s.type, max: s.max, got: s.got, cause: s.cause, marked: s.marked, key: s.key };
   });
+  for (const [q, e] of Object.entries(edits)) { const r = rows.find(x => x.q === q); if (r && !e.deleted) for (const f of ['subject', 'topic', 'sub']) if (e[f] !== undefined) r[f] = e[f]; }   // names fixed in the table
   aiExtra = null;
   const extra = [...ans.keys()].filter(q => !key.some(k => k.q === q)).length;
   $('#paperStatus').textContent = key.length ? `${key.length} answers` : '';
@@ -1096,7 +1246,16 @@ function loadOmrSample(){
   for (const t of Object.keys(key)) { k.push(`Subject: ${t}`); for (let i = 0; i < 10; i++, q++) { if (i % 5 === 0) k.push(`Chapter: ${ch[t][i / 5]}`); k.push(`${q}-${key[t][i]}`); a.push(`${q}: ${said[t][i]}`); } }
   a[6] = '7: AC'; a[12] = '13: D'; a[24] = '25: B'; a[28] = '29: A';   // a double mark and a few wrong answers
   $('#paper').value = k.join('\n'); $('#sheet').value = a.join('\n');
-  $('#omrRight').value = 4; $('#omrWrong').value = 1;
+  // part of the question paper, for the questions the example student lost marks on
+  $('#omrPaper').value = `6. The focal length of a concave mirror with a radius of curvature of 30 cm is: a) 15 cm b) 30 cm c) 60 cm d) 7.5 cm
+7. The power of a convex lens of focal length 50 cm is: a) 0.5 D b) 50 D c) 5 D d) 2 D
+8. An object is placed 30 cm in front of a convex lens of focal length 20 cm. The image forms at a distance of: a) 12 cm b) 20 cm c) 60 cm d) 40 cm
+13. The hybridisation of carbon in methane (CH4) is: a) sp b) sp3 c) sp2 d) dsp2
+18. The IUPAC name of CH3-CH2-OH is: a) Methanol b) Ethanol c) Ethanal d) Propanol
+23. In a monohybrid cross between Tt and Tt, the phenotypic ratio of the offspring is: a) 1:2:1 b) 3:1 c) 1:1 d) 9:3:3:1
+25. DNA replication is: a) semi-conservative b) conservative c) dispersive d) non-conservative
+29. The functional unit of the kidney is: a) neuron b) alveolus c) villus d) nephron`;
+  const e = exam(); $('#omrRight').value = e.format === 'omr' && e.right != null ? e.right : 4; $('#omrWrong').value = e.format === 'omr' && e.right != null ? e.wrong : 1;
   edits = {}; dropShots(); setMode('omr'); keyIsExample = true; sampleData = true; rebuild(); $('#sampleFlag').hidden = false;
 }
 for (const id of ['#omrRight', '#omrWrong']) $(id).addEventListener('input', () => { if (mode === 'omr') { const sd = sampleData; rebuild(); sampleData = sd; } });
@@ -1105,8 +1264,24 @@ for (const id of ['#omrRight', '#omrWrong']) $(id).addEventListener('input', () 
 let t; const deb = () => { clearTimeout(t); t = setTimeout(() => { sampleData = false; rebuild(); }, 350); };
 $('#paper').addEventListener('input', () => { if (mode === 'omr') keyIsExample = false; if (mode === 'marked' || mode === 'omr') deb(); else sampleData = false; });
 $('#sheet').addEventListener('input', () => { if (mode === 'marked' || mode === 'omr') deb(); });
+$('#omrPaper').addEventListener('input', () => { if (mode === 'omr') { clearTimeout(t); t = setTimeout(() => { const sd = sampleData; rebuild(); sampleData = sd; }, 350); } });
+
+/* ---- exam type: marking scheme, sections and grading ---- */
+$('#exam').innerHTML = [...new Set(EX.EXAMS.map(e => e.group))].map(g => `<optgroup label="${esc(g)}">${EX.EXAMS.filter(e => e.group === g).map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}</optgroup>`).join('');
+// user: the student picked it now, so the sheet type and the marking scheme follow the exam
+function setExam(id, user){
+  examId = EX.get(id).id; const e = exam();
+  $('#exam').value = examId; $('#examAbout').textContent = EX.summary(e);
+  try { localStorage.setItem('marklens-exam', examId); } catch {}
+  if (!user) return;
+  if (e.format === 'omr' && mode !== 'omr') switchMode('omr');
+  else if (e.format === 'written' && mode === 'omr') switchMode('marked');
+  if (mode === 'omr' && e.right != null) { $('#omrRight').value = e.right; $('#omrWrong').value = e.wrong; }
+  const sd = sampleData; rebuild(); sampleData = sd; $('#sampleFlag').hidden = !sd;
+}
+$('#exam').addEventListener('change', e => setExam(e.target.value, true));
 function dropShots(){ for (const k of ['paper', 'sheet']) { shots[k].forEach(s => URL.revokeObjectURL(s.url)); shots[k] = []; renderShots(k); setSt('#' + k + 'PhotoStatus', ''); } }
-$('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); keyIsExample = false; $('#paperCheck').hidden = true; $('#sheetCheck').hidden = true; if (mode !== 'omr') setMode('marked'); changed(true); };
+$('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; $('#omrPaper').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); keyIsExample = false; $('#paperCheck').hidden = true; $('#sheetCheck').hidden = true; if (mode !== 'omr') setMode('marked'); changed(true); };
 function loadSample(){
   $('#paper').value = `Section A: Algebra
 1. Solve 2x + 3 = 11 [2]
@@ -1142,16 +1317,26 @@ $('#sample').onclick = () => mode === 'omr' ? loadOmrSample() : loadSample();
 
 $('#subjectList').innerHTML = SUBJECT_NAMES.map(n => `<option value="${esc(n)}">`).join('');
 let saved = null; try { saved = JSON.parse(localStorage.getItem('marklens3') || localStorage.getItem('marklens2') || 'null'); } catch {}
+try { examId = EX.get(localStorage.getItem('marklens-exam') || 'general').id; } catch {}
+setExam(examId);
 if (saved && Array.isArray(saved.rows) && saved.rows.length) {
-  $('#paper').value = saved.paper || ''; $('#sheet').value = saved.sheet || '';
+  $('#paper').value = saved.paper || ''; $('#sheet').value = saved.sheet || ''; $('#omrPaper').value = saved.omrPaper || '';
+  if (saved.solved && typeof saved.solved === 'object') solved = saved.solved;
+  if (saved.exam) examId = EX.get(saved.exam).id;
   rows = saved.rows.map(r => ({ ...r, q: String(r.q), got: num(r.got), max: num(r.max) })).map(r => r.subject !== undefined ? r   // older saves have no subject
     : INS.canonSubject(r.topic) ? { ...r, subject: INS.canonSubject(r.topic), topic: 'General' } : { ...r, subject: INS.subjectFor(r.topic) });
   aiExtra = saved.aiExtra || null; edits = saved.edits || {}; sampleData = !!saved.sampleData;
   sheetCount = parseSheet(saved.sheet || '').length;
   if (saved.omr) { $('#omrRight').value = saved.omr.right || 1; $('#omrWrong').value = saved.omr.wrong || 0; keyIsExample = !!saved.omr.keyIsExample; }
   setMode(saved.mode === 'ai' ? 'ai' : saved.mode === 'omr' ? 'omr' : 'marked');
-  if (mode === 'omr') { const sd = sampleData; rebuild(); sampleData = sd; $('#sampleFlag').hidden = !sd; } else changed(true);
+  if (mode !== 'ai') { const sd = sampleData; rebuild(); sampleData = sd; $('#sampleFlag').hidden = !sd; }   // re-read, so work saved by older versions gets question text and topics
+  else {
+    const pq = new Map(parsePaper($('#paper').value).map(p => [String(p.q).toUpperCase(), p]));
+    rows = rows.map(r => { const p = pq.get(String(r.q).toUpperCase()); return r.text || !p ? r : { ...r, text: p.text, sub: r.sub || p.sub }; });
+    changed(true);
+  }
 } else loadSample();
+setExam(examId);
 
 let savedReader = null; try { savedReader = localStorage.getItem('marklens-reader2'); } catch {}
 setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens unless the student chose another reader
@@ -1163,6 +1348,8 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
   $('#modeAi').hidden = false; $('#rdAI').hidden = ai.vision === false;   // a text-only model still sorts Lens text and grades
   $('#aiWho').textContent = ai.backup ? `${ai.providerName}, or ${ai.backup} as a backup` : ai.providerName; $('#aiRisk').hidden = mode === 'omr';
   $('#lensAiNote').hidden = false;
+  if (ai.search) { $('#aiSearch').textContent = ai.search; $('#aiSearchNote').hidden = false; }
+  renderDash();
   if (savedReader === 'ai' && ai.vision !== false) setReader('ai', true);
 })();
 </script>
