@@ -337,14 +337,15 @@ const pages = (a, b, n) => `${b > a ? 'pages' : 'page'} ${a === b ? a : `${a}-${
 function paperPrompt(a, b, n) {
   return `The attached photo(s) are ${pages(a, b, n)} of an exam question paper, in order. Transcribe every question into plain text in exactly this format and output nothing else:
 
-Section A: <topic of the section, e.g. Algebra>
+Section A: <chapter or lesson of the section, e.g. Algebra>
 1. <full question text> [<marks>]
 2. <full question text> [<marks>]
 
 Rules:
 - One line per question, starting with the question number as printed, then a full stop.
 - End each line with that question's marks in square brackets, e.g. [3]. If a question has parts (a), (b), keep them on the same line and give the total marks.
-- Before each group of questions that the paper puts in a section, write a section line naming the subject topic (Algebra, Geometry, Mechanics, Organic chemistry...) when you can tell it, otherwise the printed heading.
+- Before each group of questions that the paper puts in a section, write a section line naming its chapter or lesson (Algebra, Geometry, Optics, Organic chemistry...) when you can tell it, otherwise the printed heading.
+- If the paper covers more than one subject (for example Physics, Chemistry and Biology), write a line such as Subject: Physics before each subject's first section.
 - Keep multiple-choice options on the question line as a) ... b) ... c) ... d) ...
 - Write maths as plain text: x^2, sqrt(x), 3/4, pi, theta, >=.
 - Leave out general instructions, headers, footers, page numbers, and any names, roll numbers or school details. Write [?] for anything unreadable.
@@ -397,13 +398,14 @@ function tidyPrompt(kind, text, first, last, paper) {
   const fmt = kind === 'paper'
     ? `Rewrite it as the question paper, in exactly this format and output nothing else:
 
-Section A: <topic of the section, e.g. Algebra>
+Section A: <chapter or lesson of the section, e.g. Algebra>
 1. <full question text> [<marks>]
 
 Rules:
 - One line per question, starting with the question number as printed, then a full stop. Join lines that belong to one question.
 - End each line with that question's marks in square brackets, e.g. [3]. If a question has parts (a), (b), keep them on the same line and give the total marks. Write [?] if the marks are not in the text.
-- Write a section line before each section, naming the subject topic when you can tell it, otherwise the printed heading. If numbering restarts in each section, keep it as printed.
+- Write a section line before each section, naming its chapter or lesson when you can tell it, otherwise the printed heading. If numbering restarts in each section, keep it as printed.
+- If the paper covers more than one subject, write a line such as Subject: Physics before each subject's first section.
 - Keep multiple-choice options on the question line as a) ... b) ... c) ... d) ...
 - Keep the wording; fix only obvious reading slips (O for 0, l for 1). Write maths as plain text: x^2, sqrt(x), 3/4.
 - Leave out general instructions, headers, footers, page numbers, names, roll numbers and school details.`
@@ -445,6 +447,6 @@ ${paper}
 STUDENT ANSWERS (typed):
 ${answers.trim() || '(see photos)'}
 
-Reply with ONLY a JSON object: {"rows":[{"q":1,"topic":"Algebra","type":"MCQ|Short answer|Long answer","max":2,"got":1.5,"cause":"None|Concept gap|Careless / calculation|Incomplete / unattempted|Units & signs|Presentation|Time management|Unspecified","feedback":"2-3 sentences: what was right, exactly where marks were lost, how to fix it"}],"summary":"3-5 sentence overall assessment","study_plan":["specific actionable step"]}
-Include a row for every question. "q" is the question number as printed; if numbering restarts in a later section, prefix it with that section's letter, e.g. "B2". Give one row per whole question, adding up its parts. "got" is between 0 and "max" in steps of 0.5. cause is "None" when got equals max. Unanswered questions get got 0 and cause "Incomplete / unattempted".`;
+Reply with ONLY a JSON object: {"rows":[{"q":1,"subject":"Maths","topic":"Algebra","type":"MCQ|Short answer|Long answer","max":2,"got":1.5,"cause":"None|Concept gap|Careless / calculation|Incomplete / unattempted|Units & signs|Presentation|Time management|Unspecified","feedback":"2-3 sentences: what was right, exactly where marks were lost, how to fix it"}],"summary":"3-5 sentence overall assessment","study_plan":["specific actionable step"]}
+Include a row for every question. "subject" is the school subject and "topic" the chapter or lesson the question tests. "q" is the question number as printed; if numbering restarts in a later section, prefix it with that section's letter, e.g. "B2". Give one row per whole question, adding up its parts. "got" is between 0 and "max" in steps of 0.5. cause is "None" when got equals max. Unanswered questions get got 0 and cause "Incomplete / unattempted".`;
 }

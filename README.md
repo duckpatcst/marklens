@@ -20,6 +20,10 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 | `privacy.html` | The privacy notice that students see |
 | `omr.html` | Prints blank MarkLens OMR answer sheets (up to 200 questions on one A4 page, A–D or A–E) |
 | `js/omr.js` | The OMR sheet layout and the on-phone OMR reader |
+| `js/parse.js` | Reads the text of question papers, marked sheets and answer keys into questions, marks, subjects and lessons |
+| `js/insights.js` | Works out each question's subject and lesson, and ranks what to fix to win back the most marks |
+| `js/dashboard.js` | Draws the dashboard |
+| `tests/` | Automatic checks for the three files above (see "Checking the code" below). Not needed by the website |
 | (online) | The free on-phone photo reader, Tesseract 5.1.1 (Apache 2.0), loads from jsDelivr the first time |
 | `functions/api/ai.js` | The hidden helper that talks to the AI company. Your API key lives here, never in the page |
 | `_headers` | Security settings for the website |
@@ -128,7 +132,7 @@ A per-minute limit (15 AI requests a minute per device) is always on, even witho
 Choose **OMR sheet** under Exam sheet. MarkLens reads its own printed OMR sheets on the phone: free, private, and with no AI, so AI limits don't apply.
 
 1. **Print sheets.** Tap **Print blank OMR sheets** (or open `omr.html`). Choose up to 200 questions (enough for NEET's 180) and A–D or A–E, and print at 100% on A4. Photocopies work.
-2. **Answer key.** Fill one sheet with the right answers and scan it, or type the answers (`1-B`, `2-D`, or a row of letters like `BDACB`). Put `Section: Physics` lines before groups of questions to name their topics. `4-AC` accepts either option; `5-*` gives everyone the marks (NTA's rule for a dropped question). A question's topic follows its number, so a line added at the end still lands in the right section.
+2. **Answer key.** Fill one sheet with the right answers and scan it, or type the answers (`1-B`, `2-D`, or a row of letters like `BDACB`). Put `Subject: Physics` before each subject and `Chapter: Optics` before each chapter's questions, so the dashboard can show which subjects and lessons cost marks. `4-AC` accepts either option; `5-*` gives everyone the marks (NTA's rule for a dropped question). A question's subject and chapter follow its number, so a line added at the end still lands in the right place.
 3. **Marking scheme.** Set the marks for a right answer and the minus for a wrong one (NEET and JEE Main: 4 and 1). Two or more bubbles in one question count as wrong.
 4. **Students' sheets.** Take a photo of each filled sheet, keeping all four black corner squares in the photo, and tap **Read the OMR sheet**.
    - A check image circles what was read: green = read, orange = faint or unclear, red = more than one bubble.
@@ -183,6 +187,20 @@ MarkLens creates its table by itself. To see usage, open the database's **Consol
 - The on-phone reader never sends photos anywhere. Point cautious users to it.
 - In India, the **Digital Personal Data Protection Act, 2023** has rules for processing personal data, with stricter consent rules for children under 18. If schools or many students will use your site, check what applies to you. This guide isn't legal advice.
 - MarkLens keeps students' results only in their own browser. Your site stores only a random device id in a cookie and a daily count of AI requests per device; with D1, counts older than 35 days are deleted. Nothing in the counts names a student.
+
+## The dashboard: where to focus
+
+After each paper the dashboard answers one question for the student: what should I work on to get the most marks back?
+
+- **Within reach.** The score, and what it could be after working on the items in the student's plan. Ticking and unticking items moves the number.
+- **Where to focus.** Every lost mark belongs to one item. Exam habits (careless slips, units and signs, presentation, timing, bubbling) are grouped across the paper; everything else is grouped by subject and lesson. Items are ordered by marks won back per hour of study. The gains and hours are estimates of what a typical student wins back, not promises.
+- **Subjects and lessons.** Weakest first, with the marks within reach hatched. Subjects come from `Subject:` lines, from headings that name a subject, or from the chapter name (Optics is Physics). Lessons come from section and chapter headings, `#tags`, or the words in the question. Both can be changed in the table.
+- **Question map, causes and the next 10 hours.** One box per question, filled as far as it scored; the reasons marks were lost; and how to share 10 hours of revision.
+- **My papers.** Students can save each test (on their own device only) to see progress and the subjects that keep costing marks across tests.
+
+## Checking the code
+
+With Node.js 20 or later installed, run `node --test` in this folder. It checks the paper, sheet and answer-key readers and the "where to focus" maths. Run it before uploading changes to `js/parse.js` or `js/insights.js`.
 
 ## Updating the site later
 
