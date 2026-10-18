@@ -47,10 +47,11 @@ small{color:var(--mute)}
 
   <div class="risk"><b>Upload at your own risk.</b> When you use the AI reader, AI grading, or paste text from Google Lens, your photos or text are sent to an outside AI company. MarkLens cannot control what that company does with them, and it may save them. Do not upload anything you would not want kept by someone else.</div>
 
-  <h2>The three readers</h2>
+  <h2>How each reader handles your photos</h2>
   <div class="wrap"><table>
     <thead><tr><th>Reader</th><th>Where photos go</th><th>Who can keep them</th></tr></thead>
     <tbody>
+      <tr><td><b>OMR sheets</b></td><td>Nowhere. MarkLens reads the bubbles inside your browser with its own code; no AI is used and the photo never leaves the device.</td><td>Only your own device.</td></tr>
       <tr><td><b>On this phone · free</b></td><td>Nowhere. The photo is read inside your browser by Tesseract, free open-source software. The first time, your browser downloads Tesseract from jsDelivr, a public code library network; only the software is downloaded, never your photos.</td><td>Only your own device.</td></tr>
       <tr><td><b>Google Lens</b></td><td>You scan the page in Google's own app (Google Lens, the Google app or Google Translate), so the photo goes to Google under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's privacy policy</a>. You then paste the text into MarkLens. If the site's AI is switched on, that text, but no photo, goes through this website's server to the AI company below to be sorted into questions and marks.</td><td>Google, for the scan. The AI company, for the pasted text.</td></tr>
       <tr><td><b>AI reader</b> and <b>AI grading</b></td><td>Through this website's server, which does not save them, to the AI service the site owner has chosen<span id="aiNow"></span>. This is normally Groq, with Cloudflare Workers AI as a backup when Groq is busy. A school or institute may instead use its own AI account or its own AI server. Google Gemini is used only on sites for adults.</td><td>The AI company, under its own terms. See below.</td></tr>

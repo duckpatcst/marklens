@@ -18,6 +18,8 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 |---|---|
 | `index.html` | The MarkLens website |
 | `privacy.html` | The privacy notice that students see |
+| `omr.html` | Prints blank MarkLens OMR answer sheets (up to 100 questions, A–D or A–E) |
+| `js/omr.js` | The OMR sheet layout and the on-phone OMR reader |
 | (online) | The free on-phone photo reader, Tesseract 5.1.1 (Apache 2.0), loads from jsDelivr the first time |
 | `functions/api/ai.js` | The hidden helper that talks to the AI company. Your API key lives here, never in the page |
 | `_headers` | Security settings for the website |
@@ -120,6 +122,23 @@ A per-minute limit (15 AI requests a minute per device) is always on, even witho
 - **AI options don't appear.** The key is missing, or the deployment wasn't retried after adding it.
 
 ---
+
+## OMR sheets (multiple-choice tests)
+
+Choose **OMR sheet** under Exam sheet. MarkLens reads its own printed OMR sheets on the phone: free, private, and with no AI, so AI limits don't apply.
+
+1. **Print sheets.** Tap **Print blank OMR sheets** (or open `omr.html`). Choose up to 100 questions and A–D or A–E, and print at 100% on A4. Photocopies work.
+2. **Answer key.** Fill one sheet with the right answers and scan it, or type the answers (`1-B`, `2-D`, or a row of letters like `BDACB`). Put `Section: Physics` lines before groups of questions to name their topics. `4-AC` accepts either option; `5-*` gives everyone the marks.
+3. **Marking scheme.** Set the marks for a right answer and the minus for a wrong one (NEET and JEE Main: 4 and 1). Two or more bubbles in one question count as wrong.
+4. **Students' sheets.** Take a photo of each filled sheet, keeping all four black corner squares in the photo, and tap **Read the OMR sheet**.
+   - A check image circles what was read: green = read, orange = faint or unclear, red = more than one bubble.
+   - The dashboard adds accuracy, marks lost to negative marking, and bubbling mistakes.
+
+**How it reads.** It finds the four corner squares, straightens the photo, and reads the code strip along the bottom (number of questions and options). It then compares each bubble's inside with the paper around it. Photos that are tilted, sideways, upside down, shadowed or far away all work.
+
+If the corners or code can't be trusted (a cut-off sheet, another page), it refuses the photo rather than guess.
+
+In tests on 38 simulated phone photos it read all 1,950 filled answers correctly, and flagged every double mark. Faint marks and ticks were flagged for a look rather than guessed. Check the first few real sheets against the check image.
 
 ## For schools and institutes: their own copy, their own AI
 

@@ -106,6 +106,20 @@ textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px;max-width:100%}
 .seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-size:.85rem;color:var(--mute)}
 .seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+/* OMR sheets: answer-key marking scheme, print link, and the check image of what was read */
+@media(max-width:480px){.seg.sheettype{display:flex;width:100%}.seg.sheettype button{flex:1;line-height:1.25;padding-block:8px}}
+.omrbox{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);display:grid;gap:10px}
+.omr-scheme{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.omr-scheme label{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--mute)}
+.omr-scheme input{width:96px;font:inherit;font-family:var(--f-mono);border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface)}
+.omr-scheme .hint{flex:1 1 160px;margin:0}
+.omrcheck{margin-top:12px}
+.omrcheck img{display:block;max-width:100%;max-height:420px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.omrcheck p{margin:6px 0 0}
+.key-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 4px 0 8px;vertical-align:0}
+td.ans{font:600 .86rem var(--f-mono);white-space:nowrap}
+td.ans.bad{color:var(--pen)}
+td.ans.ok{color:var(--ok)}
 
 /* photo input */
 .shots{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin-top:12px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
@@ -267,8 +281,8 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   <section id="analyze">
     <div class="sec-head"><div><h2>Analyzer</h2><p>An example paper is loaded so you can see how it works. Replace it with your own pages.</p></div>
       <div class="row" style="margin:0"><button class="btn" id="sample">Reload example</button><button class="btn" id="clear">Clear all</button></div></div>
-    <div class="eyebrow" style="margin:0 0 10px">How should MarkLens read your pages?</div>
-    <div class="readers" role="group" aria-label="How to read your pages">
+    <div class="eyebrow" id="readersLbl" style="margin:0 0 10px">How should MarkLens read your pages?</div>
+    <div class="readers" id="readers" role="group" aria-label="How to read your pages">
       <button type="button" class="rd" id="rdLens" aria-pressed="true"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg></span><span><b>Google Lens</b><small>Best for handwriting. Take photos; each one opens in Google Lens.</small></span><span class="pick">Recommended</span></button>
       <button type="button" class="rd" id="rdDevice" aria-pressed="false"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span><b>On this phone</b><small>Free and private. Best for printed papers.</small></span></button>
       <button type="button" class="rd" id="rdAI" aria-pressed="false" hidden><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg></span><span><b>AI reader</b><small>Automatic from photos. Photos go to an AI company.</small></span></button>
@@ -284,29 +298,40 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
       </ol>
       <p class="hint lg-note">Lens is Google's app, so photos you open in it go to Google under Google's terms. MarkLens only receives the text you copy.<span id="lensAiNote" hidden> MarkLens's AI then sorts that text into questions and marks. No photo is sent to it.</span></p>
     </div>
+    <p class="notice" id="omrNote" role="note" hidden><b>OMR sheets are read on this phone:</b> free, private and no AI. Print blank sheets with <a class="inline" href="omr.html" target="_blank" rel="noopener">Print OMR sheets</a>, scan one filled with the right answers (or type them), then scan each student's sheet.</p>
     <p class="notice risk" id="aiRisk" role="note" hidden><b>Upload at your own risk.</b> Photos, text from Google Lens and answers that MarkLens's AI reads, sorts or grades go to an outside AI company (<span id="aiWho">the AI provider</span>). They may be saved and used to improve its output. Crop out your name, roll number and school first. The free on-phone reader keeps photos on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
     <div class="grid two">
       <div class="panel">
-        <h3>Question paper</h3>
+        <h3 id="paperTitle">Question paper</h3>
+        <div class="omrbox" id="omrKeyBox" hidden>
+          <div class="omr-scheme">
+            <label>Marks for a right answer<input id="omrRight" type="number" inputmode="decimal" step="0.25" min="0.25" value="1"></label>
+            <label>Minus for a wrong answer<input id="omrWrong" type="number" inputmode="decimal" step="0.25" min="0" value="0"></label>
+            <p class="hint">For NEET and JEE Main, use 4 and 1. A blank answer scores 0.</p>
+          </div>
+          <div class="row" style="margin:0"><a class="btn" href="omr.html" target="_blank" rel="noopener" id="omrPrint">Print blank OMR sheets</a></div>
+        </div>
         <div class="row" id="paperPhotoRow" style="margin-top:12px">
           <label class="btn primary">Take photo<input class="vh" type="file" id="paperCam" accept="image/*" capture="environment"></label>
           <label class="btn">Choose photos<input class="vh" type="file" id="paperPick" accept="image/*" multiple></label>
         </div>
         <div class="shots" id="paperShots" hidden></div>
         <div class="row" id="paperReadRow" hidden><button class="btn primary" id="paperRead">Read text</button><span class="status" id="paperPhotoStatus"></span></div>
-        <div class="readlbl"><span>Question paper text</span><span class="status" id="paperStatus"></span></div>
+        <div class="omrcheck" id="paperCheck" hidden><img alt="The answer key photo with the bubbles MarkLens read circled"><p class="hint"><span class="key-dot" style="background:#12a150"></span>read<span class="key-dot" style="background:#f59e0b"></span>check this one<span class="key-dot" style="background:#e5484d"></span>more than one bubble</p></div>
+        <div class="readlbl"><span id="paperLbl">Question paper text</span><span class="status" id="paperStatus"></span></div>
         <textarea id="paper" spellcheck="false" aria-label="Question paper text" placeholder="Section A: Algebra&#10;1. Solve 2x+3=11 [2]&#10;2. Factorise x^2-5x+6 [3]"></textarea>
-        <p class="hint">Scan each page flat, in good light, with all four edges in frame. Fix anything misread. Marks are read from [5], (5 marks) or 5M.</p>
+        <p class="hint" id="paperHint">Scan each page flat, in good light, with all four edges in frame. Fix anything misread. Marks are read from [5], (5 marks) or 5M.</p>
       </div>
       <div class="panel">
         <h3>Exam sheet</h3>
-        <div class="seg" role="group" aria-label="Sheet type" style="margin-top:10px"><button id="modeMarked" aria-pressed="true">Already marked</button><button id="modeAi" aria-pressed="false" hidden>Unmarked · AI grades</button></div>
+        <div class="seg sheettype" role="group" aria-label="Sheet type" style="margin-top:10px"><button id="modeMarked" aria-pressed="true">Already marked</button><button id="modeAi" aria-pressed="false" hidden>Unmarked · AI grades</button><button id="modeOmr" aria-pressed="false">OMR sheet</button></div>
         <div class="row" id="sheetPhotoRow" style="margin-top:2px">
           <label class="btn primary">Take photo<input class="vh" type="file" id="sheetCam" accept="image/*" capture="environment"></label>
           <label class="btn">Choose photos<input class="vh" type="file" id="sheetPick" accept="image/*" multiple></label>
         </div>
         <div class="shots" id="sheetShots" hidden></div>
         <div class="row" id="sheetReadRow" hidden><button class="btn primary" id="sheetRead">Read marks</button><button class="btn primary" id="aiGo" hidden>Grade with AI</button><span class="status" id="sheetPhotoStatus"></span></div>
+        <div class="omrcheck" id="sheetCheck" hidden><img alt="The student's OMR sheet with the bubbles MarkLens read circled"><p class="hint"><span class="key-dot" style="background:#12a150"></span>read<span class="key-dot" style="background:#f59e0b"></span>check this one<span class="key-dot" style="background:#e5484d"></span>more than one bubble</p></div>
         <div class="readlbl"><span id="sheetLbl">Marks found on the sheet</span><span class="status" id="sheetStatus"></span></div>
         <textarea id="sheet" spellcheck="false" aria-label="Exam sheet text"></textarea>
         <p class="hint" id="sheetHint"></p>
@@ -348,6 +373,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   </div>
 </dialog>
 
+<script src="js/omr.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -355,8 +381,8 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 const fmt = n => String(Math.round(n * 10) / 10);
 const TYPES = ['MCQ', 'Short answer', 'Long answer'];
-const CAUSES = ['None','Concept gap','Careless / calculation','Incomplete / unattempted','Units & signs','Presentation','Time management','Unspecified'];
-const CAUSE_COLORS = {'Concept gap':'var(--pen)','Careless / calculation':'var(--warn)','Incomplete / unattempted':'#8e4ec6','Units & signs':'var(--ok)','Presentation':'var(--blue)','Time management':'#d6409f','Unspecified':'var(--mute)'};
+const CAUSES = ['None','Concept gap','Careless / calculation','Incomplete / unattempted','Units & signs','Presentation','Time management','Wrong option','Bubbling error','Unspecified'];
+const CAUSE_COLORS = {'Concept gap':'var(--pen)','Careless / calculation':'var(--warn)','Incomplete / unattempted':'#8e4ec6','Units & signs':'var(--ok)','Presentation':'var(--blue)','Time management':'#d6409f','Wrong option':'#c2410c','Bubbling error':'#0e9f9a','Unspecified':'var(--mute)'};
 const TOPIC_WORDS = {
   Algebra:/\b(solve|equation|factori[sz]e|expand|polynomial|quadratic|simplify|inequalit)/i,
   Geometry:/\b(triangle|circle|angle|polygon|congruen|parallel|area of|perimeter|theorem)/i,
@@ -384,6 +410,8 @@ const FIX = {
   'Units & signs':'Keep a unit and sign checklist. Write units on every line and circle negative signs when expanding or moving terms.',
   'Presentation':'Label diagrams, state the formula before substituting, and underline final answers so every mark can be awarded.',
   'Time management':'Budget time per mark (about 1.5 minutes each), take the easy marks first, and practise full papers under a timer.',
+  'Wrong option':'Go back to the concept behind each wrong question, then practise similar MCQs. When unsure, rule options out before choosing; on a paper with negative marking, skip a question you cannot narrow to two options.',
+  'Bubbling error':'Fill exactly one bubble per question, completely. Rub a changed answer out fully: a half-erased mark can count as a second answer.',
   'Unspecified':'Compare these answers with the marking scheme to find where each mark went, then tag the reason in the table.'
 };
 let rows = [], aiExtra = null, mode = 'marked', sampleData = true, sheetCount = 0;
@@ -456,6 +484,7 @@ function matchSheet(paper, sheet){
   });
 }
 function rebuild(){
+  if (mode === 'omr') return rebuildOmr();
   if (mode !== 'marked') return;
   const paper = parsePaper($('#paper').value), sheet = matchSheet(paper, parseSheet($('#sheet').value)), by = new Map();
   sheetCount = sheet.length;
@@ -482,12 +511,23 @@ function rebuild(){
   changed(true);
 }
 function changed(tbl){ if (tbl) renderTable(); renderDash(); $('#sampleFlag').hidden = !sampleData; save(); }
-function save(){ try { localStorage.setItem('marklens3', JSON.stringify({ paper: $('#paper').value, sheet: $('#sheet').value, rows, mode, sampleData, aiExtra, edits })); } catch {} }
+function save(){ try { localStorage.setItem('marklens3', JSON.stringify({ paper: $('#paper').value, sheet: $('#sheet').value, rows, mode, sampleData, aiExtra, edits, omr: { right: $('#omrRight').value, wrong: $('#omrWrong').value, keyIsExample } })); } catch {} }
 
 /* ---- table ---- */
 function renderTable(){
   if (!rows.length) { $('#tableWrap').innerHTML = '<div class="empty">No questions yet. Add photos of the paper and sheet above, or reload the example.</div>'; return; }
   const opt = (a, v) => a.map(x => `<option${x === v ? ' selected' : ''}>${esc(x)}</option>`).join('');
+  if (mode === 'omr') {   // OMR: what was marked against the key; marks follow the marking scheme
+    $('#tableWrap').innerHTML = `<table><thead><tr><th>Q</th><th>Topic</th><th>Marked</th><th>Key</th><th>Marks</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
+    rows.map((r, i) => `<tr data-i="${i}"><td><input data-k="q" value="${esc(r.q)}" style="width:56px" aria-label="Question number"></td>
+      <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Topic"></td>
+      <td class="ans ${r.cause === 'None' ? 'ok' : r.marked && r.marked !== '–' ? 'bad' : ''}">${esc(r.marked || '–')}</td><td class="ans">${esc(r.key || '')}</td>
+      <td><input type="number" inputmode="decimal" step="0.25" data-k="got" value="${num(r.got)}" aria-label="Marks"></td>
+      <td><input type="number" inputmode="decimal" step="0.25" min="0" data-k="max" value="${num(r.max)}" aria-label="Maximum marks"></td>
+      <td><select data-k="cause" aria-label="Cause">${opt(CAUSES, r.cause)}</select></td>
+      <td><button data-del="${i}" aria-label="Remove question">✕</button></td></tr>`).join('') + '</tbody></table>';
+    return;
+  }
   $('#tableWrap').innerHTML = `<table><thead><tr><th>Q</th><th>Topic</th><th>Type</th><th>Awarded</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
   rows.map((r, i) => `<tr data-i="${i}"><td><input data-k="q" value="${esc(r.q)}" style="width:56px" aria-label="Question number"></td>
     <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Topic"></td><td><select data-k="type" aria-label="Type">${opt(TYPES, r.type)}</select></td>
@@ -501,7 +541,7 @@ $('#tableWrap').addEventListener('input', e => {
   const tr = e.target.closest('tr'), k = e.target.dataset.k; if (!tr || !k) return;
   const r = rows[+tr.dataset.i];
   if (k === 'q') { const old = r.q; r.q = e.target.value.trim(); if (edits[old]) { edits[r.q] = edits[old]; delete edits[old]; } sampleData = false; changed(false); return; }
-  r[k] = (k === 'got' || k === 'max') ? Math.max(0, num(e.target.value)) : e.target.value;
+  r[k] = (k === 'got' || k === 'max') ? (k === 'got' && mode === 'omr' ? num(e.target.value) : Math.max(0, num(e.target.value))) : e.target.value;   // OMR marks can be negative
   if (k === 'got' || k === 'max') {
     const lostNow = r.max - r.got, cs = tr.querySelector('[data-k=cause]');
     if (lostNow <= 0) r.cause = 'None'; else if (r.cause === 'None') r.cause = 'Unspecified';
@@ -540,6 +580,7 @@ function renderDash(){
   const tot = rows.reduce((a, r) => ({ got: a.got + r.got, max: a.max + r.max }), { got: 0, max: 0 });
   if (!rows.length || !tot.max) { d.innerHTML = '<div class="panel empty">Your dashboard appears here once there are questions with marks.</div>'; return; }
   if (mode === 'marked' && !sheetCount && !rows.some(r => r.got > 0)) { d.innerHTML = '<div class="panel empty">The questions are ready. Add photos of your marked exam sheet to see where the marks went.</div>'; return; }
+  if (mode === 'omr' && !sheetCount) { d.innerHTML = '<div class="panel empty">The answer key is ready. Scan a student\'s OMR sheet to see where the marks went.</div>'; return; }
   const lost = tot.max - tot.got, pct = tot.got / tot.max * 100, topics = groupBy('topic'), types = groupBy('type');
   const cm = {}; rows.forEach(r => { const l = r.max - r.got; if (l > 0) { const c = r.cause === 'None' ? 'Unspecified' : r.cause; cm[c] = (cm[c] || 0) + l; } });
   const causes = Object.entries(cm).sort((a, b) => b[1] - a[1]);
@@ -551,7 +592,15 @@ function renderDash(){
   if (causes[0]) ins.push(['warn', 'Main cause', causes[0][0], `${fmt(causes[0][1])} marks, ${Math.round(causes[0][1] / lost * 100)}% of the losses. ${FIX[causes[0][0]]}`]);
   const wty = types.find(t => t.lost > 0 && t.pct < pct - 8);
   if (wty) ins.push(['warn', 'Question style', `${wty.name} questions`, `Only ${Math.round(wty.pct)}% scored against ${Math.round(pct)}% overall. Practise this style on its own.`]);
-  if (zero) ins.push(['bad', 'Zero scores', `${zero} question${zero > 1 ? 's' : ''} with no marks`, 'A zero usually means skipped or fully misunderstood. Attempt everything: method marks count.']);
+  if (mode === 'omr') {
+    // OMR: accuracy of attempts, what guessing cost, and bubbling mistakes
+    const tried = rows.filter(r => r.marked && r.marked !== '–'), right = tried.filter(r => r.cause === 'None').length, blank = rows.length - tried.length;
+    const wrongs = rows.filter(r => r.cause === 'Wrong option' || r.cause === 'Bubbling error'), pen = wrongs.reduce((a, r) => a + Math.max(0, -r.got), 0), bub = rows.filter(r => r.cause === 'Bubbling error').length;
+    if (tried.length) ins.push([right / tried.length >= .75 ? 'good' : 'warn', 'Accuracy', `${Math.round(right / tried.length * 100)}% of attempted questions right`, `${right} right out of ${tried.length} attempted${blank ? `; ${blank} left blank` : ''}.`]);
+    if (pen > 0) ins.push(['bad', 'Negative marks', `−${fmt(pen)} from ${wrongs.length} wrong answer${wrongs.length > 1 ? 's' : ''}`, `Wrong answers cost you ${fmt(pen)} marks on top of the marks they could have earned. Attempt a question only when you can rule out at least two options.`]);
+    else if (blank && omrWrong() === 0) ins.push(['info', 'Blanks', `${blank} question${blank > 1 ? 's' : ''} left blank`, 'There is no negative marking on this paper, so a sensible guess can only gain marks. Never leave an MCQ blank.']);
+    if (bub) ins.push(['warn', 'Bubbling', `${bub} question${bub > 1 ? 's' : ''} with more than one bubble`, FIX['Bubbling error']]);
+  } else if (zero) ins.push(['bad', 'Zero scores', `${zero} question${zero > 1 ? 's' : ''} with no marks`, 'A zero usually means skipped or fully misunderstood. Attempt everything: method marks count.']);
   const strong = topics.filter(t => t.pct >= 80).map(t => t.name);
   if (strong.length) ins.push(['good', 'Strengths', strong.join(', '), 'Scoring 80% or more. Revise lightly and spend the time elsewhere.']);
   if (proj > tot.got) ins.push(['info', 'Target', `${fmt(tot.got)} → ${fmt(proj)} / ${fmt(tot.max)}`, `Lifting your two costliest topics to 80% would move you from ${Math.round(pct)}% to about ${Math.round(proj / tot.max * 100)}%.`]);
@@ -585,8 +634,8 @@ function questionChart(){
   const y = v => pt + (H - pt - pb) * (1 - v / mx);
   let s = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:${rows.length > 10 ? rows.length * 30 + 30 : 0}px;max-height:280px" role="img" aria-label="Marks scored and lost per question">`;
   for (let v = 0; v <= mx + 1e-9; v += step) s += `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
-  rows.forEach((r, i) => { const x = pl + i * bw + bw * .2, w = bw * .6;
-    s += `<g><title>${esc(qName(r.q))} ${esc(r.topic)}: ${fmt(r.got)}/${fmt(r.max)}</title><rect x="${x}" y="${y(r.got)}" width="${w}" height="${Math.max(0, y(0) - y(r.got))}" fill="var(--blue)" rx="2"/><rect x="${x}" y="${y(r.max)}" width="${w}" height="${Math.max(0, y(r.got) - y(r.max))}" fill="var(--pen)" rx="2"/><text x="${x + w / 2}" y="${H - 9}" text-anchor="middle">${esc(qName(r.q))}</text></g>`; });
+  rows.forEach((r, i) => { const x = pl + i * bw + bw * .2, w = bw * .6, g0 = Math.max(0, r.got);
+    s += `<g><title>${esc(qName(r.q))} ${esc(r.topic)}: ${fmt(r.got)}/${fmt(r.max)}</title><rect x="${x}" y="${y(g0)}" width="${w}" height="${Math.max(0, y(0) - y(g0))}" fill="var(--blue)" rx="2"/><rect x="${x}" y="${y(r.max)}" width="${w}" height="${Math.max(0, y(g0) - y(r.max))}" fill="var(--pen)" rx="2"/><text x="${x + w / 2}" y="${H - 9}" text-anchor="middle">${esc(qName(r.q))}</text></g>`; });
   return s + '</svg></div>';
 }
 function donut(causes, lost){
@@ -628,7 +677,7 @@ async function addPhotos(kind, files){
     }
   }
   renderShots(kind);
-  if (reader === 'device' && shots[kind].length) getOcr().catch(() => {});
+  if (reader === 'device' && mode !== 'omr' && shots[kind].length) getOcr().catch(() => {});
   if (bad) setSt(st, `${bad} photo${bad > 1 ? 's' : ''} could not be opened. Use JPEG or PNG.`, true);
   else setSt(st, '');
 }
@@ -640,6 +689,12 @@ function renderShots(kind){
 }
 function updateReadRow(kind){
   const n = shots[kind].length, plural = n === 1 ? 'photo' : 'photos', via = reader === 'lens' ? ' with Google Lens' : '';
+  if (mode === 'omr') {   // OMR sheets are always read on the phone
+    $('#' + kind + 'ReadRow').hidden = !n; $('#' + kind + 'Read').hidden = !n;
+    $('#' + kind + 'Read').textContent = kind === 'paper' ? 'Read the answer key' : 'Read the OMR sheet';
+    if (kind === 'sheet') $('#aiGo').hidden = true;
+    return;
+  }
   if (kind === 'paper') { $('#paperReadRow').hidden = !n; $('#paperRead').textContent = `Read ${n} ${plural}${via}`; return; }
   $('#sheetRead').hidden = !n; $('#aiGo').hidden = mode !== 'ai';
   $('#sheetRead').textContent = `${mode === 'ai' ? 'Read answers' : 'Read marks'} from ${n} ${plural}${via}`;
@@ -799,7 +854,7 @@ async function readOnDevice(kind){
 function setReader(r, keep){
   reader = r;
   for (const [id, v] of [['#rdLens', 'lens'], ['#rdDevice', 'device'], ['#rdAI', 'ai']]) $(id).setAttribute('aria-pressed', r === v);
-  $('#lensGuide').hidden = r !== 'lens';
+  $('#lensGuide').hidden = r !== 'lens' || mode === 'omr';
   updateReadRow('paper'); updateReadRow('sheet');
   if (!keep) try { localStorage.setItem('marklens-reader2', r); } catch {}
 }
@@ -931,7 +986,7 @@ async function ldFinish(){
   setSt(st, `Read ${m} marks with Google Lens.${extra}${gap > 0 ? ` ${gap} ${gap === 1 ? 'question has' : 'questions have'} no mark yet: add ${gap === 1 ? 'it' : 'them'} below as 2: 1/3.` : ''}`, gap > 0 || aiFailed);
   setTimeout(() => $('#dashboard').scrollIntoView({ behavior: 'smooth' }), 250);
 }
-const readPhotos = kind => reader === 'ai' ? readWithAI(kind) : reader === 'lens' ? readLens(kind) : readOnDevice(kind);
+const readPhotos = kind => mode === 'omr' ? readOmr(kind) : reader === 'ai' ? readWithAI(kind) : reader === 'lens' ? readLens(kind) : readOnDevice(kind);
 
 async function readWithAI(kind){
   const btn = $(kind === 'paper' ? '#paperRead' : '#sheetRead'), st = '#' + kind + 'PhotoStatus', ta = $('#' + kind);
@@ -973,16 +1028,40 @@ $('#sheetRead').onclick = () => readPhotos('sheet');
 /* ---- modes + AI grading ---- */
 const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. For handwriting, choose Google Lens above. Remarks decide why marks were lost.';
 const HINT_AI = "Add photos of the unmarked answer sheet and tap Read answers, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
-let sessionSheetMarked = null;
+const HINT_PAPER = 'Scan each page flat, in good light, with all four edges in frame. Fix anything misread. Marks are read from [5], (5 marks) or 5M.';
+const HINT_OMR_KEY = 'One answer per line, like 1-B, or a row of letters like BDACB. Put a line such as "Section: Physics" before a group of questions to name its topic. Or scan an OMR sheet filled with the right answers.';
+const HINT_OMR = 'One line per question, like 7: C. A dash means left blank, and ? means check the photo. Fix anything the photo got wrong; the dashboard updates.';
+// Each sheet type keeps its own text, and written papers and OMR keep their own left-hand box (question paper or answer key).
+const sheetByMode = {}, paperByGroup = {}, sampleByGroup = {}, grp = m => m === 'omr' ? 'omr' : 'written';
 function setMode(m){
-  mode = m; $('#modeMarked').setAttribute('aria-pressed', m === 'marked'); $('#modeAi').setAttribute('aria-pressed', m === 'ai');
-  $('#sheetHint').textContent = m === 'ai' ? HINT_AI : HINT_MARKED;
-  $('#sheetLbl').textContent = m === 'ai' ? 'Answers, typed or read from photos' : 'Marks found on the sheet';
-  $('#sheet').placeholder = m === 'ai' ? 'Q1: x = 4\nQ2: (x-2)(x-3)\nQ3: b\n...' : '1: 2/2\n2: 1/3 sign error while factorising\n3: 2/5 concept not clear';
-  updateReadRow('sheet');
+  mode = m; const omr = m === 'omr';
+  $('#modeMarked').setAttribute('aria-pressed', m === 'marked'); $('#modeAi').setAttribute('aria-pressed', m === 'ai'); $('#modeOmr').setAttribute('aria-pressed', omr);
+  $('#sheetHint').textContent = omr ? HINT_OMR : m === 'ai' ? HINT_AI : HINT_MARKED;
+  $('#sheetLbl').textContent = omr ? 'Answers read from the OMR sheet' : m === 'ai' ? 'Answers, typed or read from photos' : 'Marks found on the sheet';
+  $('#sheet').placeholder = omr ? '1: B\n2: -\n3: D' : m === 'ai' ? 'Q1: x = 4\nQ2: (x-2)(x-3)\nQ3: b\n...' : '1: 2/2\n2: 1/3 sign error while factorising\n3: 2/5 concept not clear';
+  $('#paperTitle').textContent = omr ? 'Answer key' : 'Question paper';
+  $('#paperLbl').textContent = omr ? 'Correct answers' : 'Question paper text';
+  $('#paper').placeholder = omr ? 'Section: Physics\n1-B\n2-D\n3-A' : 'Section A: Algebra\n1. Solve 2x+3=11 [2]\n2. Factorise x^2-5x+6 [3]';
+  $('#paperHint').textContent = omr ? HINT_OMR_KEY : HINT_PAPER;
+  $('#omrKeyBox').hidden = !omr; $('#omrNote').hidden = !omr;
+  $('#readersLbl').hidden = omr; $('#readers').hidden = omr; $('#lensGuide').hidden = omr || reader !== 'lens';
+  $('#aiRisk').hidden = omr || !ai;
+  if (!omr) { $('#paperCheck').hidden = true; $('#sheetCheck').hidden = true; }
+  updateReadRow('paper'); updateReadRow('sheet');
 }
-$('#modeMarked').onclick = () => { if (mode === 'ai') $('#sheet').value = sessionSheetMarked ?? ''; setMode('marked'); rebuild(); };
-$('#modeAi').onclick = () => { if (mode === 'marked') sessionSheetMarked = $('#sheet').value; $('#sheet').value = ''; setMode('ai'); };
+function switchMode(m){
+  if (m === mode) return;
+  sheetByMode[mode] = $('#sheet').value; paperByGroup[grp(mode)] = $('#paper').value; sampleByGroup[grp(mode)] = sampleData;
+  const changesGroup = grp(m) !== grp(mode);
+  $('#sheet').value = sheetByMode[m] ?? '';
+  if (changesGroup) { $('#paper').value = paperByGroup[grp(m)] ?? ''; dropShots(); edits = {}; aiExtra = null; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; }
+  setMode(m);
+  if (m === 'omr' && !$('#paper').value.trim() && !$('#sheet').value.trim()) loadOmrSample();
+  else { if (changesGroup) sampleData = !!sampleByGroup[grp(m)]; rebuild(); $('#sampleFlag').hidden = !sampleData; }
+}
+$('#modeMarked').onclick = () => switchMode('marked');
+$('#modeAi').onclick = () => switchMode('ai');
+$('#modeOmr').onclick = () => switchMode('omr');
 
 $('#aiGo').onclick = async () => {
   const st = '#sheetPhotoStatus', typed = $('#sheet').value.trim();
@@ -1011,12 +1090,134 @@ $('#aiGo').onclick = async () => {
   $('#aiGo').disabled = false;
 };
 
+/* ---- OMR sheets: answer key, the student's marks, reading photos on the phone ---- */
+let keyIsExample = false;   // the example key must never be used to mark a real sheet
+const omrRight = () => Math.max(0.25, num($('#omrRight').value) || 1);
+const omrWrong = () => Math.abs(num($('#omrWrong').value));
+// Answer key: "1-B", "Q2: D", "3) a", "4-AC" (either is right), "5-*" (bonus: everyone gets it), a row of letters "BDACB",
+// and "Section: Physics" (or "Physics:") lines that name the topic of the questions under them. "#Optics" tags one line.
+function parseKey(text){
+  const items = new Map(); let section = '';
+  for (const raw of String(text).split(/\r?\n/)) {
+    const line = raw.trim(); if (!line) continue;
+    const sec = line.match(/^(?:section|part|unit|chapter|subject|topic)\s*([A-Za-z0-9]{0,3})\s*[:\-–]\s*(.+)$/i) || line.match(/^([A-Za-z][A-Za-z &/-]{2,40}):\s*$/);
+    if (sec) { section = (sec[2] || sec[1]).trim(); continue; }
+    const tag = (line.match(/#([A-Za-z][\w &-]*)/) || [])[1];
+    let found = false;
+    for (const m of line.matchAll(/(?:^|[\s,;])Q?(\d{1,3})\s*[-.):=]?\s*([A-Ha-h]{1,4}(?:\s*[,/&]\s*[A-Ha-h])*|\*)(?=$|[\s,;#?])/g)) {
+      const q = +m[1]; if (q < 1 || q > 300) continue;
+      items.set(q, { q, keys: m[2] === '*' ? '*' : [...new Set(m[2].toUpperCase().replace(/[^A-H]/g, ''))].sort().join(''), topic: (tag || section || 'General').trim() });
+      found = true;
+    }
+    if (!found && /^[A-Ha-h][A-Ha-h\s,]+$/.test(line) && line.replace(/[^A-Ha-h]/g, '').length >= 2) {   // a row of letters: BDACB
+      let q = items.size ? Math.max(...items.keys()) + 1 : 1;
+      for (const ch of line.toUpperCase().replace(/[^A-H]/g, '')) items.set(q, { q: q++, keys: ch, topic: section || 'General' });
+    }
+  }
+  return [...items.values()].sort((a, b) => a.q - b.q);
+}
+// The student's marks: "7: C", "8: -" (blank), "9: AB" (more than one bubble), "10: D ?" (check the photo)
+function parseOmrAnswers(text){
+  const m = new Map();
+  for (const raw of String(text).split(/\r?\n/)) {
+    const x = raw.match(/^\s*Q?(\d{1,3})\s*[-.):=]?\s*([A-Ha-h]{1,6}|[-–—]|blank)?\s*(\?)?\s*$/i);
+    if (!x) continue;
+    m.set(+x[1], { marked: x[2] && /^[A-H]+$/i.test(x[2]) ? [...new Set(x[2].toUpperCase())].sort().join('') : '', check: !!x[3] });
+  }
+  return m;
+}
+function rebuildOmr(){
+  const key = parseKey($('#paper').value), ans = parseOmrAnswers($('#sheet').value), right = omrRight(), wrong = omrWrong();
+  sheetCount = ans.size;
+  rows = key.map(k => {
+    const m = (ans.get(k.q) || { marked: '' }).marked;
+    let got, cause;
+    if (k.keys === '*') { got = right; cause = 'None'; }                                  // bonus question
+    else if (!m) { got = 0; cause = 'Incomplete / unattempted'; }
+    else if (m.length > 1) { got = -wrong; cause = 'Bubbling error'; }                     // more than one bubble counts as wrong
+    else if (k.keys.includes(m)) { got = right; cause = 'None'; }
+    else { got = -wrong; cause = 'Wrong option'; }
+    return { q: String(k.q), topic: k.topic, type: 'MCQ', max: right, got, cause, marked: m || '–', key: k.keys === '*' ? 'any' : k.keys };
+  });
+  aiExtra = null;
+  const extra = [...ans.keys()].filter(q => !key.some(k => k.q === q)).length;
+  $('#paperStatus').textContent = key.length ? `${key.length} answers` : '';
+  $('#sheetStatus').textContent = ans.size ? `${[...ans.values()].filter(a => a.marked).length} answered` + (extra ? ` · ${extra} not in the key` : '') : '';
+  $('#sheetStatus').className = extra ? 'status err' : 'status';
+  changed(true);
+}
+// key text from a scanned key sheet, keeping the topics already typed for those questions
+function keyText(answers, old){
+  const topics = new Map(parseKey(old).map(k => [k.q, k.topic])), out = []; let cur = null;
+  for (const a of answers) {
+    if (!a.marked) continue;
+    const t = topics.get(a.q) || 'General';
+    if (t !== cur) { if (t !== 'General' || cur !== null) out.push(`Section: ${t}`); cur = t; }
+    out.push(`${a.q}-${a.marked}${a.flag ? ' ?' : ''}`);
+  }
+  return out.join('\n');
+}
+const OMR_ERR = {
+  no_sheet: "Couldn't find the sheet's four black corner squares. Take the photo again with the whole sheet, all four squares included, flat and in good light.",
+  too_far: 'The sheet is too small in the photo. Move closer so the sheet fills most of the frame.',
+  code: "This doesn't look like a MarkLens OMR sheet, or the code strip at the bottom is hidden. Use sheets from Print blank OMR sheets, and keep the bottom of the sheet in the photo.",
+  photo: 'This photo could not be opened. Use a JPEG or PNG photo.'
+};
+const checkUrl = {};
+function showCheck(kind, canvas){
+  const box = $('#' + kind + 'Check'), img = box.querySelector('img');
+  canvas.toBlob(b => { if (!b) return; if (checkUrl[kind]) URL.revokeObjectURL(checkUrl[kind]); checkUrl[kind] = URL.createObjectURL(b); img.src = checkUrl[kind]; box.hidden = false; }, 'image/jpeg', .85);
+}
+async function readOmr(kind){
+  const btn = $('#' + kind + 'Read'), st = '#' + kind + 'PhotoStatus', list = shots[kind];
+  if (!list.length) return;
+  if (!window.MarkLensOMR) { setSt(st, 'The OMR reader did not load. Reload the page and try again.', true); return; }
+  const key = parseKey($('#paper').value);
+  if (kind === 'sheet' && (!key.length || keyIsExample)) { setSt(st, `Add your answer key first: scan a sheet filled with the right answers, or type them.${keyIsExample ? ' The key shown now is only the example.' : ''}`, true); return; }
+  const expect = key.length ? { nQ: Math.max(...key.map(k => k.q)), nOpt: Math.max(4, ...key.map(k => k.keys === '*' ? 0 : MarkLensOMR.LETTERS.indexOf(k.keys.slice(-1)) + 1)) } : null;
+  btn.disabled = true; setSt(st, 'Reading the OMR sheet on this phone…');
+  let res = null;
+  try { for (let i = list.length - 1; i >= 0 && !(res && res.ok); i--) res = await MarkLensOMR.read(list[i].blob, { expect }); }   // newest photo first
+  catch { res = { ok: false, error: 'photo' }; }
+  btn.disabled = false;
+  if (!res || !res.ok) { setSt(st, OMR_ERR[res && res.error] || OMR_ERR.no_sheet, true); return; }
+  showCheck(kind, res.overlay);
+  const answered = res.answers.filter(a => a.marked).length, checks = res.answers.filter(a => a.flag).length;
+  const doubles = res.answers.filter(a => a.flag === 'multiple').length, faint = checks - doubles;
+  const typedKey = keyIsExample ? '' : $('#paper').value;   // topics carry over only from a key the teacher typed
+  if (kind === 'paper' && keyIsExample) $('#sheet').value = '';   // a real key replaces the example key and its example answers
+  if (kind === 'paper') keyIsExample = false;
+  sampleData = false;
+  if (kind === 'paper') $('#paper').value = keyText(res.answers, typedKey);
+  else $('#sheet').value = res.answers.map(a => `${a.q}: ${a.marked || '-'}${a.flag ? ' ?' : ''}`).join('\n');
+  edits = {}; rebuild();
+  const mismatch = kind === 'sheet' && key.length && res.nQ !== Math.max(...key.map(k => k.q)) ? ` This sheet has ${res.nQ} questions but the key goes up to ${Math.max(...key.map(k => k.q))}.` : '';
+  const check = (doubles ? ` ${doubles} ${doubles === 1 ? 'has' : 'have'} more than one bubble filled (red circles).` : '')
+    + (faint ? ` ${faint} faint or unclear ${faint === 1 ? 'mark needs' : 'marks need'} a look (orange circles, ? in the list).` : '');
+  if (kind === 'paper') setSt(st, `Answer key read: ${answered} of ${res.nQ} questions.${check}${answered < res.nQ ? ' Questions with no bubble filled are left out.' : ''} Add Section lines to name topics.`, !!checks);
+  else {
+    setSt(st, `Read ${res.nQ} questions: ${answered} answered, ${res.nQ - answered} blank.${check}${mismatch}`, !!(checks || mismatch));
+    if (!checks && !mismatch) setTimeout(() => $('#dashboard').scrollIntoView({ behavior: 'smooth' }), 250);
+  }
+}
+function loadOmrSample(){
+  const key = { Physics: 'BDACBADCBA', Chemistry: 'CABDDCABAC', Biology: 'ADBCABDCDB' };
+  const said = { Physics: 'BDACB-DABA', Chemistry: 'CABDDCA-AC', Biology: 'AD-CABDCDB' };   // what the student marked (- = blank)
+  let q = 1, k = [], a = [];
+  for (const t of Object.keys(key)) { k.push(`Section: ${t}`); for (let i = 0; i < 10; i++, q++) { k.push(`${q}-${key[t][i]}`); a.push(`${q}: ${said[t][i]}`); } }
+  a[6] = '7: AC'; a[12] = '13: D'; a[24] = '25: B'; a[28] = '29: A';   // a double mark and a few wrong answers
+  $('#paper').value = k.join('\n'); $('#sheet').value = a.join('\n');
+  $('#omrRight').value = 4; $('#omrWrong').value = 1;
+  edits = {}; dropShots(); setMode('omr'); keyIsExample = true; rebuild(); sampleData = true; $('#sampleFlag').hidden = false; save();
+}
+for (const id of ['#omrRight', '#omrWrong']) $(id).addEventListener('input', () => { if (mode === 'omr') { const sd = sampleData; rebuild(); sampleData = sd; } });
+
 /* ---- wiring ---- */
 let t; const deb = () => { clearTimeout(t); t = setTimeout(() => { sampleData = false; rebuild(); }, 350); };
-$('#paper').addEventListener('input', () => { if (mode === 'marked') deb(); else sampleData = false; });
-$('#sheet').addEventListener('input', () => { if (mode === 'marked') deb(); });
+$('#paper').addEventListener('input', () => { if (mode === 'omr') keyIsExample = false; if (mode === 'marked' || mode === 'omr') deb(); else sampleData = false; });
+$('#sheet').addEventListener('input', () => { if (mode === 'marked' || mode === 'omr') deb(); });
 function dropShots(){ for (const k of ['paper', 'sheet']) { shots[k].forEach(s => URL.revokeObjectURL(s.url)); shots[k] = []; renderShots(k); setSt('#' + k + 'PhotoStatus', ''); } }
-$('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); setMode('marked'); changed(true); };
+$('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); keyIsExample = false; $('#paperCheck').hidden = true; $('#sheetCheck').hidden = true; if (mode !== 'omr') setMode('marked'); changed(true); };
 function loadSample(){
   $('#paper').value = `Section A: Algebra
 1. Solve 2x + 3 = 11 [2]
@@ -1048,7 +1249,7 @@ Section D: Statistics
 12: 2/4 incomplete explanation`;
   edits = {}; dropShots(); setMode('marked'); rebuild(); sampleData = true; $('#sampleFlag').hidden = false; save();
 }
-$('#sample').onclick = loadSample;
+$('#sample').onclick = () => mode === 'omr' ? loadOmrSample() : loadSample();
 
 let saved = null; try { saved = JSON.parse(localStorage.getItem('marklens3') || localStorage.getItem('marklens2') || 'null'); } catch {}
 if (saved && Array.isArray(saved.rows) && saved.rows.length) {
@@ -1056,7 +1257,9 @@ if (saved && Array.isArray(saved.rows) && saved.rows.length) {
   rows = saved.rows.map(r => ({ ...r, q: String(r.q), got: num(r.got), max: num(r.max) }));
   aiExtra = saved.aiExtra || null; edits = saved.edits || {}; sampleData = !!saved.sampleData;
   sheetCount = parseSheet(saved.sheet || '').length;
-  setMode(saved.mode === 'ai' ? 'ai' : 'marked'); changed(true);
+  if (saved.omr) { $('#omrRight').value = saved.omr.right || 1; $('#omrWrong').value = saved.omr.wrong || 0; keyIsExample = !!saved.omr.keyIsExample; }
+  setMode(saved.mode === 'ai' ? 'ai' : saved.mode === 'omr' ? 'omr' : 'marked');
+  if (mode === 'omr') { const sd = sampleData; rebuild(); sampleData = sd; $('#sampleFlag').hidden = !sd; } else changed(true);
 } else loadSample();
 
 let savedReader = null; try { savedReader = localStorage.getItem('marklens-reader2'); } catch {}
@@ -1067,7 +1270,7 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
   try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
   if (!ai || !ai.enabled) { ai = null; return; }
   $('#modeAi').hidden = false; $('#rdAI').hidden = ai.vision === false;   // a text-only model still sorts Lens text and grades
-  $('#aiWho').textContent = ai.backup ? `${ai.providerName}, or ${ai.backup} as a backup` : ai.providerName; $('#aiRisk').hidden = false;
+  $('#aiWho').textContent = ai.backup ? `${ai.providerName}, or ${ai.backup} as a backup` : ai.providerName; $('#aiRisk').hidden = mode === 'omr';
   $('#lensAiNote').hidden = false;
   if (savedReader === 'ai' && ai.vision !== false) setReader('ai', true);
 })();

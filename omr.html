@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>MarkLens OMR sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Printable MarkLens OMR answer sheet. The sheet itself is plain black on white so any printer and photo copier keeps it readable. */
+:root{--bg:#f1f4f7;--surface:#fff;--ink:#13202e;--mute:#5a6879;--line:#dce2e9;--pen:#d92d3a;--blue:#1f4fd8;--tint:#e8eefc;
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;--f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;--pen:#ff6a74;--blue:#7ba3ff;--tint:#18233a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;--pen:#ff6a74;--blue:#7ba3ff;--tint:#18233a;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding:16px}
+.wrap{max-width:880px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:9px;font:800 1.15rem var(--f-display);text-decoration:none;color:inherit;margin-bottom:12px}
+.logo i{width:22px;height:22px;border:2.5px solid var(--pen);border-radius:50%;position:relative;display:inline-block}
+.logo i::after{content:"";position:absolute;left:11px;top:16px;width:9px;height:2.5px;background:var(--pen);transform:rotate(45deg);transform-origin:left}
+h1{font:800 clamp(1.5rem,4vw,2rem)/1.1 var(--f-display);letter-spacing:-.02em;margin:0 0 6px}
+.lead{color:var(--mute);margin:0 0 16px;max-width:60ch}
+.form{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px;align-items:end}
+.form label{display:grid;gap:5px;font-size:.82rem;font-weight:600;color:var(--mute)}
+.form .wide{grid-column:1/-1}
+input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;min-height:44px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:8px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line)}
+.tips{margin:14px 0 18px;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:8px;background:var(--tint);font-size:.9rem}
+.tips ul{margin:6px 0 0;padding-left:18px}
+.sheet{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 18px 40px -26px rgba(10,25,50,.45);overflow:hidden}
+.sheet svg{display:block;width:100%;height:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;grid-column:1/-1}
+@media print{
+  @page{size:A4;margin:0}
+  body{background:#fff;padding:0}
+  .no-print{display:none!important}
+  .wrap{max-width:none}
+  .sheet{border:0;border-radius:0;box-shadow:none}
+  .sheet svg{width:210mm;height:297mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="no-print">
+    <a class="logo" href="./"><i></i>MarkLens</a>
+    <h1>Print OMR answer sheets</h1>
+    <p class="lead">Choose the number of questions and options, then print one sheet per student. MarkLens reads a photo of the filled sheet on the phone itself: free, private, no AI.</p>
+    <div class="form" role="group" aria-label="Sheet settings">
+      <label class="wide">Exam name (printed at the top)<input id="title" maxlength="60" placeholder="Unit test 3 · Physics"></label>
+      <label>Questions<input id="nq" type="number" inputmode="numeric" min="1" max="100" value="60"></label>
+      <label>Options<select id="no"><option value="4">A, B, C, D</option><option value="5">A, B, C, D, E</option></select></label>
+      <div class="row"><button class="btn" id="print" type="button">Print sheet</button><a class="btn ghost" href="./">Back to MarkLens</a></div>
+    </div>
+    <div class="tips">
+      <b>For the best reading</b>
+      <ul>
+        <li>Print at 100% on A4 paper. Photocopies work too.</li>
+        <li>Students fill one bubble per question completely with a dark pen or pencil, and rub out changes fully.</li>
+        <li>For the answer key, fill one sheet with the correct answers and scan it in MarkLens first.</li>
+        <li>When photographing, keep the sheet flat and the four black squares inside the photo.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="sheet" id="sheet"></div>
+</div>
+<script src="js/omr.js"></script>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), q = new URLSearchParams(location.search);
+  if (q.get('q')) $('#nq').value = q.get('q');
+  if (q.get('o')) $('#no').value = q.get('o') === '5' ? '5' : '4';
+  if (q.get('t')) $('#title').value = q.get('t').slice(0, 60);
+  const draw = () => {
+    const n = Math.max(1, Math.min(MarkLensOMR.MAX_Q, parseInt($('#nq').value, 10) || 60));
+    $('#sheet').innerHTML = MarkLensOMR.svg(MarkLensOMR.layout(n, +$('#no').value), { title: $('#title').value.trim() || 'OMR answer sheet' });
+    document.title = `MarkLens OMR sheet · ${n} questions`;
+  };
+  for (const el of ['#nq', '#no', '#title']) $(el).addEventListener('input', draw);
+  $('#nq').addEventListener('change', () => { const n = Math.max(1, Math.min(100, parseInt($('#nq').value, 10) || 60)); $('#nq').value = n; draw(); });
+  $('#print').onclick = () => window.print();
+  draw();
+})();
+</script>
+</body>
+</html>
