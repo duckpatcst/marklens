@@ -10,7 +10,7 @@ The front end and the back end meet in exactly one place:
 If either side wants to change anything below, change this file in the same pull request, so the other person sees it.
 `tests/api.test.mjs` checks the front-end half with a fake back end; run `node --test`.
 
-Base address: the same site (Cloudflare Pages Functions). To use a back end on another address, see the top of `js/api.js`.
+Base address: the same site (Cloudflare Pages Functions). To use a back end on another address, see the top of `js/api.js`. To check a running back end against this document: `node tools/check-backend.mjs <address> --code <access code>`.
 
 ---
 

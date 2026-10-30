@@ -99,7 +99,8 @@
   let snapEl = null, stretch = 0, ang = 0;
   const PRESS = 'a, button, select, summary, label.btn, .gc, .pill, [role="button"], input[type="checkbox"], input[type="radio"]';
   const TEXT = 'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, [contenteditable="true"]';
-  const SNAP = '.btn, .pill, .fi-add, .seg button, .an-get, #startGo, nav ul a, .st__link, .rd';
+  // everything you can press gets the snap: buttons, links, pills, switches, the reader cards, dropdowns
+  const SNAP = 'a, button, select, summary, label.btn, [role="button"], .rd, .pill, .ld-dot';
   const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
   function tick(){
     let gx = tx, gy = ty;
@@ -142,12 +143,14 @@
   addEventListener('blur', () => { shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); });
   document.addEventListener('pointerover', e => {
     const t = e.target instanceof Element ? e.target : null;
-    const text = t && t.closest(TEXT), snap = t && !text && t.closest(SNAP), press = t && !text && !snap && t.closest(PRESS);
+    const text = t && t.closest(TEXT), card = t && t.closest('.gc');
+    let snap = t && !text && !card ? t.closest(SNAP) : null;
     const r = snap && snap.getBoundingClientRect();
-    setSnap(snap && r.width < 460 && r.height < 96 ? snap : null);   // big panels keep the plain bubble
+    if (snap && (r.width > 720 || r.height > 180 || snap.closest('.gc'))) snap = null;   // whole panels keep the plain bubble
+    const press = t && !text && !snap && t.closest(PRESS);
+    setSnap(snap);
     ring.classList.toggle('is-text', !!text);
     ring.classList.toggle('is-press', !!press || (!!snap && !snapEl));
-    const card = t && t.closest('.gc');
     ring.classList.toggle('is-label', !!card);
     label.textContent = card ? 'Open' : '';
   });

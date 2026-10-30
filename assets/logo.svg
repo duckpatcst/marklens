@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MarkLens">
+  <defs>
+    <linearGradient id="mlg" x1="6" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00c8ff"/><stop offset=".38" stop-color="#3d63ff"/><stop offset=".72" stop-color="#a855ff"/><stop offset="1" stop-color="#ff47a6"/>
+    </linearGradient>
+    <linearGradient id="mlh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <radialGradient id="mll" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#eef1ff"/></radialGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#mlg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#mlh)"/>
+  <path d="M38.6 38.6 L48.5 48.5" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="28" cy="28" r="15" fill="url(#mll)" stroke="#fff" stroke-width="4"/>
+  <path d="M20.6 28.6 L25.8 33.6 L35.6 22.8" fill="none" stroke="#ff2d55" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
