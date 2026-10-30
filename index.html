@@ -4,38 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Photograph a question paper and exam sheet. MarkLens shows where your marks went, the right answers, your weak topics and where to spend your study time.">
-<meta name="theme-color" content="#f1f4f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0c131c" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)">
 <title>MarkLens</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@500;600&display=swap">
 <link rel="stylesheet" href="vendor/scrollcraft/scrollcraft.css">
+<link rel="stylesheet" href="vendor/lenis/lenis.css">
 <style>
 /* Layout: sticky nav, split hero with a marked-script mock, 3-step strip, then the analyzer and live dashboard as one working surface.
    Input: photos (camera or gallery) read on the device (Tesseract) or by the site's AI function; touch-sized controls for Android and iOS. */
 :root{
-  --bg:#f1f4f7;--surface:#ffffff;--ink:#13202e;--mute:#5a6879;--line:#dce2e9;
-  --pen:#d92d3a;--blue:#1f4fd8;--ok:#0f8a6b;--warn:#b26a00;--tint:#e8eefc;--paper:#fbfcfd;
-  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
-  --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
-  --f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  --bg:#f5f5f7;--surface:#ffffff;--ink:#1d1d1f;--mute:#6e6e73;--line:#e2e2e7;
+  --pen:#d70015;--blue:#0066cc;--ok:#1d7f3a;--warn:#a85200;--tint:#eaf2fd;--paper:#ffffff;
+  --f-display:'Inter Tight','SF Pro Display',-apple-system,'Segoe UI',system-ui,sans-serif;
+  --f-body:'Inter','SF Pro Text',-apple-system,'Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono','SF Mono',ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
-  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}}
+  --bg:#0b0b0d;--surface:#1c1c1e;--ink:#f5f5f7;--mute:#a1a1a6;--line:#2c2c2e;
+  --pen:#ff453a;--blue:#2997ff;--ok:#30d158;--warn:#ffb340;--tint:#14213a;--paper:#161618;color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
-  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}
+  --bg:#0b0b0d;--surface:#1c1c1e;--ink:#f5f5f7;--mute:#a1a1a6;--line:#2c2c2e;
+  --pen:#ff453a;--blue:#2997ff;--ok:#30d158;--warn:#ffb340;--tint:#14213a;--paper:#161618;color-scheme:dark}
 *{box-sizing:border-box}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
 img{max-width:100%}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-inline:16px}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-inline:16px;-webkit-font-smoothing:antialiased;font-feature-settings:'cv11','ss01'}
 .wrap{max-width:1160px;margin-inline:auto}
-h1,h2,h3{font-family:var(--f-display);letter-spacing:-.02em;text-wrap:balance;margin:0}
-h1{font-size:clamp(2.2rem,5.4vw,3.8rem);line-height:1.02;font-weight:800}
+h1,h2,h3{font-family:var(--f-display);letter-spacing:-.025em;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.2rem,5.4vw,3.8rem);line-height:1.02;font-weight:700}
 h2{font-size:clamp(1.5rem,3vw,2.1rem);line-height:1.1;font-weight:700}
 h3{font-size:1.02rem;font-weight:700;letter-spacing:-.01em}
 a{color:inherit}
@@ -47,7 +48,7 @@ button,.btn,select,a{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0}
 
 /* nav */
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin-inline:-16px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin-inline:-16px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 72%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .logo{display:flex;align-items:center;gap:9px;font:800 1.15rem var(--f-display);text-decoration:none;letter-spacing:-.02em}
 .logo i{width:22px;height:22px;border:2.5px solid var(--pen);border-radius:50%;position:relative;display:inline-block}
@@ -58,7 +59,7 @@ nav ul a{text-decoration:none}
 @media(max-width:620px){nav ul{display:none}}
 
 /* buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:9px 15px;border-radius:8px;cursor:pointer;text-decoration:none;font-weight:500;font-size:.92rem;position:relative}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:9px 17px;border-radius:999px;cursor:pointer;text-decoration:none;font-weight:500;font-size:.92rem;position:relative}
 .btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 @media(hover:hover){.btn:hover{border-color:var(--blue)}.btn.primary:hover{background:var(--blue);border-color:var(--blue);color:#fff}}
 .btn:active{transform:translateY(1px)}
@@ -71,7 +72,7 @@ label.btn:focus-within{outline:2px solid var(--blue);outline-offset:2px}
 section{scroll-margin-top:70px}
 .sec-head{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
 .sec-head p{color:var(--mute);max-width:52ch;margin:8px 0 0}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0;box-shadow:0 1px 2px color-mix(in srgb,var(--ink) 4%,transparent),0 12px 32px -24px color-mix(in srgb,var(--ink) 30%,transparent)}
 .grid{display:grid;gap:16px}
 .two{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
 textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:11px;background:var(--bg);font:.82rem/1.6 var(--f-mono)}
@@ -409,43 +410,55 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 
 <div class="land" id="top">
 
-  <!-- ACT 1 · pinned live surface: the example paper is marked as you scroll (js/landing.js) -->
-  <section class="act-mark" id="act-mark" data-sc-act="pin" data-sc-span="6" aria-labelledby="mkTitle">
-    <div data-sc-stage class="mk">
-      <div class="mk__grid">
-        <figure class="sheet" id="sheetFig" role="img" aria-label="Example answer sheet, marked by the teacher">
-          <header class="sheet__head"><span>Mathematics · Term 2 · Example</span>
-            <span class="sheet__total"><svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M60 4 C88 2 99 16 97 32 C95 50 70 58 46 57 C20 56 3 46 4 30 C5 13 26 4 52 5 C62 5.5 70 8 74 11"/></svg><b id="mkTotal">0</b><i>/<span id="mkMax">38</span></i></span>
-          </header>
-          <ol class="sheet__rows" id="mkRows"></ol>
-        </figure>
+  <!-- the room: soft arches, a Siri glow, red ticks drifting like birds, film grain (fixed, behind the landing only) -->
+  <div class="atmos" aria-hidden="true">
+    <div class="atmos__orb"><i></i><i></i><i></i></div>
+    <div class="arch arch--l1"></div><div class="arch arch--l2"></div><div class="arch arch--l3"></div>
+    <div class="arch arch--r1"></div><div class="arch arch--r2"></div><div class="arch arch--r3"></div>
+    <div class="atmos__floor"></div>
+    <div class="floaters" id="floaters"></div>
+    <div class="atmos__grain"></div>
+  </div>
 
-        <div class="mkp">
-          <p class="mkp__status"><i class="dot" aria-hidden="true"></i>Example paper · <span data-mk="subject">Maths</span> · <span data-mk="n">12</span> questions · <span data-mk="max">38</span> marks</p>
-          <div class="mkp__stack">
-            <div class="st st--a" data-sc-cue="0 0.2 0 0.05">
-              <h1 id="mkTitle">Where did your <em><span data-mk="lost">17</span> marks</em> go?</h1>
-              <p class="lead">Photograph your question paper and your marked answer sheet. MarkLens reads the teacher&#39;s marks, finds every one you lost, and shows what to fix first. Free, for school tests, board exams, NEET, JEE and more.</p>
-              <div class="st__cta"><a class="btn primary" href="#start">Analyze my paper</a><span class="st__hint">This example is marked below.</span></div>
-            </div>
-            <div class="st st--b" data-sc-cue="0.16 0.375 0.05 0.035" aria-hidden="true">
-              <p class="eyebrow-s">Reading the teacher&#39;s marks</p>
-              <p class="mk-live" id="mkQ">Q1</p>
-              <p class="mk-line" id="mkLine"></p>
-              <p class="mk-score">Score so far <b><span id="mkSoFar">0</span></b> / <span data-mk="max">38</span></p>
-            </div>
-            <div class="st st--c" data-sc-cue="0.385 0.765 0.035 0.035" data-sc-rise="0">
-              <h2>Here&#39;s where the <em><span data-mk="lost">17</span></em> went.</h2>
-              <ul class="bins" id="mkBins"></ul>
-            </div>
-            <div class="st st--d" data-sc-cue="0.77 1.4 0.04 0.02">
-              <h2>Win back <em><span data-mk="gain">6.5</span> marks</em> first.</h2>
-              <div class="reach">
-                <p class="reach__nums"><b id="mkReachNum"><span data-mk="got">21</span></b> within reach, out of <span data-mk="max">38</span></p>
-                <div class="reach__bar" aria-hidden="true"><i class="reach__got"></i><i class="reach__gain"></i></div>
+  <!-- ACT 1 · pinned: the window rises, the paper is marked, the lost marks sort themselves, the plan appears -->
+  <section class="act-mark" id="act-mark" data-sc-act="pin" data-sc-span="3.2" aria-labelledby="heroTitle">
+    <div data-sc-stage class="mk">
+      <header class="hero">
+        <p class="hero__kicker"><span class="siri-dot" aria-hidden="true"></span>Exam analysis for students</p>
+        <h1 id="heroTitle">See where your marks went.</h1>
+        <p class="hero__sub">Photograph your question paper and marked answer sheet. MarkLens finds every mark you lost, and what to fix first.</p>
+        <div class="hero__cta"><a class="btn primary" href="#start">Analyze my paper</a><a class="btn glass" href="#exams">Browse exams</a></div>
+      </header>
+
+      <div class="win" id="win">
+        <div class="win__glow" aria-hidden="true"></div>
+        <div class="win__frame">
+          <div class="win__bar"><span class="tl" aria-hidden="true"><i></i><i></i><i></i></span><span class="win__title">MarkLens · Example paper · <span data-mk="subject">Maths</span></span><span class="win__badge">Example</span></div>
+          <div class="win__body">
+            <figure class="sheet" id="sheetFig" role="img" aria-label="Example answer sheet, marked by the teacher">
+              <header class="sheet__head"><span>Mathematics · Term 2</span>
+                <span class="sheet__total"><svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M60 4 C88 2 99 16 97 32 C95 50 70 58 46 57 C20 56 3 46 4 30 C5 13 26 4 52 5 C62 5.5 70 8 74 11"/></svg><b id="mkTotal">0</b><i>/<span id="mkMax">38</span></i></span>
+              </header>
+              <ol class="sheet__rows" id="mkRows"></ol>
+            </figure>
+
+            <div class="mkp" id="mkp" data-state="read">
+              <div class="st st--read" aria-live="polite">
+                <p class="st__eyebrow" id="mkEyebrow">Reading the teacher&#39;s marks</p>
+                <p class="st__big"><span id="mkSoFar">0</span><small>/<span data-mk="max">38</span></small></p>
+                <p class="st__line" id="mkLine">Finding the red ticks, crosses and numbers…</p>
               </div>
-              <ol class="mkplan" id="mkPlan"></ol>
-              <a class="inline" href="#dashboard">Open the full dashboard for this paper</a>
+              <div class="st st--sort">
+                <p class="st__eyebrow">Where the <span data-mk="lost">17</span> lost marks went</p>
+                <ul class="bins" id="mkBins"></ul>
+              </div>
+              <div class="st st--plan">
+                <p class="st__eyebrow">Fix these first</p>
+                <p class="reach__nums"><b id="mkReachNum"><span data-mk="got">21</span></b><span>within reach, out of <span data-mk="max">38</span></span></p>
+                <div class="reach__bar" aria-hidden="true"><i class="reach__got"></i><i class="reach__gain"></i></div>
+                <ol class="mkplan" id="mkPlan"></ol>
+                <a class="st__link" href="#dashboard">Open the full dashboard</a>
+              </div>
             </div>
           </div>
         </div>
@@ -454,43 +467,63 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
     </div>
   </section>
 
-  <!-- ACT 2 · pan: real marking schemes from js/exams.js -->
-  <section class="act-exams" data-sc-act="pan" data-sc-span="3" aria-labelledby="exTitle">
-    <div data-sc-stage class="ex">
-      <div class="ex__rail" id="exRail" data-sc-pan="0.04">
-        <div class="ex__lead">
-          <h2 id="exTitle">Marked the way your exam is marked.</h2>
-          <p>Pick your exam once. MarkLens uses its marking scheme, sections, grades and pass mark, so a NEET sheet and a CBSE paper are never scored the same way.</p>
-        </div>
-      </div>
+  <!-- ACT 2 · the gallery: real marking schemes from js/exams.js, filterable -->
+  <section class="gal" id="exams" aria-labelledby="galTitle">
+    <h2 class="gal__title" id="galTitle">Every exam, marked its way.</h2>
+    <p class="gal__sub">Pick yours and MarkLens uses its marking scheme, sections, grades and pass mark.</p>
+    <div class="pills" id="galPills" role="group" aria-label="Filter exams"></div>
+    <div class="gal__grid" id="galGrid"></div>
+  </section>
+
+  <!-- ACT 3 · bento: how pages are read, and where photos go -->
+  <section class="bento" id="how" aria-labelledby="howTitle">
+    <h2 class="bento__title" id="howTitle">Three ways to read your pages.</h2>
+    <div class="bento__grid">
+      <article class="tile tile--lens" data-sc-in>
+        <div class="tile__art art-lens" aria-hidden="true"><i class="c c1"></i><i class="c c2"></i><i class="c c3"></i><i class="c c4"></i><span>2x + 3 = 11</span></div>
+        <p class="tile__tag">Best for handwriting</p>
+        <h3>Google Lens</h3>
+        <p>Take photos as usual. Each one opens in Google Lens; copy the text and come back. MarkLens does the rest.</p>
+        <p class="tile__priv">Photos go to Google under its terms. MarkLens only gets the text you copy.</p>
+      </article>
+      <article class="tile tile--phone" data-sc-in>
+        <div class="tile__art art-lock" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="11" y="21" width="26" height="20" rx="5"/><path d="M17 21v-5a7 7 0 0 1 14 0v5"/></svg></div>
+        <p class="tile__tag">Free and private</p>
+        <h3>On this phone</h3>
+        <p>Reads printed papers, the teacher&#39;s red ticks, crosses and marks, and OMR sheets. Nothing leaves your phone.</p>
+      </article>
+      <article class="tile tile--ai" data-sc-in>
+        <div class="tile__art art-siri" aria-hidden="true"><i></i></div>
+        <p class="tile__tag">When the site has an AI key</p>
+        <h3>AI reader</h3>
+        <p>Reads photos automatically and can grade answers that are not marked yet.</p>
+        <p class="tile__priv">Photos go to an outside AI company. Crop out your name first.</p>
+      </article>
+      <article class="tile tile--omr" data-sc-in>
+        <p class="tile__big">200</p>
+        <h3>questions on one OMR sheet</h3>
+        <p>Print free MarkLens OMR sheets for NEET-style tests, A to D or A to E. <a class="inline" href="omr.html" target="_blank" rel="noopener">Print OMR sheets</a></p>
+      </article>
+      <article class="tile tile--keep" data-sc-in>
+        <p class="tile__big">0</p>
+        <h3>accounts needed</h3>
+        <p>Your results stay in your own browser. Save each test to see your progress over time.</p>
+      </article>
     </div>
   </section>
 
-  <!-- ACT 3 · flow: how pages are read, and where photos go -->
-  <section class="how" id="how" aria-labelledby="howTitle">
-    <div class="how__lead" data-sc-in>
-      <h2 id="howTitle">Three ways to read your pages.</h2>
-      <p>Choose one at the top of the Analyzer. You can always fix anything it misreads in the table.</p>
-    </div>
-    <ol class="ways" data-sc-in data-sc-stagger="70">
-      <li><span class="n" aria-hidden="true">1</span><h3>Google Lens <small>best for handwriting</small></h3><p>Take photos as usual. Each one opens in Google Lens; copy the text and come back.</p><p class="priv">Photos go to Google under its terms. MarkLens only gets the text you copy.</p></li>
-      <li><span class="n" aria-hidden="true">2</span><h3>On this phone <small>free and private</small></h3><p>Reads printed papers, the teacher&#39;s red ticks, crosses and marks, and MarkLens OMR sheets.</p><p class="priv">Runs in your browser. Nothing is sent anywhere.</p></li>
-      <li><span class="n" aria-hidden="true">3</span><h3>AI reader</h3><p>Reads photos automatically and can grade answers that are not marked yet. Appears when the site has an AI key.</p><p class="priv">Photos go to an outside AI company. Crop out your name and roll number first.</p></li>
-    </ol>
-  </section>
-
-  <!-- ACT 4 · the close: an actual input -->
+  <!-- ACT 4 · the close: an actual input, lit like Siri -->
   <section class="start" id="start" aria-labelledby="startTitle">
-    <div class="start__card" data-sc-reveal="up" data-sc-reveal-at="0 0.42">
-      <div>
-        <h2 id="startTitle">Which exam is <em>next?</em></h2>
-        <p>Pick it, then add photos of your question paper and answer sheet. The example above stays loaded until you replace it.</p>
+    <div class="start__orb" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="start__card">
+      <h2 id="startTitle">Which exam is next?</h2>
+      <p>Pick it, then add photos of your question paper and answer sheet.</p>
+      <div class="start__row">
+        <label class="vh" for="startExam">Your exam</label>
+        <div class="start__field"><select id="startExam"><option>Any exam</option></select></div>
+        <button type="button" id="startGo">Analyze my paper</button>
       </div>
-      <div class="start__form">
-        <label for="startExam">Your exam</label>
-        <div class="start__row"><select id="startExam"><option>Any exam</option></select><button type="button" id="startGo">Analyze my paper</button></div>
-        <p class="start__note">Results stay on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
-      </div>
+      <p class="start__note">Results stay on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
     </div>
   </section>
 </div>
@@ -1482,6 +1515,7 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
   if (savedReader === 'ai' && ai.vision !== false) setReader('ai', true);
 })();
 </script>
+<script src="vendor/lenis/lenis.min.js"></script>
 <script src="vendor/scrollcraft/scrollcraft.js"></script>
 <script src="js/landing.js"></script>
 </body>
