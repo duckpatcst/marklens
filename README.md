@@ -24,6 +24,7 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 | `js/landing.js`, `css/landing.css` | The front of the page: the example paper is marked as it opens, the lost marks fly into their lessons as you scroll, then a filterable gallery of exams, how pages are read, and the exam picker. Every number comes from the same parser and maths as the Analyzer |
 | `js/alive.js`, `css/alive.css` | Small touches: typewriter slogans in the headline, a cursor bubble (mouse and trackpad only), magnetic buttons, tilting cards and headings that rise in word by word |
 | `js/thinking.js`, `css/thinking.css` | The Siri glow around the screen while MarkLens checks answers or reads pages, with a status pill and the busy countdown. Open the page with `#siri` at the end of the address to see it |
+| `assets/3d/` | 21 glossy 3D icons (Microsoft Fluent Emoji 3D, MIT licence, 116 kB in all). Licence in `assets/3d/LICENSE.txt`. The small interface icons are Phosphor (MIT), written into the page |
 | `vendor/lenis/` | Smooth scrolling for mouse wheels and trackpads (Lenis 1.1.13, MIT licence, unmodified). Phones keep their own scrolling |
 | `vendor/scrollcraft/` | The scroll engine the front of the page runs on (scroll-craft by Nate Herk, MIT licence, unmodified) |
 | `js/omr.js` | The OMR sheet layout and the on-phone OMR reader |

@@ -175,16 +175,15 @@
     const box = $('#floaters'); if (!box) return;
     let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     const lite = document.documentElement.classList.contains('lite'), n = innerWidth < 700 ? 6 : lite ? 8 : 12, out = [];
-    const tick = '<svg class="tick" viewBox="0 0 34 26"><path d="M2.5 14.5 C6 17 8 20 10.5 23.5 C16 14 22 7.5 31.5 2.5"/></svg>';
-    const cross = '<svg class="cross" viewBox="0 0 26 26"><path d="M3 3.5 C9 9 15 16 23 23"/><path d="M22.5 3 C15 10 9 16 3.5 23"/></svg>';
-    const scrap = '<svg class="scrap" viewBox="0 0 30 22"><rect x="1" y="1" width="28" height="20" rx="1.5"/><path d="M4 8h22M4 13h22M4 18h14"/></svg>';
+    const KINDS = ['check', 'check', 'cross', 'pencil', 'hundred', 'memo'];
+    const pic = k => `<img src="assets/3d/${k}.webp" alt="" width="64" height="64" decoding="async">`;
     for (let i = 0; i < n; i++) {
       const edge = innerWidth < 700 ? 0.1 : 0.3, side = i % 2 ? rnd() * edge : 1 - edge + rnd() * edge, kind = rnd(), z = 6 + rnd() * 26, s = 10 + (z / 32) * 22;
-      out.push(`<span class="fl" style="--x:${(side * 100).toFixed(1)}%;--y:${(innerWidth < 700 ? (rnd() < .3 ? 2 + rnd() * 9 : 58 + rnd() * 36) : 6 + rnd() * 80).toFixed(1)}%;--z:${z.toFixed(1)};--s:${s.toFixed(0)}px;opacity:${(0.35 + z / 50).toFixed(2)}"><span style="--dur:${(6 + rnd() * 7).toFixed(1)}s;--del:-${(rnd() * 8).toFixed(1)}s;--dx:${(rnd() * 60 - 30).toFixed(0)}px;--dy:${(-20 - rnd() * 50).toFixed(0)}px;--r0:${(rnd() * 40 - 20).toFixed(0)}deg;--r1:${(rnd() * 80 - 40).toFixed(0)}deg">${kind < 0.5 ? tick : kind < 0.72 ? cross : scrap}</span></span>`);
+      out.push(`<span class="fl" style="--x:${(side * 100).toFixed(1)}%;--y:${(innerWidth < 700 ? (rnd() < .3 ? 2 + rnd() * 9 : 58 + rnd() * 36) : 6 + rnd() * 80).toFixed(1)}%;--z:${z.toFixed(1)};--s:${s.toFixed(0)}px;opacity:${(0.35 + z / 50).toFixed(2)}"><span style="--dur:${(6 + rnd() * 7).toFixed(1)}s;--del:-${(rnd() * 8).toFixed(1)}s;--dx:${(rnd() * 60 - 30).toFixed(0)}px;--dy:${(-20 - rnd() * 50).toFixed(0)}px;--r0:${(rnd() * 40 - 20).toFixed(0)}deg;--r1:${(rnd() * 80 - 40).toFixed(0)}deg">${pic(KINDS[Math.floor(kind * KINDS.length)])}</span></span>`);
     }
     box.innerHTML = out.join('');
   })();
-  let mx = 0, my = 0, tmx = 0, tmy = 0, roomDirty = true, lastAtmos = -1;
+  let mx = 0, my = 0, tmx = 0, tmy = 0, roomDirty = true, lastAtmos = -1, lastFlock = -1;
   if (finePointer && !reduce) addEventListener('pointermove', e => { tmx = e.clientX / innerWidth * 2 - 1; tmy = e.clientY / innerHeight * 2 - 1; }, { passive: true });
   addEventListener('scroll', () => { roomDirty = true; }, { passive: true });
   const startSec = $('#start'), orb = $('.atmos__orb'), arches = $('.arches'), flock = $('#floaters');
@@ -199,6 +198,9 @@
       roomDirty = false;
       const a = 1 - clamp01((scrollY + innerHeight - (startSec.offsetTop + startSec.offsetHeight)) / (innerHeight * 0.5));
       if (Math.abs(a - lastAtmos) > 0.01) { atmos.style.opacity = a.toFixed(2); atmos.style.visibility = a <= 0 ? 'hidden' : ''; lastAtmos = a; }
+      // the drifting ticks belong to the opening: they fade away before the gallery, so they never sit on words
+      const f = 1 - clamp01((scrollY - innerHeight * 0.9) / (innerHeight * 0.8));
+      if (Math.abs(f - lastFlock) > 0.01) { flock.style.opacity = f.toFixed(2); flock.style.visibility = f <= 0 ? 'hidden' : ''; lastFlock = f; }
     }
   }
 
@@ -212,6 +214,8 @@
   };
   const RULED = 'repeating-linear-gradient(transparent 0 22px,rgba(255,255,255,.4) 22px 23px)';
   const BUBBLES = 'radial-gradient(circle,rgba(255,255,255,.55) 0 4.5px,transparent 5.5px) 0 0/24px 24px';
+  const ICON = { cbse: 'school', icse: 'books', state: 'memo', neet: 'stethoscope', 'jee-main': 'gear', 'jee-adv': 'rocket', cuet: 'target', cet: 'test-tube', ssc: 'briefcase', upsc: 'building', gate: 'ruler', university: 'grad-cap' };
+  const ARROW = '<svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M192,88V192H88Z" opacity="0.2"/><path d="M195.06,80.61a8,8,0,0,0-8.72,1.73L140,128.69,69.66,58.34A8,8,0,0,0,58.34,69.66L128.69,140,82.34,186.34A8,8,0,0,0,88,200H192a8,8,0,0,0,8-8V88A8,8,0,0,0,195.06,80.61ZM184,184H107.31l38.34-38.34h0L184,107.31Z"/></svg>';
   if (EX && grid) {
     const ids = ['cbse', 'icse', 'state', 'neet', 'jee-main', 'jee-adv', 'cuet', 'cet', 'ssc', 'upsc', 'gate', 'university'];
     const exams = ids.map(id => EX.get(id)).filter((e, i) => e && e.id === ids[i]);
@@ -222,8 +226,8 @@
       const facts = omr ? [`+${exact(e.right)} right`, e.wrong ? `−${exact(e.wrong)} wrong` : 'no minus marks', e.questions ? e.questions + ' questions' : ''].filter(Boolean).join(' · ')
         : String(e.about || '').split('. ')[0].replace(/\.$/, '');
       return `<a class="gc" href="#analyze" data-exam="${esc(e.id)}" data-group="${esc(e.group)}" style="--c0:${c0};--c1:${c1};--c2:${c2};--c3:${c3};--pattern:${omr ? BUBBLES : RULED}">
-        <div class="gc__media" aria-hidden="true"><span class="gc__scheme">${scheme}</span></div>
-        <div class="gc__cap"><b>${esc(e.name)}</b><span>${esc(facts)}</span><i aria-hidden="true">↘</i></div>
+        <div class="gc__media" aria-hidden="true"><img class="gc__icon" src="assets/3d/${ICON[e.id] || 'memo'}.webp" alt="" width="256" height="256" loading="lazy" decoding="async"><span class="gc__scheme">${scheme}</span></div>
+        <div class="gc__cap"><b>${esc(e.name)}</b><span>${esc(facts)}</span><i aria-hidden="true">${ARROW}</i></div>
       </a>`;
     }).join('');
     const groups = ['All', ...new Set(exams.map(e => e.group))];

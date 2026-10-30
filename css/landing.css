@@ -67,7 +67,7 @@ body{font-size:15px;line-height:1.55;letter-spacing:normal}
 .floaters{position:absolute;inset:0;will-change:transform}
 .fl{position:absolute;left:var(--x);top:var(--y)}
 .fl>span{display:block;animation:drift var(--dur) ease-in-out var(--del) infinite alternate;will-change:transform}
-.fl svg{display:block;width:var(--s);height:auto;overflow:visible}
+.fl img{display:block;width:calc(var(--s) * 1.35);height:auto}
 .fl .tick path,.fl .cross path{fill:none;stroke:var(--pen);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .fl .scrap rect{fill:var(--paper);stroke:color-mix(in srgb,var(--ink) 12%,transparent)}
 .fl .scrap path{stroke:var(--rule);stroke-width:1.5}
@@ -174,7 +174,7 @@ body{font-size:15px;line-height:1.55;letter-spacing:normal}
 .pl__t small{font-size:.8rem;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mkplan em{font-style:normal;font-weight:700;font-size:1.1rem;color:var(--ok);font-variant-numeric:tabular-nums}
 .st__link{font-weight:600;color:var(--blue);text-decoration:none}
-.st__link::after{content:" ›"}
+.st__link{display:inline-flex;align-items:center;gap:4px}
 
 /* chips: the lost marks, in flight */
 .chips{position:absolute;inset:0;pointer-events:none;z-index:4}
@@ -203,7 +203,7 @@ body{font-size:15px;line-height:1.55;letter-spacing:normal}
   background:radial-gradient(80% 90% at 15% 20%,var(--c1),transparent 65%),radial-gradient(70% 80% at 90% 85%,var(--c2),transparent 60%),radial-gradient(60% 70% at 70% 15%,var(--c3),transparent 60%),var(--c0);
   box-shadow:0 1px 2px color-mix(in srgb,var(--ink) 6%,transparent),0 24px 50px -30px color-mix(in srgb,var(--ink) 45%,transparent)}
 .gc__media::before{content:"";position:absolute;inset:0;z-index:0;opacity:.5;background:var(--pattern);transition:transform 1.2s var(--e-out)}
-.gc__scheme{position:absolute;left:50%;top:50%;z-index:1;translate:-50% -50%;display:flex;align-items:baseline;gap:12px;padding:14px 24px;border-radius:20px;white-space:nowrap;
+.gc__scheme{position:absolute;left:7%;bottom:9%;z-index:1;display:flex;align-items:baseline;gap:12px;padding:14px 24px;border-radius:20px;white-space:nowrap;
   background:color-mix(in srgb,#fff 22%,transparent);border:1px solid color-mix(in srgb,#fff 50%,transparent);color:#fff;box-shadow:0 20px 40px -20px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.35);
   font:700 clamp(2rem,3.4vw,3rem)/1 var(--f-display);letter-spacing:-.04em;text-shadow:0 1px 12px rgba(0,0,0,.18);transition:transform .9s var(--e-out)}
 .gc__scheme small{font:600 .78rem var(--f-body);letter-spacing:0;opacity:.95}
@@ -245,8 +245,6 @@ body{font-size:15px;line-height:1.55;letter-spacing:normal}
 .art-lens .c3{left:14%;bottom:16%;border-right:0;border-top:0;border-radius:0 0 0 10px}
 .art-lens .c4{right:14%;bottom:16%;border-left:0;border-top:0;border-radius:0 0 10px 0}
 .tile--lens{justify-content:flex-end;padding-top:clamp(220px,26vw,300px)}
-.art-lock{top:22px;right:22px;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:color-mix(in srgb,var(--ok) 14%,transparent)}
-.art-lock svg{width:38px;height:38px}.art-lock rect,.art-lock path{fill:none;stroke:var(--ok);stroke-width:3;stroke-linecap:round}
 .art-siri{top:20px;right:20px;width:68px;height:68px;border-radius:50%;overflow:hidden;filter:saturate(1.2)}
 .art-siri i{position:absolute;inset:0;border-radius:50%;background:var(--siri);animation:spin 3.5s linear infinite}
 .art-siri::after{content:"";position:absolute;inset:12px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--surface) 85%,transparent),color-mix(in srgb,var(--surface) 30%,transparent))}
@@ -333,3 +331,29 @@ body{font-size:15px;line-height:1.55;letter-spacing:normal}
   .gc{transform:none;transition:opacity .3s}
   .mkp>.st{transform:none}
 }
+
+/* ================================================================ 3D icons and Phosphor icons ========
+   3D icons: Microsoft Fluent Emoji 3D (MIT), assets/3d. Interface icons: Phosphor duotone (MIT), inlined. */
+.ph{width:1.15em;height:1.15em;flex:0 0 auto}
+.hero__cta .btn .ph,#startGo .ph{transition:transform .35s var(--e-out)}
+@media (hover:hover) and (pointer:fine){.hero__cta .btn:hover .ph,#startGo:hover .ph{transform:translateX(3px)}}
+#startGo{display:inline-flex;align-items:center;gap:8px}
+.rd .ic:has(.ic3d){background:transparent}
+.rd .ic3d{width:34px;height:34px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18))}
+.gc__icon{position:absolute;right:7%;top:9%;z-index:1;width:36%;height:auto;rotate:-8deg;
+  filter:drop-shadow(0 18px 22px rgba(0,0,0,.35));animation:iconFloat 5.5s ease-in-out infinite alternate;transition:transform .6s var(--e-out)}
+.gc:nth-child(3n+2) .gc__icon{animation-delay:-2s;rotate:6deg}
+.gc:nth-child(3n) .gc__icon{animation-delay:-3.6s;rotate:-3deg}
+@keyframes iconFloat{from{translate:0 0}to{translate:0 -8px}}
+@media (hover:hover) and (pointer:fine){.gc:hover .gc__icon{transform:scale(1.08) rotate(4deg)}}
+.art-3d{top:18px;right:20px;width:84px}
+.art-3d img,.art-cam img{display:block;width:100%;height:auto;filter:drop-shadow(0 12px 16px rgba(0,0,0,.2))}
+.art-cam{top:clamp(10px,2vw,26px);left:calc(50% - min(190px,35%) - 30px);width:clamp(72px,8vw,104px);z-index:2;rotate:-12deg}
+.tile--omr,.tile--keep{padding-top:120px}
+.lite .gc__icon{animation:none}
+@media (max-width:620px){
+  .gc__icon{width:44%;right:6%;top:7%}
+  .gc__scheme{left:6%;bottom:7%;align-items:flex-start}
+  .art-cam{left:8%}
+}
+@media (prefers-reduced-motion:reduce){.gc__icon{animation:none}}
