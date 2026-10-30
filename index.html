@@ -1346,7 +1346,8 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
   try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
   if (!ai || !ai.enabled) { ai = null; return; }
   $('#modeAi').hidden = false; $('#rdAI').hidden = ai.vision === false;   // a text-only model still sorts Lens text and grades
-  $('#aiWho').textContent = ai.backup ? `${ai.providerName}, or ${ai.backup} as a backup` : ai.providerName; $('#aiRisk').hidden = mode === 'omr';
+  const aiList = Array.isArray(ai.providers) && ai.providers.length ? ai.providers : [ai.providerName];
+  $('#aiWho').textContent = aiList.length > 1 ? `${aiList.slice(0, -1).join(', ')} or ${aiList[aiList.length - 1]}, whichever is available at the time` : aiList[0]; $('#aiRisk').hidden = mode === 'omr';
   $('#lensAiNote').hidden = false;
   if (ai.search) { $('#aiSearch').textContent = ai.search; $('#aiSearchNote').hidden = false; }
   renderDash();

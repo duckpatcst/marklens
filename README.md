@@ -120,6 +120,29 @@ A per-minute limit (15 AI requests a minute per device) is always on, even witho
 | `RATE_LIMIT` | KV binding | Also keeps the counts, but only 1,000 free writes a day |
 | `AI` | Workers AI binding | Free backup: when the main AI is busy, a Qwen model runs on Cloudflare (Settings → Bindings → Add → Workers AI, name `AI`) |
 
+### Automatic fallback: when one free AI runs out, the next takes over
+
+Each AI request goes to the main AI first. If it is busy, out of free usage, or down, MarkLens tries the next AI you have set up, then the next. One that ran out is skipped for as long as it asks (up to an hour), then tried again. Students only see "busy" if every AI is out at the same time.
+
+Default order (each joins only when its key or binding is set):
+
+| # | AI | Setting | Free limit (Oct 2026) |
+|---|---|---|---|
+| 1 | The main AI (`AI_PROVIDER`, normally Groq) | `GROQ_API_KEY` | Groq: about 1,000 requests a day, 30 a minute |
+| 2 | Groq, when the main AI is something else | `GROQ_API_KEY` | As above |
+| 3 | OpenRouter | `OPENROUTER_API_KEY` (secret, from openrouter.ai → Keys) | 50 requests a day; 1,000 a day after a one-time $10 top-up. Uses the free photo-reading model `nvidia/nemotron-3.5-super-vl:free` (change with `OPENROUTER_MODEL`; keep `:free` so it never costs money) |
+| 4 | Omni Router | `OMNI_API_KEY` (secret) and `OMNI_BASE_URL` (its **https** address ending in `/v1`; `localhost` will not work) | Depends on the AIs behind it. `OMNI_MODEL` picks the model (default `auto`) |
+| 5 | Cloudflare Workers AI | `AI` binding | About 10,000 neurons a day |
+
+Free limits change often; each service's dashboard shows your current numbers.
+
+| Variable | Type | What it does |
+|---|---|---|
+| `AI_CHAIN` | Text | A different order, comma separated, from `groq`, `openrouter`, `omni`, `workers`, `gemini`, `openai` (your `AI_PROVIDER=openai` service). AIs left out are never used. For example `openrouter,groq,workers` |
+| `GROQ_MODEL`, `GEMINI_MODEL`, `WORKERS_MODEL` | Text | The model for that AI when it runs as a fallback |
+
+Google Gemini is never added automatically, even if `GEMINI_API_KEY` is set. Name it in `AI_CHAIN` only if every user is an adult (see below). The notice on the page and `privacy.html` list every AI in your chain.
+
 ### Correct answers: which search engine
 
 For every question a student lost marks on, the dashboard's **Correct answers** panel has a **Search Google** and a **Video solutions** link (these open Google or YouTube on the student's phone, so they always work and cost nothing). With the AI switched on, it also has **Get the answer** and **Find all answers**: the AI helper searches the web for the question, gives the results to the AI, and the AI writes the answer and a short worked solution, citing only the results it was given. For an OMR test it explains the answer in the key rather than overriding it. Answers the AI is unsure of are marked as such.
@@ -133,11 +156,11 @@ Each request looks up 4 questions and counts as one AI request against the daily
 
 ### About Google Gemini
 
-**Use Gemini only if every user is an adult.** Google's Gemini API terms say the API must not be used in apps "directed towards or likely to be accessed by individuals under the age of 18". On the free tier, Google uses what you send to improve its products, and human reviewers may read it. When Gemini is on, MarkLens asks every user to confirm they are 18 or older before anything is sent.
+**Use Gemini only if every user is an adult.** Google's Gemini API terms say the API must not be used in apps "directed towards or likely to be accessed by individuals under the age of 18". On the free tier, Google uses what you send to improve its products, and human reviewers may read it. MarkLens does not ask users their age, so leave Gemini out on any site that school students use.
 
 ### If the AI reader stops working
 
-- **"busy" messages.** The AI's per-minute allowance is used up for now. It resets on its own. Check your limits in the AI provider's console, or move to a paid plan (see "For schools and institutes").
+- **"busy" messages.** Every AI in your chain is used up or busy for now. They reset on their own. Adding another AI to the chain (such as OpenRouter) gives more room. Check your limits in the AI provider's console, or move to a paid plan (see "For schools and institutes").
 - **"did not accept this site's settings".** The AI key, address or model name is wrong. Check `AI_API_KEY`, `AI_BASE_URL` and `AI_MODEL`.
 - **"allowance for this site is used up".** `SITE_DAILY_LIMIT` was reached. It resets at midnight UTC (5:30 am in India).
 - **Everything fails after months of working.** The model may have been renamed or retired. Find a current image-reading model in Groq's docs (console.groq.com/docs/vision) and set it as `AI_MODEL`. The default is `qwen/qwen3.8-27b`.
@@ -228,7 +251,7 @@ After each paper the dashboard answers one question for the student: what should
 
 ## Checking the code
 
-With Node.js 20 or later installed, run `node --test` in this folder. It checks the paper, sheet and answer-key readers, the exam types, the "where to focus" and study-time maths, and the AI helper's answers, topics and search services (with fake AI and search services, so nothing is sent anywhere). Run it before uploading changes to the `js` or `functions` files.
+With Node.js 20 or later installed, run `node --test` in this folder. It checks the paper, sheet and answer-key readers, the exam types, the "where to focus" and study-time maths, the AI helper's answers, topics and search services, and the automatic fallback between AIs (with fake AI and search services, so nothing is sent anywhere). Run it before uploading changes to the `js` or `functions` files.
 
 ## Updating the site later
 
