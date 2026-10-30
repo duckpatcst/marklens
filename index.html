@@ -403,6 +403,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 </style>
 <link rel="stylesheet" href="css/landing.css">
 <link rel="stylesheet" href="css/alive.css">
+<link rel="stylesheet" href="css/thinking.css">
 </head>
 <body>
 <nav><div class="wrap">
@@ -671,6 +672,7 @@ Section D: Statistics
 12: 2/4 incomplete explanation
 </script>
 <script src="js/api.js"></script>
+<script src="js/thinking.js"></script>
 <script src="js/omr.js"></script>
 <script src="js/exams.js"></script>
 <script src="js/insights.js"></script>
@@ -968,7 +970,11 @@ const forAI = (blob, colour) => new Promise((res, rej) => {
 });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Every request to the back end goes through js/api.js (contract: docs/API.md). It retries when the back end says "busy".
-const callAI = (body, onWait) => MarkLensAPI.call(body, onWait);
+// While a job runs, the Siri glow (js/thinking.js) says what MarkLens is doing and counts down when the AI is busy.
+const TASK_LABEL = { solve: 'Checking the answers', topics: 'Finding each question\'s topic', paper: 'Reading the question paper', sheet: 'Reading the teacher\'s marks',
+  answers: 'Reading your answers', grade: 'Grading your answers', tidy: 'Sorting the text from Google Lens' };
+const callAI = (body, onWait) => MarkLensThinking.track(
+  MarkLensAPI.call(body, s => { MarkLensThinking.wait(s); if (onWait) onWait(s); }), TASK_LABEL[body.task]);
 
 /* No tick-box: the own-risk notice (#aiRisk) is always on screen whenever the AI reader is available. */
 
@@ -1233,7 +1239,12 @@ async function ldFinish(){
   setSt(st, `Read ${m} marks with Google Lens.${extra}${gap > 0 ? ` ${gap} ${gap === 1 ? 'question has' : 'questions have'} no mark yet: add ${gap === 1 ? 'it' : 'them'} below as 2: 1/3.` : ''}`, gap > 0 || aiFailed);
   setTimeout(() => $('#dashboard').scrollIntoView({ behavior: 'smooth' }), 250);
 }
-const readPhotos = kind => mode === 'omr' ? readOmr(kind) : reader === 'ai' ? readWithAI(kind) : reader === 'lens' ? readLens(kind) : readOnDevice(kind);
+const readPhotos = kind => {
+  if (mode !== 'omr' && reader === 'lens') return readLens(kind);   // Google Lens is the student's own step: no glow
+  const label = mode === 'omr' ? (kind === 'paper' ? 'Reading the answer key' : 'Reading the OMR sheet')
+    : kind === 'paper' ? 'Reading the question paper' : mode === 'marked' && reader !== 'ai' ? 'Reading the teacher\'s red marks' : 'Reading the answer sheet';
+  return MarkLensThinking.track(mode === 'omr' ? readOmr(kind) : reader === 'ai' ? readWithAI(kind) : readOnDevice(kind), label);
+};
 
 async function readWithAI(kind){
   const btn = $(kind === 'paper' ? '#paperRead' : '#sheetRead'), st = '#' + kind + 'PhotoStatus', ta = $('#' + kind);
