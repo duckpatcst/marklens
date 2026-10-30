@@ -38,18 +38,66 @@
   const MARKS_TAIL = /\s*(?:[\[(]\s*\d+(?:\.\d+)?\s*(?:[x×*]\s*\d+(?:\.\d+)?\s*=\s*\d+(?:\.\d+)?\s*)?(?:[Mm]arks?|[Mm])?\s*[\])]|\d+(?:\.\d+)?\s*(?:[Mm]arks?\b|M\b))\s*$/;
   const plainText = t => String(t || '').replace(/#[A-Za-z][\w &-]*/g, ' ').replace(/\btopic\s*[:\-]\s*[^\]\)|,#]+/i, ' ').replace(MARKS_TAIL, '').replace(/\s+/g, ' ').trim();
 
+  // Marks the paper gives for many questions at once, as printed papers say it:
+  //   "Questions from 1 to 16 and 27 to 30 carry 1 mark each."   "Q.21-25 carry 5 marks each"
+  //   "Section B, Consist of 5 questions (11-15). Each question carries 2 marks."
+  // -> [{ from, to, max }] (a single question is from === to), or null when the line is not such a rule.
+  const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, half: 0.5 };
+  function markRule(line){
+    const s = String(line).replace(/[–—]/g, '-');
+    const mk = s.match(/\b(?:carr(?:y|ies)|has|have|of)\s+(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|half)\s*marks?\b/i) ||
+      s.match(/\b(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s*marks?\s*(?:each|for each|per question)\b/i);
+    if (!mk) return null;
+    const max = WORDNUM[mk[1].toLowerCase()] ?? num(mk[1]);
+    const head = s.slice(0, mk.index), out = [];
+    // question numbers before the marks: ranges "1 to 16", "(11-15)", "Q1-Q5", and single numbers joined by "and" or ","
+    const re = /\b(?:Q(?:uestions?)?\.?\s*(?:no\.?\s*)?)?(\d{1,3})\s*(?:-|to)\s*(?:Q\.?\s*)?(\d{1,3})\b|(?:\band\b|,)\s*(?:Q\.?\s*)?(\d{1,3})\b(?!\s*(?:-|to|questions?\b|marks?\b))/gi;
+    for (const r of head.matchAll(re)) {
+      if (r[1]) { const a = +r[1], b = +r[2]; if (a >= 1 && b >= a && b - a < 200) out.push({ from: a, to: b, max }); }
+      else if (out.length) out.push({ from: +r[3], to: +r[3], max });
+    }
+    // "Each question carries 2 marks" with no question numbers: the section it sits in
+    return out.length ? out : /\beach\b/i.test(s) && !/\bquestions?\s+(?:from|no)\b/i.test(head) ? [{ from: 0, to: 0, max }] : null;
+  }
+  // "16x1=16", "10 × 1 = 10", "(5 x 2 = 10)" next to a heading: so many questions of so many marks
+  const sectionTimes = line => {
+    const m = String(line).match(/(\d{1,3})\s*[x×X*]\s*(\d+(?:\.\d+)?)\s*=\s*(\d+(?:\.\d+)?)/);
+    return m && Math.abs(+m[1] * +m[2] - +m[3]) < 1e-9 ? { count: +m[1], max: +m[2] } : null;
+  };
+  // "SECTION-A", "SECTION – B", "PART A", "Section B: Optics", "Unit 3 - Light"; also the misread "SECTION ~ 4"
+  const SECTION_RE = /^(?:section|part|unit|chapter|lesson)\s*[-–—~:.]?\s*([A-Z]|[0-9]{1,2}|[IVX]{1,4})\b\s*[:\-–—.,]?\s*(.*)$/i;
+  const SECTION_WORD_RE = /^(?:section|part|unit|chapter|lesson)\s+(\w+)\s*[:\-–]?\s*(.*)$/i;
+
   function parsePaper(text){
     const qs = []; let section = '', secId = '', subject = '', cur = null;
     const lineRe = new RegExp(String.raw`^\s*(?:Q(?:uestion)?\.?\s*)?(\d+)\s*(?:[.):\-]\s*|(?=${PART}))(.+)`, 'i');
+    // marks set for many questions at once (see markRule and sectionTimes); they never override a question's own label
+    const ranged = new Map(); let sectionMax = 0, inInstructions = false;
     halves(text).split(/\r?\n/).forEach((raw, idx) => {
       const line = raw.trim(); if (!line) return;
       // "Subject: Physics", or a line that is only a subject name (PHYSICS), starts a subject; its sections are its lessons
       const subj = line.match(/^subject\s*[:\-–]\s*(.+)$/i) || (line.length <= 40 && INS.canonSubject(line.replace(/[:.]$/, '')) ? [line, line.replace(/[:.]$/, '')] : null);
-      if (subj) { subject = subj[1].trim(); section = ''; secId = ''; cur = null; return; }
-      const sec = line.match(/^(?:section|part|unit|chapter|lesson)\s+(\w+)\s*[:\-–]?\s*(.*)$/i);
-      if (sec) { secId = sec[1].toUpperCase(); section = sec[2] ? sec[2].trim() : ''; cur = null; return; }
+      if (subj) { subject = subj[1].trim(); section = ''; secId = ''; cur = null; sectionMax = 0; inInstructions = false; return; }
+      const rule = markRule(line), times = sectionTimes(line);
+      if (rule) for (const r of rule) {
+        if (!r.from) { sectionMax = r.max; continue; }
+        for (let q = r.from; q <= r.to; q++) ranged.set(q, r.max);
+      }
+      // "General Instructions:" lists numbered rules, not questions, until the first section or question
+      if (/^(?:general\s+)?instructions?\b/i.test(line)) { inInstructions = true; cur = null; return; }
+      const sec = !rule && (line.match(SECTION_RE) || line.match(SECTION_WORD_RE));
+      if (sec) {
+        secId = sec[1].toUpperCase();
+        section = (sec[2] || '').replace(/\(?\s*\d{1,3}\s*[x×X*]\s*\d+(?:\.\d+)?\s*=\s*\d+(?:\.\d+)?\s*\)?/g, '').replace(/^[\s:\-–.,]+|[\s:\-–.,]+$/g, '').trim();
+        sectionMax = times ? times.max : 0; cur = null; inInstructions = false; return;
+      }
       const m = line.match(lineRe);
-      if (m) { cur = { n: +m[1], text: m[2], section, secId, subject, first: idx, line: idx }; qs.push(cur); } else if (cur) { cur.text += ' ' + line; cur.line = idx; }
+      if (rule && (inInstructions || !m || /\bquestions?\b/i.test(line))) { cur = null; return; }   // a marks rule, not a question
+      if (times && !m) { sectionMax = times.max; cur = null; return; }   // "I. CHOOSE THE BEST ANSWER: 16x1=16"
+      if (inInstructions) return;
+      // a stray mark read as a number in front of the options ("1 (A) 50,000") is not a new question
+      const option = m && cur && +m[1] < cur.n && /^\(?[A-Da-d]\)\s/.test(m[2]);
+      if (m && !option) { cur = { n: +m[1], text: m[2], section, secId, subject, first: idx, line: idx, sectionMax }; qs.push(cur); } else if (cur) { cur.text += ' ' + line; cur.line = idx; }
     });
     // the "## ..." note comes off the question before anything else reads it
     for (const o of qs) { const k = o.text.indexOf('##'); o.note = k >= 0 ? splitNote(o.text.slice(k + 2)) : {}; if (k >= 0) o.text = o.text.slice(0, k).trim(); }
@@ -64,9 +112,10 @@
       const val = mk => num(mk[1] || mk[2] || mk[3]);
       const firm = all.filter(mk => mk[0][0] === '[' || /marks?|M\b|=/.test(mk[0]));
       const parts = (o.text.match(new RegExp(PART, 'gi')) || []).length;
-      const max = parts >= 2 && firm.length >= 2 ? firm.reduce((a, mk) => a + val(mk), 0) : all.length ? val(all.at(-1)) : 0;
+      // otherwise the paper's rules: "Questions 1 to 16 carry 1 mark each", then the section's "10x1=10"
+      const max = parts >= 2 && firm.length >= 2 ? firm.reduce((a, mk) => a + val(mk), 0) : all.length ? val(all.at(-1)) : ranged.get(o.n) ?? o.sectionMax ?? 0;
       const sid = o.secId || 'S' + (1 + qs.slice(0, i).filter(p => p.n === o.n).length);
-      return { q: restarts ? sid + (/^\d/.test(sid) ? '.' : '') + o.n : String(o.n), n: o.n, subject: where[i].subject, topic: where[i].lesson, sub: where[i].topic,
+      return { q: restarts ? sid + (/^\d/.test(sid) ? '.' : '') + o.n : String(o.n), n: o.n, sec: o.secId || o.section, subject: where[i].subject, topic: where[i].lesson, sub: where[i].topic,
         type: guessType(o.text, max), max, text: plainText(o.text), first: o.first, line: o.line };
     });
   }
@@ -119,7 +168,7 @@
     .split('\n').map(l => l.trim()).filter(l => /\d/.test(l) || (l.match(/[A-Za-z]/g) || []).length > 3).join('\n');
   const tidyPaper = t => tidyCommon(t).split('\n').map(l => l
     .replace(/^Q(?:ue?s?)?\s*[.\-]?\s*(\d{1,3})\s*[.):\-]?\s*/i, '$1. ')     // Q.1 / Ques 1 / Q1) -> 1.
-    .replace(/^(\d{1,3})\s+(?=[A-Z(])/, '$1. ')                              // "1 Solve" -> "1. Solve"
+    .replace(/^(\d{1,3})\s*,?\s+(?=[A-Z]|\((?![a-dA-D]\)))/, '$1. ')          // "1 Solve", "4, What" -> "1. Solve", "4. What"; not "1 (A) 50,000"
     .replace(/\[\s*(\d+(?:\.\d+)?)\s*(marks?|M)?\s*$/i, '[$1]')              // "[2" at line end -> "[2]"
     .replace(/\[\s*([2-9])[1lI|]\s*\]?\s*$/, '[$1]')                          // "]" misread as 1: "[31]" -> "[3]"
   ).join('\n');

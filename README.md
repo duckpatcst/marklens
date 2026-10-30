@@ -7,7 +7,7 @@ It works for every kind of exam. Students pick theirs at the top of the Analyzer
 It reads pages in three ways:
 
 - **Google Lens · recommended for handwriting.** Students take or choose photos of every page as usual and tap **Read with Google Lens**. MarkLens opens each photo in Google Lens (through the phone's share menu, or long-press → Search with Google Lens). The student taps Text → Select all → Copy and comes back, and MarkLens picks up the text and moves to the next photo. After the last photo, the text (never the photo) is sorted into questions or marks with the AI and matched to the question paper. Without an AI key, MarkLens's built-in rules sort it instead.
-- **On this phone · free.** Uses Tesseract, which runs inside the browser. Nothing is sent anywhere, and it needs no account or key.
+- **On this phone · free.** Runs inside the browser; nothing is sent anywhere, and it needs no account or key. Printed question papers are read by Tesseract, after the photo's shadows and folds are evened out. Marked answer sheets are read by MarkLens's own red-ink marks reader: it finds the teacher's ticks (full marks), crosses (0) and numbers ("2", "1½", "3/5") in the red ink, gives each to its question using the question numbers in the margin, checks them against the teacher's margin subtotals and circled total, fills in a mark the teacher forgot to write when the subtotal tells it, and lists anything unsure for the student to check against the photo. Question papers can give each question's marks the way printed papers do: "Questions 1 to 16 carry 1 mark each", "Each question carries 2 marks", or "10x1=10" beside a section heading.
 - **AI reader** and **AI grading.** These use a free AI service, Groq by default. They are better for handwriting and can grade unmarked answers. They only appear once you add an API key (step 3).
 
 You need a computer for setup. It takes about 20 minutes. Everything below is free.
@@ -26,6 +26,10 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 | `js/parse.js` | Reads the text of question papers, marked sheets and answer keys into questions, marks, subjects, chapters and topics, and scores multiple-choice and numerical answers |
 | `js/insights.js` | Works out each question's subject, chapter and topic, ranks what to fix to win back the most marks, and shares study time between subjects |
 | `js/dashboard.js` | Draws the dashboard |
+| `js/redmarks.js` | The on-phone marks reader: the teacher's red ticks, crosses, numbers, subtotals and total, matched to the questions |
+| `js/redmarks-worker.js` | Runs the marks reader in the background, so the page stays smooth |
+| `models/marks-v2.json` | The marks reader's small model (77 kB): digits, tick, cross or something else |
+| `tools/marks/` | How that model is trained (`train.py`) and the test sheets it is checked on (`make_tick_sheets.py`). Not needed by the website |
 | `tests/` | Automatic checks for the files above and for the AI helper (see "Checking the code" below). Not needed by the website |
 | (online) | The free on-phone photo reader, Tesseract 5.1.1 (Apache 2.0), loads from jsDelivr the first time |
 | `functions/api/ai.js` | The hidden helper that talks to the AI company and the search service. Your API keys live here, never in the page |
@@ -251,7 +255,7 @@ After each paper the dashboard answers one question for the student: what should
 
 ## Checking the code
 
-With Node.js 20 or later installed, run `node --test` in this folder. It checks the paper, sheet and answer-key readers, the exam types, the "where to focus" and study-time maths, the AI helper's answers, topics and search services, and the automatic fallback between AIs (with fake AI and search services, so nothing is sent anywhere). Run it before uploading changes to the `js` or `functions` files.
+With Node.js 20 or later installed, run `node --test` in this folder. It checks the paper, sheet and answer-key readers, how the marks reader matches ticks, crosses, subtotals and totals to questions (and that its model computes exactly what the trainer computed), the exam types, the "where to focus" and study-time maths, the AI helper's answers, topics and search services, and the automatic fallback between AIs (with fake AI and search services, so nothing is sent anywhere). Run it before uploading changes to the `js` or `functions` files.
 
 ## Updating the site later
 
