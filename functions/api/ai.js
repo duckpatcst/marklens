@@ -29,6 +29,19 @@
  *   GEMINI_API_KEY    secret  For gemini. Google's terms do not allow Gemini in apps likely to be used by under-18s.
  *   AI                Workers AI binding (optional). The AI for workers-ai, and a free backup for the others.
  *
+ * Automatic fallback: when the main AI is busy, out of free usage, or down, the next AI that is set up takes over,
+ * then the next. One that ran out is skipped for as long as it asks (up to an hour), then tried again.
+ * Default order: the main AI above, then Groq, OpenRouter, Omni Router, Cloudflare Workers AI. Each joins only
+ * when its key (or binding) is set.
+ *   OPENROUTER_API_KEY secret openrouter.ai. Free models, 50 requests a day (1,000 after a one-time $10 top-up).
+ *   OPENROUTER_MODEL  text    Default nvidia/nemotron-3.5-super-vl:free (free, reads photos). Keep ":free" to never pay.
+ *   OMNI_API_KEY      secret  Omni Router (OmniRoute) key. Needs OMNI_BASE_URL, its https address ending in /v1.
+ *   OMNI_BASE_URL     text    Must be reachable from the internet: Cloudflare cannot reach localhost.
+ *   OMNI_MODEL        text    Default "auto". Pick one that reads photos.
+ *   GROQ_MODEL, GEMINI_MODEL, WORKERS_MODEL  text  The model for that service when it runs as a fallback.
+ *   AI_CHAIN          text    A different order, comma separated, from: groq, openrouter, omni, workers, gemini, openai.
+ *                             Services left out are never used. Gemini is only a fallback when named here.
+ *
  * Limits (each device is counted on its own, so a whole school behind one Wi-Fi address is not one visitor):
  *   DAILY_LIMIT       text    AI requests per device per day (default 40).
  *   SITE_DAILY_LIMIT  text    AI requests per day for the whole site (default: no cap). A spend cap for paid AI.
@@ -89,7 +102,74 @@ function settings(env) {
   const key = env.GROQ_API_KEY || env.AI_API_KEY || '';
   return { id: 'groq', name: env.AI_NAME || GROQ.name, key, base: GROQ.base, ok: !!key, model: env.AI_MODEL || GROQ.model, vision, maxImages, trains: false };
 }
-const hasBackup = (s, env) => !!env.AI && s.id !== 'workers';
+
+/* ---------- automatic fallback chain ---------- */
+
+const OPENROUTER = { name: 'OpenRouter', base: 'https://openrouter.ai/api/v1', model: 'nvidia/nemotron-3.5-super-vl:free' };
+const FALLBACKS = ['groq', 'openrouter', 'omni', 'workers'];   // after the main AI. Gemini only when named in AI_CHAIN
+const FALLBACK_TIMEOUT = 60_000;   // ms to wait for one fallback before trying the next
+const ALIAS = { 'workers-ai': 'workers', cloudflare: 'workers', 'openai-compatible': 'openai', custom: 'openai', own: 'openai', omnirouter: 'omni', omniroute: 'omni' };
+const resting = new Map();         // service id -> time (ms) it may be tried again; in memory, per server instance
+
+// Omni Router's address as a chat base URL ending in /v1, or '' if missing or not https
+function omniBase(raw) {
+  let base = String(raw || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/i, '');
+  try { if (new URL(base).protocol !== 'https:') return ''; } catch { return ''; }
+  return /\/v1$/.test(base) ? base : base + '/v1';
+}
+
+// One service in the chain, or null when it is not set up. The main AI keeps all its AI_* settings.
+function service(env, id, main) {
+  if (main.id === id) return main.ok ? main : null;
+  const fb = { vision: true, maxImages: 1, temperature: 0.1, timeoutMs: FALLBACK_TIMEOUT };
+  if (id === 'groq') {
+    const key = String(env.GROQ_API_KEY || '').trim();
+    return key ? { ...fb, id, name: GROQ.name, key, base: GROQ.base, ok: true, model: env.GROQ_MODEL || GROQ.model, trains: false, tokensField: 'max_completion_tokens' } : null;
+  }
+  if (id === 'openrouter') {
+    const key = String(env.OPENROUTER_API_KEY || '').trim();
+    return key ? { ...fb, id, name: OPENROUTER.name, key, base: OPENROUTER.base, ok: true, model: env.OPENROUTER_MODEL || OPENROUTER.model, trains: true, tokensField: 'max_tokens' } : null;
+  }
+  if (id === 'omni') {
+    const key = String(env.OMNI_API_KEY || '').trim(), base = omniBase(env.OMNI_BASE_URL);
+    return key && base ? { ...fb, id, name: 'Omni Router', key, base, ok: true, model: env.OMNI_MODEL || 'auto', trains: true, tokensField: 'max_tokens' } : null;
+  }
+  if (id === 'gemini') {
+    const key = String(env.GEMINI_API_KEY || '').trim();
+    return key ? { ...fb, id, name: 'Google Gemini', key, ok: true, model: env.GEMINI_MODEL || GEMINI_MODEL, maxImages: 6, trains: true } : null;
+  }
+  if (id === 'workers') return env.AI ? { ...fb, id, name: 'Cloudflare Workers AI', ok: true, model: env.WORKERS_MODEL || BACKUP_MODEL, trains: false } : null;
+  return null;                     // 'openai' is only ever the main AI
+}
+
+// The AIs to try, in order: only those that are set up
+function chainFor(env) {
+  const main = settings(env);
+  const listed = String(env.AI_CHAIN || '').toLowerCase().split(/[\s,>]+/).filter(Boolean).map(id => ALIAS[id] || id);
+  const out = [];
+  for (const id of new Set(listed.length ? listed : [main.id, ...FALLBACKS])) {
+    const x = service(env, id, main);
+    if (x) out.push(x);
+  }
+  return out;
+}
+const photoChain = chain => chain.filter(x => x.vision);
+const maxImagesOf = chain => { const v = photoChain(chain); return v.length ? Math.min(...v.map(x => x.maxImages)) : 1; };
+const listNames = names => names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] || '';
+
+// How long to skip a service after an error, in seconds. 0 = don't skip: the problem was this request, not the service.
+function restSeconds(e) {
+  const st = e && e.status;
+  if (st === 429) return Math.min(3600, Math.max(10, Math.ceil(Number(e.retryAfter) || 30)));  // busy, or out of free usage
+  if ([401, 402, 403, 404].includes(st)) return 600;        // wrong key, no credit, or model renamed
+  if (!st || st >= 500) return 60;                         // down or too slow
+  return 0;                                                // 400, 413, 422
+}
+function rest(id, e) {
+  const secs = restSeconds(e);
+  if (secs) resting.set(id, Date.now() + secs * 1000);
+}
+const isResting = id => (resting.get(id) || 0) > Date.now();
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
@@ -99,15 +179,16 @@ const fail = (error, status) => json({ error }, status);
 
 /* GET /api/ai — tells the page whether the AI reader is switched on, and which company runs it. */
 export async function onRequestGet({ env }) {
-  const s = settings(env), backup = hasBackup(s, env), q = searchSettings(env);
-  return json({ enabled: s.ok || backup, provider: s.id, providerName: s.name, vision: s.vision, maxImages: s.maxImages, trains: s.trains, backup: backup ? 'Cloudflare Workers AI' : null,
+  const chain = chainFor(env), names = chain.map(x => x.name), q = searchSettings(env);
+  return json({ enabled: chain.length > 0, provider: chain[0] ? chain[0].id : null, providerName: names[0] || null, providers: names,
+    vision: photoChain(chain).length > 0, maxImages: maxImagesOf(chain), trains: chain.some(x => x.trains), backup: names.length > 1 ? listNames(names.slice(1)) : null,
     search: q.id === 'none' ? null : q.name, solveMax: SOLVE_MAX, topicsMax: TOPICS_MAX });
 }
 
 /* POST /api/ai — one MarkLens job: read a question paper, a marked sheet, typed answers, or grade. */
 export async function onRequestPost({ request, env }) {
-  const s = settings(env), backup = hasBackup(s, env);
-  if (!s.ok && !backup) return fail('not_configured', 503);
+  const chain = chainFor(env), s = settings(env), backup = null;
+  if (!chain.length) return fail('not_configured', 503);
 
   // Only this site's own pages may call the function.
   // Browsers send Origin on these POSTs; Sec-Fetch-Site covers any browser that leaves Origin out.
@@ -145,8 +226,8 @@ export async function onRequestPost({ request, env }) {
   if (quota !== 'ok') return fail(quota, 429);
 
   const images = Array.isArray(body.images) ? body.images : [];
-  if (images.length > s.maxImages || !images.every(u => typeof u === 'string' && IMG_RE.test(u))) return fail('bad_request', 400);
-  if (images.length && !s.vision) return fail('no_vision', 400);
+  if (images.length > maxImagesOf(chain) || !images.every(u => typeof u === 'string' && IMG_RE.test(u))) return fail('bad_request', 400);
+  if (images.length && !photoChain(chain).length) return fail('no_vision', 400);
   if (task !== 'grade' && task !== 'tidy' && !images.length) return fail('bad_request', 400);
   // tidy: text the student copied with Google Lens, no photo. Only the text comes here.
   const kind = body.kind === 'sheet' ? 'sheet' : 'paper', lens = String(body.text || '').slice(0, MAX_TIDY);
@@ -176,20 +257,31 @@ export async function onRequestPost({ request, env }) {
   return json({ result, via });
 }
 
-// One request to the main AI, falling back to the Qwen model on Cloudflare Workers AI when the main AI is busy, over
-// its per-minute limit, or down. Returns { text, via } or { error: <Response> }.
+// One request, tried on each AI in the chain until one answers: the main AI first, then the fallbacks.
+// An AI that is busy, out of free usage or down is skipped for a while (see restSeconds).
+// Returns { text, via } or { error: <Response> }.
 async function ask(env, s, backup, prompt, maxOut, images = [], wantJson = false) {
-  try {
-    if (!s.ok) throw { status: 503 };
-    return { text: await callModel(s, env, prompt, images, wantJson, maxOut), via: s.name };
-  } catch (first) {
-    let e = first;
-    if (backup && (!first || [429, 413, 500, 502, 503, 504].includes(first.status) || !first.status)) {
-      try { return { text: await callWorkersAI(env, prompt, images, maxOut), via: 'Cloudflare Workers AI' }; }
-      catch (second) { e = second && second.retryAfter ? second : first && first.status === 429 ? first : second; }
-    }
-    return { error: failFor(e, images.length > 0) };
+  const chain = images.length ? photoChain(chainFor(env)) : chainFor(env);
+  const ready = chain.filter(x => !isResting(x.id));
+  if (!ready.length) {
+    // Every AI ran out: tell the page to wait until the first one is back (at most a minute, then it asks again).
+    const back = Math.min(...chain.map(x => resting.get(x.id) || Date.now()));
+    return { error: json({ error: 'busy', retry_after: Math.min(60, Math.max(5, Math.ceil((back - Date.now()) / 1000))) }, 429) };
   }
+  const errors = [];
+  for (const x of ready) {
+    try {
+      const text = await callModel(x, env, prompt, images, wantJson, maxOut);
+      if (!String(text || '').trim()) throw { status: 502 };   // an empty answer: try the next AI
+      return { text, via: x.name };
+    } catch (e) {
+      const err = e && typeof e === 'object' ? e : { status: 502 };
+      errors.push(err);
+      rest(x.id, err);
+    }
+  }
+  // All failed: "busy" if any was only busy, otherwise the main AI's error
+  return { error: failFor(errors.find(e => e.status === 429) || errors[0], images.length > 0) };
 }
 
 const oneLine = (v, n) => String(v ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -391,10 +483,11 @@ async function callOpenAI(s, env, prompt, images, maxOut) {
     // plain text when there is no photo, so text-only servers understand it too
     messages: [{ role: 'user', content: images.length ? [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] : prompt }]
   };
-  const temp = String(env.AI_TEMPERATURE ?? '').trim();
+  // The main AI follows AI_TEMPERATURE, AI_MAX_TOKENS_FIELD and AI_TIMEOUT_SECONDS; fallbacks bring their own.
+  const temp = s.temperature !== undefined ? String(s.temperature) : String(env.AI_TEMPERATURE ?? '').trim();
   if (!/^(off|none|default)$/i.test(temp)) body.temperature = temp !== '' && Number.isFinite(Number(temp)) ? Number(temp) : 0.1;
-  body[/^max_tokens$/i.test(String(env.AI_MAX_TOKENS_FIELD || '').trim()) ? 'max_tokens' : 'max_completion_tokens'] = maxOut || 1800;
-  const ms = posInt(env.AI_TIMEOUT_SECONDS, 90) * 1000;
+  body[s.tokensField || (/^max_tokens$/i.test(String(env.AI_MAX_TOKENS_FIELD || '').trim()) ? 'max_tokens' : 'max_completion_tokens')] = maxOut || 1800;
+  const ms = s.timeoutMs || posInt(env.AI_TIMEOUT_SECONDS, 90) * 1000;
   let r;
   try {
     r = await fetch(s.base + '/chat/completions', { method: 'POST', headers, body: JSON.stringify(body), signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(ms) : undefined });
