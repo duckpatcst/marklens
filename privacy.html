@@ -91,9 +91,10 @@ small{color:var(--mute)}
   <h2>Changing your mind</h2>
   <p>You can stop using the AI reader at any time by choosing <b>On this phone · free</b>. Photos already sent to an AI company cannot be recalled by MarkLens; contact that company about their data.</p>
 </main>
+<script src="js/api.js"></script>
 <script>
 /* shows which AI service this copy of MarkLens is set up to use */
-fetch('/api/ai', { headers: { accept: 'application/json' } }).then(r => r.ok ? r.json() : null).then(a => {
+MarkLensAPI.config().then(a => {
   if (a && a.enabled && a.providerName) document.getElementById('aiNow').textContent = ' (on this site: ' + a.providerName + (a.backup ? ', then ' + a.backup + ' as backups when it is busy' : '') + ')';
   if (a && a.enabled && a.search) document.getElementById('searchNow').textContent = ' (on this site: ' + a.search + ')';
 }).catch(() => {});

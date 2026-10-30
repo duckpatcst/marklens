@@ -562,6 +562,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   </div>
 </dialog>
 
+<script src="js/api.js"></script>
 <script src="js/omr.js"></script>
 <script src="js/exams.js"></script>
 <script src="js/insights.js"></script>
@@ -858,28 +859,8 @@ const forAI = (blob, colour) => new Promise((res, rej) => {
   img.src = u;
 });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-// When the free plan says "busy", wait the time it asks for (up to 60 s) and try again, up to 4 times.
-async function callAI(body, onWait){
-  for (let attempt = 0; ; attempt++) {
-    let r;
-    try { r = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
-    catch {
-      // A dropped connection on mobile data is usually temporary: wait a little and try the same page again.
-      if (!navigator.onLine || attempt >= 4) throw { code: 'offline' };
-      for (let s = 8; s > 0; s--) { if (onWait) onWait(s); await sleep(1000); }
-      continue;
-    }
-    let j = null; try { j = await r.json(); } catch {}
-    if (r.ok) return j || {};
-    const code = (j && j.error) || 'upstream';
-    if (code === 'busy' && attempt < 4) {
-      const wait = Math.min(60, Number(j && j.retry_after) || 20);
-      for (let s = wait; s > 0; s--) { if (onWait) onWait(s); await sleep(1000); }
-      continue;
-    }
-    throw { code };
-  }
-}
+// Every request to the back end goes through js/api.js (contract: docs/API.md). It retries when the back end says "busy".
+const callAI = (body, onWait) => MarkLensAPI.call(body, onWait);
 
 /* No tick-box: the own-risk notice (#aiRisk) is always on screen whenever the AI reader is available. */
 
@@ -1425,8 +1406,8 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
 
 /* AI reader and grading appear only when the site owner has switched on /api/ai */
 (async () => {
-  try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
-  if (!ai || !ai.enabled) { ai = null; return; }
+  ai = await MarkLensAPI.config();
+  if (!ai) return;
   $('#modeAi').hidden = false; $('#rdAI').hidden = ai.vision === false;   // a text-only model still sorts Lens text and grades
   const aiList = Array.isArray(ai.providers) && ai.providers.length ? ai.providers : [ai.providerName];
   $('#aiWho').textContent = aiList.length > 1 ? `${aiList.slice(0, -1).join(', ')} or ${aiList[aiList.length - 1]}, whichever is available at the time` : aiList[0]; $('#aiRisk').hidden = mode === 'omr';
