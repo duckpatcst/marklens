@@ -21,6 +21,8 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 | `index.html` | The MarkLens website |
 | `privacy.html` | The privacy notice that students see |
 | `omr.html` | Prints blank MarkLens OMR answer sheets (up to 200 questions on one A4 page, A–D or A–E) |
+| `js/landing.js`, `css/landing.css` | The front of the page: the example paper is marked as you scroll, the lost marks sort themselves into lessons, then the exam rail and the exam picker. Every number comes from the same parser and maths as the Analyzer |
+| `vendor/scrollcraft/` | The scroll engine the front of the page runs on (scroll-craft by Nate Herk, MIT licence, unmodified) |
 | `js/omr.js` | The OMR sheet layout and the on-phone OMR reader |
 | `js/exams.js` | The exam types: marking schemes, sections by question number, grades and pass marks |
 | `js/parse.js` | Reads the text of question papers, marked sheets and answer keys into questions, marks, subjects, chapters and topics, and scores multiple-choice and numerical answers |

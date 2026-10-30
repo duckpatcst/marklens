@@ -9,7 +9,8 @@
 <title>MarkLens</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@500;600&display=swap">
+<link rel="stylesheet" href="vendor/scrollcraft/scrollcraft.css">
 <style>
 /* Layout: sticky nav, split hero with a marked-script mock, 3-step strip, then the analyzer and live dashboard as one working surface.
    Input: photos (camera or gallery) read on the device (Tesseract) or by the site's AI function; touch-sized controls for Android and iOS. */
@@ -64,32 +65,7 @@ nav ul a{text-decoration:none}
 label.btn:focus-within{outline:2px solid var(--blue);outline-offset:2px}
 .btn[disabled]{opacity:.5;cursor:wait}
 
-/* hero */
-.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:48px;align-items:center;padding-block:56px 48px}
-.hero p.lead{font-size:1.12rem;color:var(--mute);max-width:46ch;margin:18px 0 26px}
-.hero .cta{display:flex;gap:10px;flex-wrap:wrap}
-.hero h1 em{font-style:normal;color:var(--pen);position:relative;white-space:nowrap}
-.hero h1 em::after{content:"";position:absolute;left:-2%;right:-2%;bottom:-.08em;height:.1em;background:var(--pen);border-radius:4px;transform:rotate(-1.2deg)}
-@media(max-width:860px){.hero{grid-template-columns:1fr;gap:32px;padding-block:36px}}
-.script{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px 20px 12px;transform:rotate(1.2deg);box-shadow:0 18px 40px -22px rgba(10,25,50,.35);
-  background-image:repeating-linear-gradient(transparent 0 33px,color-mix(in srgb,var(--blue) 18%,transparent) 33px 34px);background-position:0 8px}
-.script header{display:flex;justify-content:space-between;font:600 .72rem var(--f-mono);color:var(--mute);letter-spacing:.08em;padding-bottom:10px;margin-bottom:6px;border-bottom:2px solid var(--ink)}
-.sq{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;min-height:34px;font-size:.88rem}
-.sq b{font:600 .8rem var(--f-mono)}
-.sq span.n{color:var(--mute)}
-.sq .m{font:600 .95rem var(--f-mono);color:var(--pen);position:relative;padding:1px 8px;border:2px solid var(--pen);border-radius:50%/60%;transform:rotate(-4deg)}
-.sq .m.full{color:var(--ok);border-color:var(--ok)}
-.note{font:500 .78rem var(--f-mono);color:var(--pen);margin:-4px 0 4px 44px;transform:rotate(-.6deg)}
-.script footer{display:flex;justify-content:flex-end;padding-top:10px}
-.script footer .tot{font:800 1.5rem var(--f-display);color:var(--pen);border-bottom:3px double var(--pen)}
 
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-block:8px 64px}
-.step{padding:24px 24px 26px 0;position:relative}
-.step+.step{padding-left:24px;border-left:1px solid var(--line)}
-.step .eyebrow{display:block;margin-bottom:8px}
-.step p{margin:6px 0 0;color:var(--mute);font-size:.92rem;max-width:34ch}
-@media(max-width:760px){.steps{grid-template-columns:1fr}.step,.step+.step{padding:18px 0;border-left:0}.step+.step{border-top:1px solid var(--line)}}
 
 /* sections */
 section{scroll-margin-top:70px}
@@ -422,6 +398,7 @@ svg text{fill:var(--mute);font:500 11px var(--f-mono)}
 footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--line);color:var(--mute);font-size:.85rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn:active{transform:none}}
 </style>
+<link rel="stylesheet" href="css/landing.css">
 </head>
 <body>
 <nav><div class="wrap">
@@ -430,32 +407,95 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   <a class="btn primary" href="#analyze">Analyze my paper</a>
 </div></nav>
 
-<main class="wrap" id="top">
-  <div class="hero">
-    <div>
-      <div class="eyebrow">Exam analysis for students</div>
-      <h1 style="margin-top:14px">See exactly where your <em>marks went.</em></h1>
-      <p class="lead">Scan the question paper and your exam sheet with Google Lens or your camera. For school tests, board papers, NEET, JEE, CUET and more, MarkLens shows the right answers to what you got wrong, the topics you are weak in, and where to spend your study time to win the most marks back.</p>
-      <div class="cta"><a class="btn primary" href="#analyze">Analyze a paper</a><a class="btn" href="#dashboard">See the dashboard</a></div>
-    </div>
-    <div class="script" aria-label="Example of a marked exam script">
-      <header><span>MATHEMATICS · TERM 2</span><span>SCRIPT 0417</span></header>
-      <div class="sq"><b>Q1</b><span class="n">Solve 2x + 3 = 11</span><span class="m full">2/2</span></div>
-      <div class="sq"><b>Q2</b><span class="n">Factorise x² − 5x + 6</span><span class="m">1/3</span></div>
-      <div class="note">sign error in step 2</div>
-      <div class="sq"><b>Q4</b><span class="n">Prove: angle sum of a triangle</span><span class="m">2/5</span></div>
-      <div class="note">proof incomplete, concept unclear</div>
-      <div class="sq"><b>Q8</b><span class="n">Prove sin²x + cos²x = 1</span><span class="m">0/5</span></div>
-      <footer><span class="tot">21 / 38</span></footer>
-    </div>
-  </div>
+<div class="land" id="top">
 
-  <div class="steps" id="how">
-    <div class="step"><span class="eyebrow">Step 1 · Paper</span><h3>Scan the question paper</h3><p>Take a photo of each page or pick them from your gallery. Google Lens reads them, and MarkLens finds the questions, marks and topics.</p></div>
-    <div class="step"><span class="eyebrow">Step 2 · Sheet</span><h3>Scan your exam sheet</h3><p>Google Lens reads handwriting best. Already marked? MarkLens finds the marks and the teacher's remarks. Not marked yet? The AI reader can grade your answers.</p></div>
-    <div class="step"><span class="eyebrow">Step 3 · Dashboard</span><h3>See where to focus</h3><p>MarkLens finds the topic of every question, shows the right answers with their sources, and shares your study time between subjects to win back the most marks.</p></div>
-  </div>
+  <!-- ACT 1 · pinned live surface: the example paper is marked as you scroll (js/landing.js) -->
+  <section class="act-mark" id="act-mark" data-sc-act="pin" data-sc-span="6" aria-labelledby="mkTitle">
+    <div data-sc-stage class="mk">
+      <div class="mk__grid">
+        <figure class="sheet" id="sheetFig" role="img" aria-label="Example answer sheet, marked by the teacher">
+          <header class="sheet__head"><span>Mathematics · Term 2 · Example</span>
+            <span class="sheet__total"><svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M60 4 C88 2 99 16 97 32 C95 50 70 58 46 57 C20 56 3 46 4 30 C5 13 26 4 52 5 C62 5.5 70 8 74 11"/></svg><b id="mkTotal">0</b><i>/<span id="mkMax">38</span></i></span>
+          </header>
+          <ol class="sheet__rows" id="mkRows"></ol>
+        </figure>
 
+        <div class="mkp">
+          <p class="mkp__status"><i class="dot" aria-hidden="true"></i>Example paper · <span data-mk="subject">Maths</span> · <span data-mk="n">12</span> questions · <span data-mk="max">38</span> marks</p>
+          <div class="mkp__stack">
+            <div class="st st--a" data-sc-cue="0 0.2 0 0.05">
+              <h1 id="mkTitle">Where did your <em><span data-mk="lost">17</span> marks</em> go?</h1>
+              <p class="lead">Photograph your question paper and your marked answer sheet. MarkLens reads the teacher&#39;s marks, finds every one you lost, and shows what to fix first. Free, for school tests, board exams, NEET, JEE and more.</p>
+              <div class="st__cta"><a class="btn primary" href="#start">Analyze my paper</a><span class="st__hint">This example is marked below.</span></div>
+            </div>
+            <div class="st st--b" data-sc-cue="0.16 0.375 0.05 0.035" aria-hidden="true">
+              <p class="eyebrow-s">Reading the teacher&#39;s marks</p>
+              <p class="mk-live" id="mkQ">Q1</p>
+              <p class="mk-line" id="mkLine"></p>
+              <p class="mk-score">Score so far <b><span id="mkSoFar">0</span></b> / <span data-mk="max">38</span></p>
+            </div>
+            <div class="st st--c" data-sc-cue="0.385 0.765 0.035 0.035" data-sc-rise="0">
+              <h2>Here&#39;s where the <em><span data-mk="lost">17</span></em> went.</h2>
+              <ul class="bins" id="mkBins"></ul>
+            </div>
+            <div class="st st--d" data-sc-cue="0.77 1.4 0.04 0.02">
+              <h2>Win back <em><span data-mk="gain">6.5</span> marks</em> first.</h2>
+              <div class="reach">
+                <p class="reach__nums"><b id="mkReachNum"><span data-mk="got">21</span></b> within reach, out of <span data-mk="max">38</span></p>
+                <div class="reach__bar" aria-hidden="true"><i class="reach__got"></i><i class="reach__gain"></i></div>
+              </div>
+              <ol class="mkplan" id="mkPlan"></ol>
+              <a class="inline" href="#dashboard">Open the full dashboard for this paper</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chips" id="mkChips" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- ACT 2 · pan: real marking schemes from js/exams.js -->
+  <section class="act-exams" data-sc-act="pan" data-sc-span="3" aria-labelledby="exTitle">
+    <div data-sc-stage class="ex">
+      <div class="ex__rail" id="exRail" data-sc-pan="0.04">
+        <div class="ex__lead">
+          <h2 id="exTitle">Marked the way your exam is marked.</h2>
+          <p>Pick your exam once. MarkLens uses its marking scheme, sections, grades and pass mark, so a NEET sheet and a CBSE paper are never scored the same way.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 3 · flow: how pages are read, and where photos go -->
+  <section class="how" id="how" aria-labelledby="howTitle">
+    <div class="how__lead" data-sc-in>
+      <h2 id="howTitle">Three ways to read your pages.</h2>
+      <p>Choose one at the top of the Analyzer. You can always fix anything it misreads in the table.</p>
+    </div>
+    <ol class="ways" data-sc-in data-sc-stagger="70">
+      <li><span class="n" aria-hidden="true">1</span><h3>Google Lens <small>best for handwriting</small></h3><p>Take photos as usual. Each one opens in Google Lens; copy the text and come back.</p><p class="priv">Photos go to Google under its terms. MarkLens only gets the text you copy.</p></li>
+      <li><span class="n" aria-hidden="true">2</span><h3>On this phone <small>free and private</small></h3><p>Reads printed papers, the teacher&#39;s red ticks, crosses and marks, and MarkLens OMR sheets.</p><p class="priv">Runs in your browser. Nothing is sent anywhere.</p></li>
+      <li><span class="n" aria-hidden="true">3</span><h3>AI reader</h3><p>Reads photos automatically and can grade answers that are not marked yet. Appears when the site has an AI key.</p><p class="priv">Photos go to an outside AI company. Crop out your name and roll number first.</p></li>
+    </ol>
+  </section>
+
+  <!-- ACT 4 · the close: an actual input -->
+  <section class="start" id="start" aria-labelledby="startTitle">
+    <div class="start__card" data-sc-reveal="up" data-sc-reveal-at="0 0.42">
+      <div>
+        <h2 id="startTitle">Which exam is <em>next?</em></h2>
+        <p>Pick it, then add photos of your question paper and answer sheet. The example above stays loaded until you replace it.</p>
+      </div>
+      <div class="start__form">
+        <label for="startExam">Your exam</label>
+        <div class="start__row"><select id="startExam"><option>Any exam</option></select><button type="button" id="startGo">Analyze my paper</button></div>
+        <p class="start__note">Results stay on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<main class="wrap" id="app">
   <section id="analyze">
     <div class="sec-head"><div><h2>Analyzer</h2><p>An example paper is loaded so you can see how it works. Replace it with your own pages.</p></div>
       <div class="row" style="margin:0"><button class="btn" id="sample">Reload example</button><button class="btn" id="clear">Clear all</button></div></div>
@@ -562,6 +602,38 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   </div>
 </dialog>
 
+<script type="text/plain" id="demoPaper">
+Section A: Algebra
+1. Solve 2x + 3 = 11 [2]
+2. Factorise x^2 - 5x + 6 [3]
+3. Choose the correct root of x^2 = 49: a) 5 b) 7 c) 9 d) 11 [1]
+Section B: Geometry
+4. Prove that the angle sum of a triangle is 180 degrees. [5]
+5. Find the area of a circle of radius 7 cm. [3]
+6. In a right triangle, find the missing side using the theorem. [4]
+Section C: Trigonometry
+7. Find sin 30 + cos 60. [2]
+8. Prove sin^2 x + cos^2 x = 1 using a right triangle. [5]
+Section D: Statistics
+9. Find the mean of 4, 8, 12, 16. [2]
+10. Calculate the median and mode of the data set. [4]
+11. A bag has 3 red and 5 blue balls. Find the probability of drawing red. [3]
+12. Describe how a histogram differs from a bar chart. [4]
+</script>
+<script type="text/plain" id="demoSheet">
+1: 2/2
+2: 1/3 sign error while factorising
+3: 1/1
+4: 2/5 concept not clear, incomplete proof
+5: 2/3 forgot units
+6: 1/4 wrong formula used
+7: 2/2
+8: 0/5 not attempted
+9: 2/2
+10: 3/4 careless calculation of median
+11: 3/3
+12: 2/4 incomplete explanation
+</script>
 <script src="js/omr.js"></script>
 <script src="js/exams.js"></script>
 <script src="js/insights.js"></script>
@@ -1365,34 +1437,8 @@ $('#exam').addEventListener('change', e => setExam(e.target.value, true));
 function dropShots(){ for (const k of ['paper', 'sheet']) { shots[k].forEach(s => URL.revokeObjectURL(s.url)); shots[k] = []; renderShots(k); setSt('#' + k + 'PhotoStatus', ''); } }
 $('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; $('#omrPaper').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); keyIsExample = false; $('#paperCheck').hidden = true; $('#sheetCheck').hidden = true; if (mode !== 'omr') setMode('marked'); changed(true); };
 function loadSample(){
-  $('#paper').value = `Section A: Algebra
-1. Solve 2x + 3 = 11 [2]
-2. Factorise x^2 - 5x + 6 [3]
-3. Choose the correct root of x^2 = 49: a) 5 b) 7 c) 9 d) 11 [1]
-Section B: Geometry
-4. Prove that the angle sum of a triangle is 180 degrees. [5]
-5. Find the area of a circle of radius 7 cm. [3]
-6. In a right triangle, find the missing side using the theorem. [4]
-Section C: Trigonometry
-7. Find sin 30 + cos 60. [2]
-8. Prove sin^2 x + cos^2 x = 1 using a right triangle. [5]
-Section D: Statistics
-9. Find the mean of 4, 8, 12, 16. [2]
-10. Calculate the median and mode of the data set. [4]
-11. A bag has 3 red and 5 blue balls. Find the probability of drawing red. [3]
-12. Describe how a histogram differs from a bar chart. [4]`;
-  $('#sheet').value = `1: 2/2
-2: 1/3 sign error while factorising
-3: 1/1
-4: 2/5 concept not clear, incomplete proof
-5: 2/3 forgot units
-6: 1/4 wrong formula used
-7: 2/2
-8: 0/5 not attempted
-9: 2/2
-10: 3/4 careless calculation of median
-11: 3/3
-12: 2/4 incomplete explanation`;
+  $('#paper').value = $('#demoPaper').textContent.trim();
+  $('#sheet').value = $('#demoSheet').textContent.trim();
   edits = {}; dropShots(); setMode('marked'); sampleData = true; rebuild(); $('#sampleFlag').hidden = false;
 }
 $('#sample').onclick = () => mode === 'omr' ? loadOmrSample() : loadSample();
@@ -1436,5 +1482,7 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
   if (savedReader === 'ai' && ai.vision !== false) setReader('ai', true);
 })();
 </script>
+<script src="vendor/scrollcraft/scrollcraft.js"></script>
+<script src="js/landing.js"></script>
 </body>
 </html>
