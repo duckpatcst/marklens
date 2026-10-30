@@ -138,3 +138,47 @@ test('a scanned key keeps numerical answers and marking lines typed before', () 
   const kt = keyText([{ q: 1, marked: 'B' }, { q: 2, marked: 'C' }], 'Marks: +4 -1\n1-A\n2-A\n3 = 12');
   assert.equal(kt, 'Marks: +4 -1\n1-B\n2-C\n3 = 12');
 });
+
+test('marks from the paper\'s rules: ranges, "each question carries", and 10x1=10 beside a section', () => {
+  // as printed on a commerce paper: numbered instructions are rules, not questions
+  const acc = parsePaper(`General Instructions:
+1. This question paper has two parts - Part-A and Part B.
+2. Questions from 1 to 3 and 7 to 8 carry 1 mark each.
+3. Questions from 4 to 5 and 9 carry 3 marks each.
+4. Questions from 6 to 6 carry 6 marks each.
+PART-A
+SECTION-A
+I. CHOOSE THE BEST ANSWER: 3x1=3
+1. Which is not capital expenditure?
+2. Pick the correct order
+1 (A) 50,000 (B) 1,10,000
+3. What is revenue?
+4. Explain [3]
+5. Explain
+6. Prepare a ledger
+7. Define
+8. Define
+9. Journalise`);
+  assert.deepEqual(acc.map(q => `${q.q}:${q.max}`), ['1:1', '2:1', '3:1', '4:3', '5:3', '6:6', '7:1', '8:1', '9:3']);
+  // as printed on a computer science paper, with the section rules as bullets and NxM=T beside each section
+  const py = parsePaper(`• Section B, Consist of 2 questions (3-4). Each question carries 2 marks.
+SECTION – A 2x1=2
+1. What can be the output?
+2. Which is unordered?
+SECTION -B 2x2=4
+3. Write a short note on mutability.
+4. Predict the output.
+SECTION ~ C
+Each question carries 3 marks.
+5. Explain loops.`);
+  assert.deepEqual(py.map(q => `${q.q}:${q.max}`), ['1:1', '2:1', '3:2', '4:2', '5:3']);
+  assert.deepEqual(py.map(q => q.sec), ['A', 'A', 'B', 'B', 'C']);
+  // a question's own label still wins, and "Section A: Algebra" still names the lesson
+  const own = parsePaper('Section A: Algebra 2x1=2\n1. Solve [5]\n2. Factor');
+  assert.deepEqual(own.map(q => `${q.q}:${q.max}:${q.topic}`), ['1:5:Algebra', '2:1:Algebra']);
+});
+
+test('tidyPaper: "4, What" is question 4; a stray mark before the options is not', () => {
+  assert.equal(tidyPaper('4, What amount is income?'), '4. What amount is income?');
+  assert.equal(tidyPaper('1 (A) 50,000 (B) 1,10,000'), '1 (A) 50,000 (B) 1,10,000');
+});

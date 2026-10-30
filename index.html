@@ -103,6 +103,11 @@ textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line
 .hint{color:var(--mute);font-size:.82rem;margin:8px 0 0}
 .status{font-size:.82rem;color:var(--ok)}
 .status.err{color:var(--pen)}
+/* what the on-phone marks reader wants the student to check against the photo */
+.checks{margin:8px 0 0;padding:10px 12px 10px 28px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--warn) 9%,transparent);font-size:.82rem;line-height:1.5}
+.checks li+li{margin-top:3px}.checks .t{list-style:none;margin-left:-16px;font-weight:600}
+#tableWrap tr.check td{background:color-mix(in srgb,var(--warn) 13%,transparent)}
+#tableWrap tr.check td:first-child{box-shadow:inset 3px 0 var(--warn)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px;max-width:100%}
 .seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-size:.85rem;color:var(--mute)}
 .seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
@@ -462,7 +467,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
     <div class="eyebrow" id="readersLbl" style="margin:0 0 10px">How should MarkLens read your pages?</div>
     <div class="readers" id="readers" role="group" aria-label="How to read your pages">
       <button type="button" class="rd" id="rdLens" aria-pressed="true"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg></span><span><b>Google Lens</b><small>Best for handwriting. Take photos; each one opens in Google Lens.</small></span><span class="pick">Recommended</span></button>
-      <button type="button" class="rd" id="rdDevice" aria-pressed="false"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span><b>On this phone</b><small>Free and private. Best for printed papers.</small></span></button>
+      <button type="button" class="rd" id="rdDevice" aria-pressed="false"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span><b>On this phone</b><small>Free and private. Reads printed papers and the teacher's red ticks, crosses and marks.</small></span></button>
       <button type="button" class="rd" id="rdAI" aria-pressed="false" hidden><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg></span><span><b>AI reader</b><small>Automatic from photos. Photos go to an AI company.</small></span></button>
     </div>
     <div class="lensguide" id="lensGuide" hidden>
@@ -514,6 +519,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
         </div>
         <div class="shots" id="sheetShots" hidden></div>
         <div class="row" id="sheetReadRow" hidden><button class="btn primary" id="sheetRead">Read marks</button><button class="btn primary" id="aiGo" hidden>Grade with AI</button><span class="status" id="sheetPhotoStatus"></span></div>
+        <ul class="checks" id="sheetChecks" hidden></ul>
         <div class="omrcheck" id="sheetCheck" hidden><img alt="The student's OMR sheet with the bubbles MarkLens read circled"><p class="hint"><span class="key-dot" style="background:#12a150"></span>read<span class="key-dot" style="background:#f59e0b"></span>check this one<span class="key-dot" style="background:#e5484d"></span>more than one bubble</p></div>
         <div class="readlbl"><span id="sheetLbl">Marks found on the sheet</span><span class="status" id="sheetStatus"></span></div>
         <textarea id="sheet" spellcheck="false" aria-label="Exam sheet text"></textarea>
@@ -560,6 +566,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 <script src="js/exams.js"></script>
 <script src="js/insights.js"></script>
 <script src="js/parse.js"></script>
+<script src="js/redmarks.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
 <script>
@@ -586,13 +593,17 @@ function rebuild(){
   if (mode !== 'marked') return;
   const paper = parsePaper($('#paper').value), sheet = matchSheet(paper, parseSheet($('#sheet').value)), by = new Map();
   sheetCount = sheet.length;
-  paper.forEach(({ n, first, line, ...p }) => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
+  paper.forEach(({ n, first, line, sec, ...p }) => by.set(p.q, { ...p, got: 0, cause: p.max > 0 ? 'Unspecified' : 'None' }));
   const seen = new Set();
   sheet.forEach(s => {
     seen.add(s.q);
     const r = by.get(s.q) || { q: s.q, subject: paper[0] ? paper[0].subject : '', topic: 'General', type: s.max <= 3 ? 'Short answer' : 'Long answer', max: 0, got: 0 };
     if (!r.max) r.max = s.max || s.got;
-    r.got = Math.min(s.got, r.max); r.cause = classify(s.remark, r.max - r.got); by.set(s.q, r);
+    // "1: 1/1 ✓ – check: no red mark found…" from the on-phone marks reader: the part after "check:" is for the student
+    const [rem, why] = String(s.remark || '').split(/\s*(?:[–-]\s*)?check:\s*/i);
+    r.got = Math.min(s.got, r.max); r.cause = classify(rem.replace(/[✓✗]/g, ''), r.max - r.got);
+    if (why) { r.check = true; r.why = why; } else { delete r.check; delete r.why; }
+    by.set(s.q, r);
   });
   for (const [k, e] of Object.entries(edits)) {
     const { added, deleted, ...f } = e;
@@ -634,7 +645,7 @@ function renderTable(){
     return;
   }
   $('#tableWrap').innerHTML = `<table class="wide"><thead><tr><th>Q</th><th>Subject</th><th>Chapter</th><th>Topic</th><th>Type</th><th>Awarded</th><th>Out of</th><th>Why marks were lost</th><th></th></tr></thead><tbody>` +
-  rows.map((r, i) => `<tr data-i="${i}"><td><input data-k="q" value="${esc(r.q)}" style="width:56px" aria-label="Question number"></td>
+  rows.map((r, i) => `<tr data-i="${i}"${r.check ? ` class="check" title="${esc('Check on the photo: ' + r.why)}"` : ''}><td><input data-k="q" value="${esc(r.q)}" style="width:56px" aria-label="Question number${r.check ? ', check this one on the photo' : ''}"></td>
     <td><input data-k="subject" value="${esc(r.subject || '')}" list="subjectList" aria-label="Subject"></td>
     <td><input data-k="topic" value="${esc(r.topic)}" aria-label="Chapter"></td><td><input data-k="sub" value="${esc(r.sub || '')}" aria-label="Topic"></td><td><select data-k="type" aria-label="Type">${opt(TYPES, r.type)}</select></td>
     <td><input type="number" inputmode="decimal" step="0.5" min="0" data-k="got" value="${num(r.got)}" aria-label="Marks awarded"></td>
@@ -654,6 +665,7 @@ $('#tableWrap').addEventListener('input', e => {
     cs.value = r.cause;
   }
   noteEdit(r, { [k]: r[k], cause: r.cause });
+  if ((k === 'got' || k === 'max') && r.check) { r.check = false; tr.classList.remove('check'); noteEdit(r, { check: false }); }
   sampleData = false; changed(false);
 });
 // when a marks cell is finished, awarded can never exceed the maximum
@@ -831,14 +843,15 @@ const ERR = {
 };
 const errMsg = (e, fallback) => (e && ERR[e.code]) || fallback;
 const clean = t => String(t || '').replace(/^\s*```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/, '').trim();
-// Photos for the AI are re-shrunk to 1400px and turned grey: still sharp enough for handwriting, and
-// about a third fewer tokens against the free plan's per-minute limit. The stored photo stays full quality.
-const forAI = blob => new Promise((res, rej) => {
+// Photos for the AI are re-shrunk to 1400px: still sharp enough for handwriting. A marked sheet keeps its colour, so
+// the AI can tell the teacher's red ticks, crosses and numbers from the student's writing; other pages go grey.
+// The stored photo stays full quality.
+const forAI = (blob, colour) => new Promise((res, rej) => {
   const img = new Image(), u = URL.createObjectURL(blob);
   img.onload = () => {
     const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-    const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.15)'; g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+    const g = c.getContext('2d'); g.filter = colour ? 'contrast(1.1) saturate(1.2)' : 'grayscale(1) contrast(1.15)'; g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
     res(c.toDataURL('image/jpeg', 0.8));
   };
   img.onerror = () => { URL.revokeObjectURL(u); rej({ code: 'image_rejected' }); };
@@ -884,27 +897,96 @@ function getOcr(){
   }
   return ocrWorker;
 }
-// Grey, contrast-stretched copy of the photo: helps with shadows and yellowed paper.
+// Grey copy of the photo with shadows, folds and yellow light taken out: each pixel is divided by the paper's own
+// brightness around it (the brightest part of each small block), then the contrast is stretched. Tesseract reads the
+// top and bottom lines of a curled, shadowed page much better this way.
 const prep = blob => new Promise((res, rej) => {
   const img = new Image(), u = URL.createObjectURL(blob);
   img.onload = () => {
     const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
     const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); URL.revokeObjectURL(u);
-    const d = g.getImageData(0, 0, c.width, c.height), px = d.data, hist = new Uint32Array(256);
-    for (let i = 0; i < px.length; i += 4) { const v = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000 | 0; px[i] = v; hist[v]++; }
-    const total = px.length / 4; let lo = 0, hi = 255, acc = 0;
-    while (lo < 255 && (acc += hist[lo]) < total * .01) lo++;
-    acc = 0; while (hi > 0 && (acc += hist[hi]) < total * .01) hi--;
-    const k = 255 / Math.max(1, hi - lo);
-    for (let i = 0; i < px.length; i += 4) { const v = Math.max(0, Math.min(255, (px[i] - lo) * k)); px[i] = px[i + 1] = px[i + 2] = v; }
+    const W = c.width, H = c.height, d = g.getImageData(0, 0, W, H), px = d.data, v = new Uint8Array(W * H);
+    for (let i = 0, p = 0; i < W * H; i++, p += 4) v[i] = (px[p] * 299 + px[p + 1] * 587 + px[p + 2] * 114) / 1000 | 0;
+    const B = Math.max(16, Math.round(Math.max(W, H) / 64)), gw = Math.ceil(W / B), gh = Math.ceil(H / B), bg = new Float32Array(gw * gh), hist = new Uint32Array(256);
+    for (let by = 0; by < gh; by++) for (let bx = 0; bx < gw; bx++) {
+      hist.fill(0); let n = 0;
+      for (let y = by * B; y < Math.min(H, by * B + B); y++) for (let x = bx * B; x < Math.min(W, bx * B + B); x++) { hist[v[y * W + x]]++; n++; }
+      let t = 255, acc = 0; while (t > 0 && (acc += hist[t]) < n * 0.1) t--;   // the brightest 10% of a block is paper
+      bg[by * gw + bx] = Math.max(40, t);
+    }
+    const sm = Float32Array.from(bg);   // a block full of ink: take the brightest of its neighbours instead
+    for (let by = 0; by < gh; by++) for (let bx = 0; bx < gw; bx++) { const nb = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const yy = by + dy, xx = bx + dx; if (yy >= 0 && yy < gh && xx >= 0 && xx < gw) nb.push(bg[yy * gw + xx]); } nb.sort((a, b) => a - b); sm[by * gw + bx] = Math.max(bg[by * gw + bx], nb[Math.floor(nb.length * 0.6)]); }
+    for (let y = 0; y < H; y++) {
+      const fy = Math.min(gh - 1, Math.max(0, (y + 0.5) / B - 0.5)), y0 = Math.floor(fy), y1 = Math.min(gh - 1, y0 + 1), ty = fy - y0;
+      for (let x = 0; x < W; x++) {
+        const fx = Math.min(gw - 1, Math.max(0, (x + 0.5) / B - 0.5)), x0 = Math.floor(fx), x1 = Math.min(gw - 1, x0 + 1), tx = fx - x0;
+        const b = (sm[y0 * gw + x0] * (1 - tx) + sm[y0 * gw + x1] * tx) * (1 - ty) + (sm[y1 * gw + x0] * (1 - tx) + sm[y1 * gw + x1] * tx) * ty;
+        const r = v[y * W + x] / b, o = Math.max(0, Math.min(255, (r - 0.47) / (0.92 - 0.47) * 255)), p = (y * W + x) * 4;
+        px[p] = px[p + 1] = px[p + 2] = o;
+      }
+    }
     g.putImageData(d, 0, 0); res(c);
   };
   img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('photo')); };
   img.src = u;
 });
-// drops edge noise such as "ER" or "|i" that shadows at the page border produce
 
+/* ---- on-phone marks reader: the teacher's red ticks, crosses and numbers (js/redmarks.js, in a worker) ---- */
+let marksWorker = null, marksSeq = 0;
+const marksWait = new Map();
+function marksJob(px){
+  if (!marksWorker) {
+    marksWorker = new Worker('js/redmarks-worker.js');
+    marksWorker.onmessage = e => { const w = marksWait.get(e.data.id); if (!w) return; marksWait.delete(e.data.id); if (e.data.error) w.rej(new Error(e.data.error)); else w.res(e.data.page); };
+    marksWorker.onerror = () => { for (const w of marksWait.values()) w.rej(new Error('worker')); marksWait.clear(); marksWorker = null; };
+  }
+  return new Promise((res, rej) => { const id = ++marksSeq; marksWait.set(id, { res, rej }); marksWorker.postMessage({ id, w: px.w, h: px.h, buffer: px.buffer }, [px.buffer]); });
+}
+// the photo's pixels as stored (2000 px at most); the reader itself brings them to 1600 px, the same way on every phone
+const photoPixels = blob => new Promise((res, rej) => {
+  const img = new Image(), u = URL.createObjectURL(blob);
+  img.onload = () => {
+    const k = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+    res({ w: c.width, h: c.height, buffer: g.getImageData(0, 0, c.width, c.height).data.buffer });
+  };
+  img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('photo')); };
+  img.src = u;
+});
+function showChecks(res){
+  const box = $('#sheetChecks'), list = res ? res.rows.filter(r => r.check) : [];
+  const head = res && res.total ? [res.notes[0]] : [];
+  box.hidden = !list.length && !head.length;
+  box.innerHTML = head.map(t => `<li class="t">${esc(t)}</li>`).join('') +
+    (list.length ? `<li class="t">Check ${list.length === 1 ? 'this one' : 'these'} on the photo (highlighted in the table):</li>` : '') +
+    list.map(r => `<li><b>${esc(qName(r.q))}</b>: ${esc(r.why)}</li>`).join('');
+}
+async function readMarksOnDevice(){
+  const btn = $('#sheetRead'), st = '#sheetPhotoStatus', ta = $('#sheet'), list = shots.sheet, n = list.length, before = ta.value;
+  if (!n) return;
+  btn.disabled = true; showChecks(null);
+  try {
+    const pages = [];
+    for (let i = 0; i < n; i++) {
+      setSt(st, n > 1 ? `Reading the teacher's red marks: page ${i + 1} of ${n}…` : "Reading the teacher's red marks…");
+      pages.push(await marksJob(await photoPixels(list[i].blob)));
+    }
+    // the paper says which questions there are and what each is out of; the example paper is never used for a real sheet
+    const qs = sampleData ? [] : parsePaper($('#paper').value).map(p => ({ q: p.q, n: p.n, max: p.max, sec: p.sec || '' }));
+    const res = RedMarks.readSheet(pages, qs);
+    if (!res.rows.length) { setSt(st, 'No red marks were found. Take the photo in brighter light, or try Google Lens.', true); return; }
+    ta.value = res.lines.join('\n'); sampleData = false; edits = {};
+    rebuild(); showChecks(res);
+    const checks = res.rows.filter(r => r.check).length;
+    setSt(st, `Read the teacher's marks for ${res.rows.length} question${res.rows.length > 1 ? 's' : ''}.` + (checks ? ` ${checks} to check below.` : '') + (qs.length ? '' : ' Add the question paper too, so each mark gets its question and maximum.'), !!checks);
+  } catch (e) {
+    ta.value = before;
+    setSt(st, e && e.message === 'photo' ? 'One photo could not be opened. Retake it.' : 'The marks reader could not start. Reload the page and try again.', true);
+  } finally { btn.disabled = false; }
+}
 async function readOnDevice(kind){
+  if (kind === 'sheet' && mode === 'marked') return readMarksOnDevice();
   const btn = $(kind === 'paper' ? '#paperRead' : '#sheetRead'), st = '#' + kind + 'PhotoStatus', ta = $('#' + kind);
   const list = shots[kind], n = list.length, before = ta.value;
   if (!n) return;
@@ -1076,7 +1158,7 @@ async function readWithAI(kind){
       const batch = list.slice(i, i + per), b = i + batch.length; a = i + 1;
       const label = n > 1 ? `AI reader: page ${a} of ${n}` : 'AI reader is working';
       setSt(st, `${label}… this can take up to a minute.`);
-      const images = await Promise.all(batch.map(forAI));
+      const images = await Promise.all(batch.map(b => forAI(b, task === 'sheet')));
       const j = await callAI({ task, images, first: a, last: b, total: n, paper: task === 'sheet' ? paperText : '' },
         s => setSt(st, `The free AI is busy. Trying again in ${s}s…`));
       done = (done ? done + '\n' : '') + clean(j.text);
@@ -1102,7 +1184,7 @@ $('#paperRead').onclick = () => readPhotos('paper');
 $('#sheetRead').onclick = () => readPhotos('sheet');
 
 /* ---- modes + AI grading ---- */
-const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. For handwriting, choose Google Lens above. Remarks decide why marks were lost.';
+const HINT_MARKED = 'One line per question, e.g. 2: 1/3 sign error. "On this phone" reads the teacher\'s red ticks, crosses and marks from the photos; anything unsure is listed above to check. Remarks decide why marks were lost.';
 const HINT_AI = "Add photos of the unmarked answer sheet and tap Read answers, or type them (Q1: ..., Q2: ...). The AI grades them against the paper.";
 const HINT_PAPER = 'Scan each page flat, in good light, with all four edges in frame. Fix anything misread. Marks are read from [5], (5 marks) or 5M. Lines like "Subject: Physics" and "Section A: Optics" name the subject and lesson.';
 const HINT_OMR_KEY = 'One answer per line, like 1-B, or a row of letters like BDACB. Numerical answers: 21 = 12, or 22 = 2.30 to 2.35. Put "Subject: Physics" before each subject and "Chapter: Optics" before each chapter to see which lessons cost marks. Or scan an OMR sheet filled with the right answers.';
