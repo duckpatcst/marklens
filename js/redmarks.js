@@ -317,6 +317,12 @@
       }
     }
     for (const i of fill) red[i] = 1;
+    // the same where a red stroke crosses the student's writing: a short dark gap with red on both sides is red ink
+    // passing over (or under) the blue. Closing the red mask, kept only on dark pixels, joins the two ends.
+    const N = W * H, grown = dilateMask(red, W, H, 3), not = new Uint8Array(N);
+    for (let i = 0; i < N; i++) not[i] = grown[i] ? 0 : 1;
+    const shrunk = dilateMask(not, W, H, 3);
+    for (let i = 0; i < N; i++) if (!red[i] && !shrunk[i] && an.dark[i] >= 35) red[i] = 1;
   }
 
   // The page's layout from the pen and pencil ink (not the red ink): the ruled lines give the line spacing, which is the
@@ -469,16 +475,24 @@
 
   // Strokes that belong together: the 1 and 3 of "13", the pieces of a ½, a ring and the number in it. Two big strokes
   // are never joined, because two ticks on neighbouring lines often nearly touch.
-  function groupMarks(an, comps, gap) {
+  function groupMarks(an, comps, gap, joined) {
     const n = comps.length, par = [...Array(n).keys()];
     const f = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+    const at = new Map(comps.map((c, i) => [c, i]));
+    for (const [a, b] of joined || []) if (at.has(a) && at.has(b)) par[f(at.get(a))] = f(at.get(b));
     const big = c => Math.max(c.w, c.h) > 1.1 * gap;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
       const a = comps[i], b = comps[j];
       if ((a.ring && inside(a, b.cx, b.cy) && b.w < a.w && b.h < a.h) || (b.ring && inside(b, a.cx, a.cy) && a.w < b.w && a.h < b.h)) { par[f(i)] = f(j); continue; }
-      if (big(a) && big(b)) continue;
+      if (a.ring || b.ring) continue;   // a ring only takes what is inside it (not the signature next to the total)
       const gx = Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1), gy = Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1);
       const ref = Math.min(Math.max(a.h, b.h), gap);
+      if (big(a) && big(b)) {
+        // two big digits side by side at the same height ("13" in the margin); ticks on neighbouring lines never are
+        if (gx <= 0.3 * ref && ovl(a.y0, a.y1, b.y0, b.y1) >= 0.6 * Math.min(a.h, b.h) && Math.abs(a.cy - b.cy) < 0.35 * Math.max(a.h, b.h)) par[f(i)] = f(j);
+        continue;
+      }
+      if (gx <= 0.35 * gap && gy <= 0.35 * gap && Math.max(a.w, a.h, b.w, b.h) < 1.1 * gap) { par[f(i)] = f(j); continue; }   // pieces of one small mark, broken where it crossed the writing
       if (gx <= 0.45 * ref && ovl(a.y0, a.y1, b.y0, b.y1) >= 0.25 * Math.min(a.h, b.h)) par[f(i)] = f(j);        // side by side
       else if (gy <= 0.35 * ref && ovl(a.x0, a.x1, b.x0, b.x1) >= 0.25 * Math.min(a.w, b.w)) par[f(i)] = f(j);   // stacked
     }
@@ -500,13 +514,70 @@
     const pt = p[TICK] || 0, px = p[CROSS] || 0, size = Math.max(g.w, g.h);
     if (best === TICK && size >= 0.45 * gap) return { kind: 'tick', conf: pt, probs: p };
     if (best === CROSS && size >= 0.3 * gap) return { kind: 'cross', conf: px, probs: p };
+    // a wide slanting stroke is not a 1 or a 7 (a teacher's 1 is tall and narrow): it is a tick
+    if ((best === 1 || best === 7) && g.w >= 1.1 * g.h && size >= 0.45 * gap && g.items.length <= 2) return { kind: 'tick', conf: Math.max(pt, 0.6 * p[best]), probs: p };
+    if (best !== TICK && pt > px && g.w >= 1.6 * g.h && size >= gap && pt >= 0.05) return { kind: 'tick', conf: Math.min(0.6, pt + 0.3), probs: p };
+    // a number is at least a third of a line tall; smaller red bits are pieces of something else
+    if (g.h < 0.33 * gap) return { kind: 'noise', conf: 0 };
     // a number, maybe with a ring round it or a "/5" after it
     const r = readCluster(an, g, model);
-    if (r.kind === 'mark') return { ...r, probs: p };
+    if (r.kind === 'mark') {
+      // more strokes than the number read needs (a small ½ or a "/5" that was not read): read it, but not for sure
+      const need = String(r.text).replace(/[^0-9½/]/g, '').length + (r.circled ? 1 : 0);
+      if (g.items.length > need && !String(r.text).includes('½')) r.conf = Math.min(r.conf, 0.5);
+      return { ...r, probs: p };
+    }
     // what the whole shape most looks like, if not a number
     if (pt >= 0.35 && pt >= px && size >= 0.45 * gap) return { kind: 'tick', conf: pt, probs: p };
     if (px >= 0.35 && size >= 0.3 * gap) return { kind: 'cross', conf: px, probs: p };
     return { kind: r.kind === 'tick' ? 'other' : r.kind === 'noise' ? 'noise' : 'other', conf: r.conf || 0.3, probs: p };
+  }
+
+  // A red stroke that runs along the student's writing disappears there (red on blue looks dark, not red), so one tick
+  // comes out as two pieces. Two pieces whose ends point at each other, less than a line apart, with dark ink all the way
+  // between them, are one stroke: the hidden part is drawn back in and the pieces are joined.
+  function joinHidden(an, comps, gap) {
+    const W = an.width, H = an.height, info = [];
+    for (const c of comps) {
+      if (Math.max(c.w, c.h) < 0.3 * gap) continue;
+      const px = [];
+      for (let y = c.y0; y <= c.y1; y++) for (let x = c.x0; x <= c.x1; x++) if (an.labels[y * W + x] === c.id) px.push(x, y);
+      const a = c.angle * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
+      const ext = [[(x, y) => x * ux + y * uy, 1], [(x, y) => x * ux + y * uy, -1], [(x, y) => y, 1], [(x, y) => y, -1], [(x, y) => x, 1], [(x, y) => x, -1]];
+      const ends = [];
+      for (const [f, sg] of ext) {
+        let bi = 0, bv = -Infinity;
+        for (let k = 0; k < px.length; k += 2) { const v = sg * f(px[k], px[k + 1]); if (v > bv) { bv = v; bi = k; } }
+        const ex = px[bi], ey = px[bi + 1];
+        if (ends.some(e => Math.abs(e.x - ex) + Math.abs(e.y - ey) < 0.2 * gap)) continue;
+        // which way the stroke runs at this end: from the ink just behind the end, to the end
+        let sx = 0, sy = 0, n = 0; const r2 = (0.5 * gap) ** 2;
+        for (let k = 0; k < px.length; k += 2) { const dx = px[k] - ex, dy = px[k + 1] - ey; if (dx * dx + dy * dy <= r2) { sx += px[k]; sy += px[k + 1]; n++; } }
+        const dx = ex - sx / n, dy = ey - sy / n, L = Math.hypot(dx, dy);
+        if (L > 0.08 * gap) ends.push({ x: ex, y: ey, dx: dx / L, dy: dy / L });
+      }
+      info.push({ c, ends });
+    }
+    const pairs = [], cosMax = Math.cos(40 * Math.PI / 180);
+    for (let i = 0; i < info.length; i++) for (let j = i + 1; j < info.length; j++) {
+      let done = false;
+      for (const ea of info[i].ends) { for (const eb of info[j].ends) {
+        const vx = eb.x - ea.x, vy = eb.y - ea.y, d = Math.hypot(vx, vy);
+        if (d < 2 || d > 1.4 * gap) continue;
+        const ca = info[i].c, cb = info[j].c, jh = Math.max(ca.y1, cb.y1) - Math.min(ca.y0, cb.y0), jw = Math.max(ca.x1, cb.x1) - Math.min(ca.x0, cb.x0);
+        if (jh > 2.3 * gap || jw > 4 * gap) continue;
+        if ((ea.dx * vx + ea.dy * vy) / d < cosMax || -(eb.dx * vx + eb.dy * vy) / d < cosMax) continue;
+        let on = 0, tot = 0;
+        for (let t = 0; t <= d; t += 2) { const x = Math.round(ea.x + vx * t / d), y = Math.round(ea.y + vy * t / d); tot++; if (x >= 0 && y >= 0 && x < W && y < H && (an.dark[y * W + x] >= 35 || an.red[y * W + x])) on++; }
+        if (on < 0.8 * tot) continue;
+        for (let t = 0; t <= d; t += 1) for (let o = -1; o <= 1; o++) {
+          const x = Math.round(ea.x + vx * t / d - o * vy / d), y = Math.round(ea.y + vy * t / d + o * vx / d);
+          if (x >= 0 && y >= 0 && x < W && y < H && !an.labels[y * W + x]) { an.red[y * W + x] = 1; an.labels[y * W + x] = info[i].c.id; }
+        }
+        pairs.push([info[i].c, info[j].c]); done = true; break;
+      } if (done) break; }
+    }
+    return pairs;
   }
 
   // Where a mark points to on the page: the corner of a tick (its lowest point on the left), the middle of anything else.
@@ -514,7 +585,8 @@
     if (kind !== 'tick') return { x: (g.x0 + g.x1) / 2, y: (g.y0 + g.y1) / 2 };
     const W = an.width, ids = new Set(g.items.map(c => c.id)); let by = -1, bx = 0;
     for (let y = g.y0; y <= g.y1; y++) for (let x = g.x0; x <= g.x0 + 0.6 * g.w; x++) if (ids.has(an.labels[y * W + x]) && y > by) { by = y; bx = x; }
-    return by < 0 ? { x: (g.x0 + g.x1) / 2, y: g.y1 } : { x: bx, y: by };
+    const lift = 0.4 * (an.page ? an.page.medianH / 0.45 : 40);
+    return by < 0 ? { x: (g.x0 + g.x1) / 2, y: g.y1 - lift } : { x: bx, y: by - lift };
   }
 
   /* ------------------------------------------------------------------ 5. question numbers in the margin */
@@ -628,7 +700,8 @@
     const typical = strong.length ? strong[strong.length >> 1] : 0;
     const marks = [];
     for (const c of keep) c.ring = ringLike(an, c) > 0;
-    for (const g of groupMarks(an, keep.filter(c => !typical || c.val >= 0.55 * typical), gap)) {
+    const strongOnes = keep.filter(c => !typical || c.val >= 0.55 * typical);
+    for (const g of groupMarks(an, strongOnes, gap, joinHidden(an, strongOnes, gap))) {
       if (Math.max(g.w, g.h) < 0.25 * gap) continue;
       const r = readMark(an, g, model, gap);
       if (r.kind === 'noise') continue;
@@ -740,23 +813,25 @@
       const max = maxOf(j), ticks = its.filter(i => i.kind === 'tick'), crosses = its.filter(i => i.kind === 'cross');
       const nums = its.filter(i => i.kind === 'mark' && i.got != null);
       const fits = nums.filter(i => (!max || i.got <= max + 1e-9) && (i.max == null || !max || i.max === max));
-      for (const n of nums) if (!fits.includes(n)) subtotals.push({ ...n, j });
+      const secMax = questions.reduce((a, q2) => a + (q2.sec === qq.sec ? q2.max || 0 : 0), 0) || Infinity;
+      // a subtotal is written big or in the margin; a small stray number on a ticked answer is a piece of the tick
+      for (const n of nums) if (!fits.includes(n) && n.got <= secMax + 1e-9 && (n.side === 'left' || n.h >= 0.9 * pages[n.page].lineGap || !(ticks.length + crosses.length))) subtotals.push({ ...n, j });
       const marked = its.some(i => i.kind === 'ring' || i.kind === 'line');
       const row = { q: qq.q, max, got: null, how: '', check: false, why: '' };
       if (fits.length) {
         const pick = fits.find(i => i.side === 'left') || [...fits].sort((a, b) => b.conf - a.conf)[0];
         row.got = pick.got; row.how = pick.text || String(pick.got);
         if (pick.max != null && !max) row.max = pick.max;
-        if (pick.conf < 0.6) { row.check = true; row.why = `the teacher's "${row.how}" was hard to read`; }
+        if (pick.conf < 0.6) { row.check = true; row.unsure = true; row.why = `the teacher's "${row.how}" was hard to read`; }
         if (fits.length > 1 && new Set(fits.map(i => i.got)).size > 1) { row.check = true; row.why = `more than one number next to this answer (${fits.map(i => i.text).join(', ')})`; }
       } else if (ticks.length && !crosses.length) {
         row.got = max || 1; row.how = '✓';
         if (!max) row.max = 1;
         if (marked && max > 1) { row.check = true; row.why = 'ticked, but the teacher also circled or underlined part of it: maybe not full marks'; }
-        if (ticks.every(t => t.conf < 0.5)) { row.check = true; row.why = 'the tick was hard to make out'; }
+        if (ticks.every(t => t.conf < 0.5)) { row.check = true; row.unsure = true; row.why = 'the tick was hard to make out'; }
       } else if (crosses.length && !ticks.length) {
         row.got = 0; row.how = '✗'; if (!max) row.max = 1;
-        if (crosses.every(t => t.conf < 0.5)) { row.check = true; row.why = 'the cross was hard to make out'; }
+        if (crosses.every(t => t.conf < 0.5)) { row.check = true; row.unsure = true; row.why = 'the cross was hard to make out'; }
       } else if (ticks.length && crosses.length) {
         row.got = max > 1 ? round2(max * ticks.length / (ticks.length + crosses.length)) : 0; row.how = '✓✗'; if (!max) row.max = 1;
         row.check = true; row.why = 'there is a tick and a cross on this answer';
@@ -769,6 +844,15 @@
       row.j = j; row.page = (its[0] || {}).page;
       rows.push(row);
     });
+    // a question between two that were found is on the sheet even if its number and marks were not found: list it, to check
+    if (rows.length) {
+      const have = new Set(rows.map(r => r.j)), lo = Math.min(...have), hi = Math.max(...have);
+      for (let j = lo + 1; j < hi; j++) if (!have.has(j)) {
+        const prev = rows.find(r => r.j === j - 1) || rows.find(r => r.j < j);
+        rows.push({ q: questions[j].q, max: maxOf(j), got: 0, how: '', check: true, why: 'its number and marks were not found on the photo', unmarked: true, j, page: prev ? prev.page : 0 });
+      }
+      rows.sort((a, b) => a.j - b.j);
+    }
     // subtotals: a number bigger than the question it sits next to, usually in the margin. It is the sum of a run of
     // questions: the same section on this page, else the whole page, else the section so far.
     const rowOf = new Map(rows.map(r => [r.j, r]));
@@ -784,7 +868,16 @@
       for (const rg of ranges) {
         const unknown = rg.filter(r => r.unmarked), known = rg.filter(r => !r.unmarked), sum = known.reduce((a, r) => a + r.got, 0), diff = st.got - sum;
         const name = `${qText(questions[rg[0].j].q)}–${qText(questions[rg[rg.length - 1].j].q)}`;
-        if (!unknown.length && Math.abs(diff) < 1e-9) { rg.forEach(r => { r.confirmed = true; }); notes.push(`The teacher's subtotal ${st.text} for ${name} matches the marks read.`); done = true; break; }
+        if (!unknown.length && Math.abs(diff) < 1e-9) { rg.forEach(r => { r.confirmed = true; if (r.unsure) { r.check = false; r.why = ''; } }); notes.push(`The teacher's subtotal ${st.text} for ${name} matches the marks read.`); done = true; break; }
+        // one unsure tick or cross is the only thing that explains the difference: the subtotal decides it
+        const unsure = known.filter(r => r.unsure && Math.abs((diff > 0 ? (r.max || 1) - r.got : -r.got) - diff) < 1e-9);
+        if (!unknown.length && Math.abs(diff) > 1e-9 && unsure.length === 1) {
+          const r = unsure[0]; r.got += diff; r.how = 'subtotal'; r.check = true;
+          r.why = `the mark here was hard to make out; the teacher's subtotal ${st.text} for ${name} says it got ${fmt(r.got)}`;
+          rg.filter(x => x !== r).forEach(x => { x.confirmed = true; });
+          notes.push(`${qText(r.q)}: the mark was hard to make out, so the teacher's subtotal ${st.text} for ${name} decided it (${fmt(r.got)}).`);
+          done = true; break;
+        }
         if (unknown.length === 1 && diff >= 0 && diff <= (unknown[0].max || 1) + 1e-9) {
           const r = unknown[0]; r.got = diff; r.how = 'subtotal'; r.check = true; r.unmarked = false;
           r.why = `no mark next to this answer; the teacher's subtotal ${st.text} for ${name} says it got ${diff}`;
@@ -803,7 +896,7 @@
     // the total: a circled number, or a fraction out of 10 or more, in the header of page 1
     let total = null;
     const paperTotal = questions.reduce((a, q) => a + (q.max || 0), 0);
-    const cands = header.filter(i => i.kind === 'mark' && i.page === 0 && !i.edge && (i.circled || (i.max != null && i.max >= 10) || i.got >= 10));
+    const cands = header.filter(i => i.kind === 'mark' && i.page === 0 && (i.circled || (i.max != null && i.max >= 10) || i.got >= 10));
     for (const c of cands) {
       const score = (c.circled ? 2 : 0) + (c.max != null && paperTotal && c.max === paperTotal ? 3 : 0) + (c.max != null ? 1 : 0) + c.conf;
       if (!total || score > total.score) total = { got: c.got, max: c.max, text: c.text, score, conf: c.conf };
@@ -814,7 +907,7 @@
         (Math.abs(all - total.got) < 1e-9 ? 'The marks read add up to the same.' : `The marks read on these pages add up to ${fmt(all)} of ${fmt(maxAll)}${total.got > all ? ': photograph the other pages too' : ': check the marks below'}.`));
     }
     const lines = rows.map(r => `${r.q}: ${fmt(r.got)}/${fmt(r.max || 0)}${r.how && r.how !== 'subtotal' ? ' ' + r.how : ''}${r.check ? ' – check: ' + r.why : ''}`);
-    return { rows: rows.map(({ j, unmarked, ...r }) => r), total: total && { got: total.got, max: total.max, text: total.text }, notes, lines };
+    return { rows: rows.map(({ j, unmarked, unsure, confirmed, ...r }) => r), total: total && { got: total.got, max: total.max, text: total.text }, notes, lines };
   }
   const fmt = v => String(Math.round(v * 100) / 100).replace(/\.5$/, '½').replace(/^0½$/, '½');
 
@@ -1231,5 +1324,21 @@
     return { ...out, kind: 'mark', got, max, text, conf };
   }
 
-  return { analyzeRed, layout, findLines, readPage, readSheet, matchLabels, findLabels, labelFit, normalizeGlyph, loadModel, readCluster, groupMarks, pieces };
+  /** The photo at size `max` on its longer side, by averaging the pixels each new pixel covers (the same on every phone). */
+  function shrink(img, max = 1600) {
+    const k = Math.min(1, max / Math.max(img.width, img.height));
+    if (k === 1) return img;
+    const W = Math.round(img.width * k), H = Math.round(img.height * k), out = new Uint8ClampedArray(W * H * 4), src = img.data, SW = img.width;
+    for (let y = 0; y < H; y++) {
+      const sy0 = Math.floor(y / k), sy1 = Math.min(img.height, Math.floor((y + 1) / k));
+      for (let x = 0; x < W; x++) {
+        const sx0 = Math.floor(x / k), sx1 = Math.min(SW, Math.floor((x + 1) / k));
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let yy = sy0; yy < sy1; yy++) for (let xx = sx0, p = (yy * SW + sx0) * 4; xx < sx1; xx++, p += 4) { r += src[p]; g += src[p + 1]; b += src[p + 2]; n++; }
+        const q = (y * W + x) * 4; out[q] = r / n; out[q + 1] = g / n; out[q + 2] = b / n; out[q + 3] = 255;
+      }
+    }
+    return { width: W, height: H, data: out };
+  }
+  return { shrink, analyzeRed, layout, findLines, readPage, readSheet, matchLabels, findLabels, labelFit, normalizeGlyph, loadModel, readCluster, groupMarks, pieces };
 });

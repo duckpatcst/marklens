@@ -600,7 +600,7 @@ function rebuild(){
     const r = by.get(s.q) || { q: s.q, subject: paper[0] ? paper[0].subject : '', topic: 'General', type: s.max <= 3 ? 'Short answer' : 'Long answer', max: 0, got: 0 };
     if (!r.max) r.max = s.max || s.got;
     // "1: 1/1 ✓ – check: no red mark found…" from the on-phone marks reader: the part after "check:" is for the student
-    const [rem, why] = String(s.remark || '').split(/\s*[–-]\s*check:\s*/i);
+    const [rem, why] = String(s.remark || '').split(/\s*(?:[–-]\s*)?check:\s*/i);
     r.got = Math.min(s.got, r.max); r.cause = classify(rem.replace(/[✓✗]/g, ''), r.max - r.got);
     if (why) { r.check = true; r.why = why; } else { delete r.check; delete r.why; }
     by.set(s.q, r);
@@ -942,11 +942,11 @@ function marksJob(px){
   }
   return new Promise((res, rej) => { const id = ++marksSeq; marksWait.set(id, { res, rej }); marksWorker.postMessage({ id, w: px.w, h: px.h, buffer: px.buffer }, [px.buffer]); });
 }
-// the photo's pixels at 1600 px on the long side: enough for thin red strokes, and quick on a phone
+// the photo's pixels as stored (2000 px at most); the reader itself brings them to 1600 px, the same way on every phone
 const photoPixels = blob => new Promise((res, rej) => {
   const img = new Image(), u = URL.createObjectURL(blob);
   img.onload = () => {
-    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    const k = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
     const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
     res({ w: c.width, h: c.height, buffer: g.getImageData(0, 0, c.width, c.height).data.buffer });
