@@ -76,7 +76,7 @@
   /* ------------------------------------------------------------------------ act 1 ------------------------ */
   const act = $('#act-mark'), stage = $('.mk', act), win = $('#win'), hero = $('.hero', stage), mkp = $('#mkp');
   const rowEls = [...list.children], binEls = [...$('#mkBins').children];
-  let geo = null, markT0 = 0, marked = reduce, markedAt = 0, lastNow = 0, lastR = -1, lastState = '', sortV = 0, planV = 0, drawn = -1;
+  let geo = null, markT0 = 0, marked = reduce, markedAt = 0, lastNow = 0, lastR = -1, lastState = '', sortV = 0, planV = 0, drawn = -1, lastPv = 0, pVel = 0;
   const ROW_MS = 150, ROW_DUR = 420, SORT_MS = 1500, PLAN_MS = 900;
 
   const offsetIn = (el, root) => { let x = 0, y = 0; while (el && el !== root) { x += el.offsetLeft; y += el.offsetTop; el = el.offsetParent; } return { x, y }; };
@@ -150,9 +150,13 @@
     if (Math.abs(r - lastR) > 0.0004) { stage.style.setProperty('--r', r.toFixed(4)); stage.dataset.hero = r > 0.62 ? 'off' : 'on'; lastR = r; }
 
     // then the sort and the plan play on their own clock, so one scroll is enough and it never stutters
+    // scroll faster and it plays faster: the speed follows how quickly the reader is moving through the act
+    const pv = Math.abs(p - lastPv) / Math.max(dt, 1); lastPv = p;
+    pVel += (pv - pVel) * (pv > pVel ? 0.5 : 0.08);
+    const fast = Math.min(5, 1 + pVel * 1600) * (p > 0.85 ? 2 : 1);
     const sortWant = p > 0.32 ? 1 : 0, planWant = p > 0.7 && sortV >= 1 ? 1 : 0;
-    if (sortV !== sortWant) sortV = sortWant ? Math.min(1, sortV + dt / SORT_MS) : Math.max(0, sortV - dt / (SORT_MS * 0.45));
-    if (planV !== planWant) planV = planWant ? Math.min(1, planV + dt / PLAN_MS) : Math.max(0, planV - dt / (PLAN_MS * 0.6));
+    if (sortV !== sortWant) sortV = sortWant ? Math.min(1, sortV + dt * fast / SORT_MS) : Math.max(0, sortV - dt * fast / (SORT_MS * 0.45));
+    if (planV !== planWant) planV = planWant ? Math.min(1, planV + dt * fast / PLAN_MS) : Math.max(0, planV - dt * fast / (PLAN_MS * 0.6));
     if (reduce) { sortV = sortWant; planV = planWant; }
     const state = planV > 0.15 || (planWant && planV > 0) ? 'plan' : sortV > 0 ? 'sort' : 'read';
     if (state !== lastState) { mkp.dataset.state = state; lastState = state; }

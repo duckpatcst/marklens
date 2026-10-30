@@ -76,37 +76,77 @@
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -12% 0px' });
   heads.forEach(h => io.observe(h));
 
+  // the dashboard's panels rise in the first time it arrives on screen, never again while the student edits
+  const dash = $('#dash');
+  if (dash && !reduce) {
+    const dio = new IntersectionObserver(es => { if (!es[0].isIntersecting) return; dio.disconnect();
+      dash.classList.add('dash-anim'); setTimeout(() => dash.classList.remove('dash-anim'), 1600); }, { rootMargin: '0px 0px -15% 0px' });
+    dio.observe(dash);
+  }
+
   if (reduce || !fine) return;   // everything below needs a mouse or trackpad
 
   /* ------------------------------------------------------------------ 2. the cursor bubble -------------- */
+  // Two movement effects, after Cuberto's mouse follower and the iPad pointer:
+  //   stretch  the bubble squashes and stretches along the direction it travels, like jelly, and settles round
+  //   snap     over a button it melts into the button's own shape and sticks to it, leaning a little toward the mouse
   const ring = document.createElement('div'), dot = document.createElement('div');
-  ring.className = 'cur-ring'; ring.innerHTML = '<i></i><span></span>'; dot.className = 'cur-dot';
+  ring.className = 'cur-ring'; ring.innerHTML = '<div class="cur-body"><i></i><span></span></div>'; dot.className = 'cur-dot';
   ring.setAttribute('aria-hidden', 'true'); dot.setAttribute('aria-hidden', 'true');
   document.body.append(ring, dot);
-  const label = ring.querySelector('span');
+  const body = ring.querySelector('.cur-body'), label = ring.querySelector('span');
   let tx = -100, ty = -100, rx = -100, ry = -100, dx = -100, dy = -100, raf = 0, shown = false;
+  let snapEl = null, stretch = 0, ang = 0;
   const PRESS = 'a, button, select, summary, label.btn, .gc, .pill, [role="button"], input[type="checkbox"], input[type="radio"]';
   const TEXT = 'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, [contenteditable="true"]';
+  const SNAP = '.btn, .pill, .fi-add, .seg button, .an-get, #startGo, nav ul a, .st__link, .rd';
+  const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
   function tick(){
-    rx += (tx - rx) * 0.2; ry += (ty - ry) * 0.2;
+    let gx = tx, gy = ty;
+    if (snapEl) {
+      const r = snapEl.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      gx = cx + (tx - cx) * 0.12; gy = cy + (ty - cy) * 0.12;   // stuck to the button, leaning toward the mouse
+    }
+    const px = rx, py = ry, k = snapEl ? 0.28 : 0.2;
+    rx += (gx - rx) * k; ry += (gy - ry) * k;
     dx += (tx - dx) * 0.55; dy += (ty - dy) * 0.55;
+    const vx = rx - px, vy = ry - py, sp = Math.hypot(vx, vy);
+    stretch += ((snapEl ? 0 : Math.min(sp / 26, 0.6)) - stretch) * 0.22;
+    if (sp > 0.4) ang = Math.atan2(vy, vx);
     ring.style.transform = `translate3d(${rx.toFixed(1)}px,${ry.toFixed(1)}px,0)`;
     dot.style.transform = `translate3d(${dx.toFixed(1)}px,${dy.toFixed(1)}px,0)`;
-    raf = Math.abs(tx - rx) + Math.abs(ty - ry) > 0.3 ? requestAnimationFrame(tick) : 0;   // stop once it has caught up
+    body.style.transform = stretch > 0.004 ? `rotate(${ang.toFixed(3)}rad) scale(${(1 + stretch).toFixed(3)},${(1 - stretch * 0.45).toFixed(3)}) rotate(${(-ang).toFixed(3)}rad)` : '';
+    const moving = Math.abs(gx - rx) + Math.abs(gy - ry) > 0.3 || stretch > 0.004;
+    raf = moving ? requestAnimationFrame(tick) : 0;   // rests once it has caught up
+  }
+  function setSnap(el){
+    if (el === snapEl) return;
+    snapEl = el;
+    ring.classList.toggle('is-snap', !!el);
+    if (el) {
+      const r = el.getBoundingClientRect(), rad = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 10;
+      ring.style.setProperty('--w', (r.width + 10).toFixed(0) + 'px');
+      ring.style.setProperty('--h', (r.height + 8).toFixed(0) + 'px');
+      ring.style.setProperty('--rad', Math.min(rad + 4, (r.height + 8) / 2).toFixed(0) + 'px');
+    } else { ring.style.removeProperty('--w'); ring.style.removeProperty('--h'); ring.style.removeProperty('--rad'); }
+    kick();
   }
   addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse') return;
     tx = e.clientX; ty = e.clientY;
     if (!shown) { shown = true; rx = dx = tx; ry = dy = ty; document.documentElement.classList.add('has-cur'); }
-    if (!raf) raf = requestAnimationFrame(tick);
+    kick();
   }, { passive: true });
-  document.addEventListener('pointerleave', () => { shown = false; document.documentElement.classList.remove('has-cur'); });
-  addEventListener('blur', () => { shown = false; document.documentElement.classList.remove('has-cur'); });
+  addEventListener('scroll', () => { if (snapEl) kick(); }, { passive: true });
+  document.addEventListener('pointerleave', () => { shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); });
+  addEventListener('blur', () => { shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); });
   document.addEventListener('pointerover', e => {
     const t = e.target instanceof Element ? e.target : null;
-    const text = t && t.closest(TEXT), press = t && !text && t.closest(PRESS);
+    const text = t && t.closest(TEXT), snap = t && !text && t.closest(SNAP), press = t && !text && !snap && t.closest(PRESS);
+    const r = snap && snap.getBoundingClientRect();
+    setSnap(snap && r.width < 460 && r.height < 96 ? snap : null);   // big panels keep the plain bubble
     ring.classList.toggle('is-text', !!text);
-    ring.classList.toggle('is-press', !!press);
+    ring.classList.toggle('is-press', !!press || (!!snap && !snapEl));
     const card = t && t.closest('.gc');
     ring.classList.toggle('is-label', !!card);
     label.textContent = card ? 'Open' : '';
