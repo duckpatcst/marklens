@@ -402,6 +402,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn:active{transform:none}}
 </style>
 <link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/alive.css">
 </head>
 <body>
 <nav><div class="wrap">
@@ -427,9 +428,9 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
     <div data-sc-stage class="mk">
       <header class="hero">
         <p class="hero__kicker"><span class="siri-dot" aria-hidden="true"></span>Exam analysis for students</p>
-        <h1 id="heroTitle">See where your marks went.</h1>
+        <h1 id="heroTitle"><span class="vh">The future of learning is here. See where your marks went.</span><span class="tw" aria-hidden="true"><span class="tw__a">The future of learning is </span><span class="tw__b">here.</span><i class="tw__caret"></i></span></h1>
         <p class="hero__sub">Photograph your question paper and marked answer sheet. MarkLens finds every mark you lost, and what to fix first.</p>
-        <div class="hero__cta"><a class="btn primary" href="#start">Analyze my paper</a><a class="btn glass" href="#exams">Browse exams</a></div>
+        <div class="hero__cta"><a class="btn primary" href="#start" data-magnetic>Analyze my paper</a><a class="btn glass" href="#exams" data-magnetic>Browse exams</a></div>
       </header>
 
       <div class="win" id="win">
@@ -523,7 +524,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
       <div class="start__row">
         <label class="vh" for="startExam">Your exam</label>
         <div class="start__field"><select id="startExam"><option>Any exam</option></select></div>
-        <button type="button" id="startGo">Analyze my paper</button>
+        <button type="button" id="startGo" data-magnetic>Analyze my paper</button>
       </div>
       <p class="start__note">Results stay on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
     </div>
@@ -1501,5 +1502,6 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
 <script src="vendor/lenis/lenis.min.js"></script>
 <script src="vendor/scrollcraft/scrollcraft.js"></script>
 <script src="js/landing.js"></script>
+<script src="js/alive.js"></script>
 </body>
 </html>

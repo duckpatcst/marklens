@@ -295,6 +295,7 @@
   const ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
   ready.then(() => { remeasure(); setTimeout(() => { markT0 = performance.now(); }, 450); });
   let rz = 0; addEventListener('resize', () => { cancelAnimationFrame(rz); rz = requestAnimationFrame(remeasure); });
+  addEventListener('marklens:layout', () => requestAnimationFrame(remeasure));
   measure();
   // one loop for the whole landing; it does almost nothing once the landing is off screen
   let onScreen = true;

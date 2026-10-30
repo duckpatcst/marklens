@@ -85,7 +85,7 @@ body{font-size:15px;line-height:1.55;letter-spacing:normal}
 .siri-dot{position:relative;width:18px;height:18px;border-radius:50%;background:var(--siri);animation:spin 5s linear infinite}
 .siri-dot::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--surface);opacity:.55}
 @keyframes spin{to{transform:rotate(360deg)}}
-.hero h1{font-size:clamp(2.7rem,7.2vw,6.2rem);line-height:.98;font-weight:700;letter-spacing:-.045em;max-width:14ch;margin-inline:auto;
+.hero h1{font-size:clamp(2.6rem,6.4vw,5.6rem);line-height:.98;font-weight:700;letter-spacing:-.045em;max-width:17ch;margin-inline:auto;
   text-shadow:.6px 0 0 color-mix(in srgb,#ff2d55 22%,transparent),-.6px 0 0 color-mix(in srgb,#00a6ff 22%,transparent)}
 .hero__sub{font-size:clamp(1.02rem,1.5vw,1.28rem);color:var(--mute);max-width:44ch;margin:18px auto 26px;line-height:1.45}
 .hero__cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
