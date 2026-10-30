@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `npx wrangler pages dev .` (local only; .dev.vars is ignored by git).
+# The live site keeps these as Cloudflare secrets: Workers & Pages > marklens > Settings > Variables and Secrets.
+ACCESS_CODE=change-me-12-chars-or-more
+# GROQ_API_KEY=gsk_...

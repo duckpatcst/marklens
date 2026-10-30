@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@500;600&display=swap">
+<script>/* low-power devices get the lighter landing (see css/landing.css, html.lite) */
+try{var n=navigator,l=(n.hardwareConcurrency||8)<=4||(n.deviceMemory||8)<=4||n.connection&&n.connection.saveData;if(l)document.documentElement.classList.add('lite')}catch(e){}</script>
 <link rel="stylesheet" href="vendor/scrollcraft/scrollcraft.css">
 <link rel="stylesheet" href="vendor/lenis/lenis.css">
 <style>
@@ -48,7 +50,7 @@ button,.btn,select,a{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0}
 
 /* nav */
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin-inline:-16px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 72%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin-inline:-16px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 94%,transparent);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .logo{display:flex;align-items:center;gap:9px;font:800 1.15rem var(--f-display);text-decoration:none;letter-spacing:-.02em}
 .logo i{width:22px;height:22px;border:2.5px solid var(--pen);border-radius:50%;position:relative;display:inline-block}
@@ -412,16 +414,16 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 
   <!-- the room: soft arches, a Siri glow, red ticks drifting like birds, film grain (fixed, behind the landing only) -->
   <div class="atmos" aria-hidden="true">
-    <div class="atmos__orb"><i></i><i></i><i></i></div>
-    <div class="arch arch--l1"></div><div class="arch arch--l2"></div><div class="arch arch--l3"></div>
-    <div class="arch arch--r1"></div><div class="arch arch--r2"></div><div class="arch arch--r3"></div>
+    <div class="atmos__orb"></div>
+    <div class="arches"><div class="arch arch--l1"></div><div class="arch arch--l2"></div><div class="arch arch--l3"></div>
+    <div class="arch arch--r1"></div><div class="arch arch--r2"></div><div class="arch arch--r3"></div></div>
     <div class="atmos__floor"></div>
     <div class="floaters" id="floaters"></div>
     <div class="atmos__grain"></div>
   </div>
 
   <!-- ACT 1 · pinned: the window rises, the paper is marked, the lost marks sort themselves, the plan appears -->
-  <section class="act-mark" id="act-mark" data-sc-act="pin" data-sc-span="3.2" aria-labelledby="heroTitle">
+  <section class="act-mark" id="act-mark" data-sc-act="pin" data-sc-span="2" aria-labelledby="heroTitle">
     <div data-sc-stage class="mk">
       <header class="hero">
         <p class="hero__kicker"><span class="siri-dot" aria-hidden="true"></span>Exam analysis for students</p>
@@ -514,7 +516,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 
   <!-- ACT 4 · the close: an actual input, lit like Siri -->
   <section class="start" id="start" aria-labelledby="startTitle">
-    <div class="start__orb" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="start__orb" aria-hidden="true"></div>
     <div class="start__card">
       <h2 id="startTitle">Which exam is next?</h2>
       <p>Pick it, then add photos of your question paper and answer sheet.</p>
@@ -667,6 +669,7 @@ Section D: Statistics
 11: 3/3
 12: 2/4 incomplete explanation
 </script>
+<script src="js/api.js"></script>
 <script src="js/omr.js"></script>
 <script src="js/exams.js"></script>
 <script src="js/insights.js"></script>
@@ -963,28 +966,8 @@ const forAI = (blob, colour) => new Promise((res, rej) => {
   img.src = u;
 });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-// When the free plan says "busy", wait the time it asks for (up to 60 s) and try again, up to 4 times.
-async function callAI(body, onWait){
-  for (let attempt = 0; ; attempt++) {
-    let r;
-    try { r = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
-    catch {
-      // A dropped connection on mobile data is usually temporary: wait a little and try the same page again.
-      if (!navigator.onLine || attempt >= 4) throw { code: 'offline' };
-      for (let s = 8; s > 0; s--) { if (onWait) onWait(s); await sleep(1000); }
-      continue;
-    }
-    let j = null; try { j = await r.json(); } catch {}
-    if (r.ok) return j || {};
-    const code = (j && j.error) || 'upstream';
-    if (code === 'busy' && attempt < 4) {
-      const wait = Math.min(60, Number(j && j.retry_after) || 20);
-      for (let s = wait; s > 0; s--) { if (onWait) onWait(s); await sleep(1000); }
-      continue;
-    }
-    throw { code };
-  }
-}
+// Every request to the back end goes through js/api.js (contract: docs/API.md). It retries when the back end says "busy".
+const callAI = (body, onWait) => MarkLensAPI.call(body, onWait);
 
 /* No tick-box: the own-risk notice (#aiRisk) is always on screen whenever the AI reader is available. */
 
@@ -1504,8 +1487,8 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
 
 /* AI reader and grading appear only when the site owner has switched on /api/ai */
 (async () => {
-  try { const r = await fetch('/api/ai', { headers: { accept: 'application/json' } }); if (r.ok) ai = await r.json(); } catch {}
-  if (!ai || !ai.enabled) { ai = null; return; }
+  ai = await MarkLensAPI.config();
+  if (!ai) return;
   $('#modeAi').hidden = false; $('#rdAI').hidden = ai.vision === false;   // a text-only model still sorts Lens text and grades
   const aiList = Array.isArray(ai.providers) && ai.providers.length ? ai.providers : [ai.providerName];
   $('#aiWho').textContent = aiList.length > 1 ? `${aiList.slice(0, -1).join(', ')} or ${aiList[aiList.length - 1]}, whichever is available at the time` : aiList[0]; $('#aiRisk').hidden = mode === 'omr';

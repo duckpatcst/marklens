@@ -3,11 +3,11 @@
    loads (#demoPaper, #demoSheet), with the same parser (MarkLensParse) and maths (MarkLensInsights). Only the student's
    handwriting is example text.
 
-   On load the teacher's pen marks the sheet by itself (about two seconds). Then act 1's scroll progress p
-   (the engine publishes it as --sc-p) drives:
-     0.00-0.18  the headline lifts away and the window rises into place
-     0.27-0.62  every lost mark lifts off the sheet and lands in its lesson
-     0.66-1.00  what to fix first, and how far that gets you
+   On load the teacher's pen marks the sheet by itself (about two seconds). One scroll then does the rest: the first
+   part of act 1 (scroll progress p, published by the engine as --sc-p) lifts the headline away and raises the window;
+   past p = 0.32 the lost marks fly into their lessons on their own clock (1.5 s, so it is smooth however the page is
+   scrolled), and past p = 0.7 the plan appears. Scrolling back plays it in reverse.
+   Performance: everything that moves is a transform or an opacity on a layer drawn once. Nothing is blurred live.
    Smooth scrolling: Lenis (wheel only; touch stays native). Reduced motion: no smoothing, nothing travels. */
 (function () {
   'use strict';
@@ -76,8 +76,8 @@
   /* ------------------------------------------------------------------------ act 1 ------------------------ */
   const act = $('#act-mark'), stage = $('.mk', act), win = $('#win'), hero = $('.hero', stage), mkp = $('#mkp');
   const rowEls = [...list.children], binEls = [...$('#mkBins').children];
-  let geo = null, lastP = -1, markT0 = 0, marked = reduce, markedAt = 0;
-  const ROW_MS = 150, ROW_DUR = 420;
+  let geo = null, markT0 = 0, marked = reduce, markedAt = 0, lastNow = 0, lastR = -1, lastState = '', sortV = 0, planV = 0, drawn = -1;
+  const ROW_MS = 150, ROW_DUR = 420, SORT_MS = 1500, PLAN_MS = 900;
 
   const offsetIn = (el, root) => { let x = 0, y = 0; while (el && el !== root) { x += el.offsetLeft; y += el.offsetTop; el = el.offsetParent; } return { x, y }; };
   function measure(){
@@ -90,7 +90,7 @@
       return { sx: s.x + mark.offsetWidth / 2 - cw / 2, sy: s.y + mark.offsetHeight / 2 - ch / 2,
         dx: d.x + c.slot * (cw * 0.86 + 4), dy: d.y + (dock.offsetHeight - ch * 0.86) / 2 - ch * 0.07 };
     });
-    lastP = -1;
+    drawn = -1;
   }
 
   // the pen: time-driven on load, so something is happening the moment the page opens
@@ -116,45 +116,57 @@
     }
   }
 
-  function frame(now){
-    const p = parseFloat(act.style.getPropertyValue('--sc-p')) || 0;
-    if (!marked && p > 0.2) { marked = true; markedAt = now; }   // the reader scrolled on: finish the marking at once
-    if (!marked || now - markedAt < 1200 || Math.abs(p - lastP) > 0.0003) penTimes(now);
-    if (Math.abs(p - lastP) < 0.0003 && marked && now - markedAt > 1200) return;
-    lastP = p;
-    const r = ease(clamp01(p / 0.18));
-    stage.style.setProperty('--r', r.toFixed(4));
-    stage.dataset.hero = r > 0.62 ? 'off' : 'on';
-    const state = p < 0.26 ? 'read' : p < 0.655 ? 'sort' : 'plan';
-    if (mkp.dataset.state !== state) mkp.dataset.state = state;
-
-    // the peak: each lost mark lifts off the sheet and lands in its lesson
-    const F0 = 0.27, FDUR = 0.12, FSTEP = (0.62 - F0 - FDUR) / Math.max(1, chips.length - 1);
-    const landed = bins.map(() => 0), fade = 1 - clamp01((p - 0.64) / 0.04);
-    let flying = false;
+  // the lost marks in flight, for sort progress s (0..1) and plan progress q (0..1)
+  function drawChips(s, q){
+    const n = chips.length, DUR = 0.42, STEP = n > 1 ? (1 - DUR) / (n - 1) : 0, fade = 1 - clamp01(q * 2.2);
+    const landed = bins.map(() => 0);
     chips.forEach((c, i) => {
-      const g = geo[i], t = clamp01((p - (F0 + i * FSTEP)) / FDUR);
-      if (t <= 0 || fade <= 0) { c.el.style.opacity = '0'; c.el.classList.remove('is-flying'); return; }
-      if (t >= 1) landed[c.bin] += c.lost; else flying = true;
-      if (reduce) { c.el.style.transform = `translate3d(${g.dx}px,${g.dy}px,0) scale(.86)`; c.el.style.opacity = (clamp01(t * 3) * fade).toFixed(3); return; }
+      const g = geo[i], t = clamp01((s - i * STEP) / DUR), el = c.el;
+      if (t <= 0 || fade <= 0) { el.style.opacity = '0'; return; }
+      if (t >= 1) landed[c.bin] += c.lost;
+      if (reduce) { el.style.transform = `translate3d(${g.dx}px,${g.dy}px,0) scale(.86)`; el.style.opacity = (clamp01(t * 3) * fade).toFixed(3); return; }
       const e = easeIO(t), x = g.sx + (g.dx - g.sx) * e, dist = Math.hypot(g.dx - g.sx, g.dy - g.sy);
       const y = g.sy + (g.dy - g.sy) * e - Math.sin(Math.PI * e) * Math.min(150, dist * 0.3);
       const rot = (1 - e) * (i % 2 ? 7 : -6) + Math.sin(Math.PI * e) * (i % 2 ? -12 : 10), sc = 1 + Math.sin(Math.PI * e) * 0.25 - e * 0.14;
-      c.el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${rot.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
-      c.el.style.opacity = (clamp01(t * 6) * fade).toFixed(3);
-      c.el.classList.toggle('is-flying', t > 0 && t < 1);
+      el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${rot.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
+      el.style.opacity = (clamp01(t * 6) * fade).toFixed(3);
     });
     binEls.forEach((el, i) => {
-      el.querySelector('.bin__tot span').textContent = landed[i] ? '−' + fmt(landed[i]) : '0';
+      const txt = landed[i] ? '−' + fmt(landed[i]) : '0', tot = el.querySelector('.bin__tot span');
+      if (tot.textContent !== txt) tot.textContent = txt;
       el.style.setProperty('--fill', (landed[i] / binMax).toFixed(3));
       el.classList.toggle('has-loss', landed[i] > 0);
     });
-    win.classList.toggle('is-thinking', !marked || flying);
-    win.classList.toggle('is-calm', marked && !flying && r > 0.5);
+  }
 
-    const d = ease(clamp01((p - 0.68) / 0.16));
-    stage.style.setProperty('--plan', d.toFixed(3));
-    $('#mkReachNum').textContent = fmt(total.got + gain * d);
+  function frame(now){
+    const dt = lastNow ? Math.min(64, now - lastNow) : 16; lastNow = now;
+    const p = parseFloat(act.style.getPropertyValue('--sc-p')) || 0;
+    if (!marked && p > 0.2) { marked = true; markedAt = now; }   // the reader scrolled on: finish the marking at once
+    if (!marked || now - markedAt < 400) penTimes(now);
+
+    // the window rises with the scroll: one transform
+    const r = ease(clamp01(p / 0.3));
+    if (Math.abs(r - lastR) > 0.0004) { stage.style.setProperty('--r', r.toFixed(4)); stage.dataset.hero = r > 0.62 ? 'off' : 'on'; lastR = r; }
+
+    // then the sort and the plan play on their own clock, so one scroll is enough and it never stutters
+    const sortWant = p > 0.32 ? 1 : 0, planWant = p > 0.7 && sortV >= 1 ? 1 : 0;
+    if (sortV !== sortWant) sortV = sortWant ? Math.min(1, sortV + dt / SORT_MS) : Math.max(0, sortV - dt / (SORT_MS * 0.45));
+    if (planV !== planWant) planV = planWant ? Math.min(1, planV + dt / PLAN_MS) : Math.max(0, planV - dt / (PLAN_MS * 0.6));
+    if (reduce) { sortV = sortWant; planV = planWant; }
+    const state = planV > 0.15 || (planWant && planV > 0) ? 'plan' : sortV > 0 ? 'sort' : 'read';
+    if (state !== lastState) { mkp.dataset.state = state; lastState = state; }
+    const key = sortV * 10 + planV;
+    if (key !== drawn && geo) {
+      drawChips(sortV, planV);
+      const d = ease(planV);
+      stage.style.setProperty('--plan', d.toFixed(3));
+      $('#mkReachNum').textContent = fmt(total.got + gain * d);
+      drawn = key;
+    }
+    const thinking = !marked || (sortV > 0 && sortV < 1);
+    win.classList.toggle('is-thinking', thinking);
+    win.classList.toggle('is-calm', !thinking && r > 0.5);
   }
 
   /* ------------------------------------------------------------------- the room: floaters, parallax ------ */
@@ -162,7 +174,7 @@
   (function floaters(){
     const box = $('#floaters'); if (!box) return;
     let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const n = innerWidth < 700 ? 9 : 18, out = [];
+    const lite = document.documentElement.classList.contains('lite'), n = innerWidth < 700 ? 6 : lite ? 8 : 12, out = [];
     const tick = '<svg class="tick" viewBox="0 0 34 26"><path d="M2.5 14.5 C6 17 8 20 10.5 23.5 C16 14 22 7.5 31.5 2.5"/></svg>';
     const cross = '<svg class="cross" viewBox="0 0 26 26"><path d="M3 3.5 C9 9 15 16 23 23"/><path d="M22.5 3 C15 10 9 16 3.5 23"/></svg>';
     const scrap = '<svg class="scrap" viewBox="0 0 30 22"><rect x="1" y="1" width="28" height="20" rx="1.5"/><path d="M4 8h22M4 13h22M4 18h14"/></svg>';
@@ -172,15 +184,22 @@
     }
     box.innerHTML = out.join('');
   })();
-  let mx = 0, my = 0, tmx = 0, tmy = 0;
+  let mx = 0, my = 0, tmx = 0, tmy = 0, roomDirty = true, lastAtmos = -1;
   if (finePointer && !reduce) addEventListener('pointermove', e => { tmx = e.clientX / innerWidth * 2 - 1; tmy = e.clientY / innerHeight * 2 - 1; }, { passive: true });
-  const startSec = $('#start');
+  addEventListener('scroll', () => { roomDirty = true; }, { passive: true });
+  const startSec = $('#start'), orb = $('.atmos__orb'), arches = $('.arches'), flock = $('#floaters');
   function room(){
-    mx += (tmx - mx) * 0.06; my += (tmy - my) * 0.06;
-    const y = scrollY, end = startSec.offsetTop + startSec.offsetHeight;
-    atmos.style.setProperty('--mx', mx.toFixed(3)); atmos.style.setProperty('--my', my.toFixed(3));
-    atmos.style.setProperty('--sy', Math.min(y, 4000).toFixed(0));
-    atmos.style.setProperty('--atmos', (1 - clamp01((y + innerHeight - end) / (innerHeight * 0.5))).toFixed(3));
+    if (Math.abs(tmx - mx) > 0.002 || Math.abs(tmy - my) > 0.002) {
+      mx += (tmx - mx) * 0.07; my += (tmy - my) * 0.07;
+      orb.style.transform = `translate3d(${(mx * -22).toFixed(1)}px,${(my * -16).toFixed(1)}px,0)`;
+      arches.style.transform = `translate3d(${(mx * -12).toFixed(1)}px,0,0)`;
+      flock.style.transform = `translate3d(${(mx * 20).toFixed(1)}px,${(my * 12).toFixed(1)}px,0)`;
+    }
+    if (roomDirty) {
+      roomDirty = false;
+      const a = 1 - clamp01((scrollY + innerHeight - (startSec.offsetTop + startSec.offsetHeight)) / (innerHeight * 0.5));
+      if (Math.abs(a - lastAtmos) > 0.01) { atmos.style.opacity = a.toFixed(2); atmos.style.visibility = a <= 0 ? 'hidden' : ''; lastAtmos = a; }
+    }
   }
 
   /* --------------------------------------------------------------------------- act 2: the gallery -------- */
@@ -239,7 +258,7 @@
 
   /* ------------------------------------------------------------- the close: an actual exam picker -------- */
   const startSel = $('#startExam'), appSel = $('#exam');
-  let lenis = null, skew = 0, tskew = 0;
+  let lenis = null;
   function goAnalyze(id){
     if (appSel && id && appSel.value !== id) { appSel.value = id; appSel.dispatchEvent(new Event('change', { bubbles: true })); }
     if (startSel && id) startSel.value = id;
@@ -258,8 +277,7 @@
 
   /* ------------------------------------------------------------------ smooth scroll: Lenis -------------- */
   if (!reduce && window.Lenis) {
-    lenis = new window.Lenis({ lerp: 0.085, smoothWheel: true, wheelMultiplier: 1 });
-    lenis.on('scroll', e => { tskew = Math.max(-1.2, Math.min(1.2, (e.velocity || 0) * -0.04)); });
+    lenis = new window.Lenis({ lerp: 0.1, smoothWheel: true, wheelMultiplier: 1 });
     // in-page links glide too
     document.addEventListener('click', ev => {
       const a = ev.target.closest('a[href^="#"]'); if (!a || a.closest('.gc')) return;
@@ -273,16 +291,18 @@
 
   /* ------------------------------------------------------------------------------------ mount ----------- */
   window.ScrollCraft.mount(land);
-  const remeasure = () => { measure(); lastP = -1; };
+  const remeasure = () => { measure(); lastR = -1; };
   const ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
   ready.then(() => { remeasure(); setTimeout(() => { markT0 = performance.now(); }, 450); });
-  addEventListener('resize', () => requestAnimationFrame(remeasure));
+  let rz = 0; addEventListener('resize', () => { cancelAnimationFrame(rz); rz = requestAnimationFrame(remeasure); });
   measure();
+  // one loop for the whole landing; it does almost nothing once the landing is off screen
+  let onScreen = true;
+  new IntersectionObserver(es => { onScreen = es[0].isIntersecting; }).observe(act);
   function loop(t){
     if (lenis) lenis.raf(t);
-    skew += (tskew - skew) * 0.12; tskew *= 0.9;
-    if (grid) grid.style.setProperty('--skew', skew.toFixed(3) + 'deg');
-    room(); frame(t);
+    room();
+    if (onScreen) frame(t);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
