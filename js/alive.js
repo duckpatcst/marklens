@@ -84,7 +84,7 @@
     dio.observe(dash);
   }
 
-  if (reduce) return;
+  if (reduce || !fine) return;   // everything below needs a mouse or trackpad
 
   /* ------------------------------------------------------------------ 2. the cursor bubble -------------- */
   // Two movement effects, after Cuberto's mouse follower and the iPad pointer:
@@ -139,7 +139,7 @@
     kick();
   }, { passive: true });
   addEventListener('scroll', () => { if (snapEl) kick(); }, { passive: true });
-  document.addEventListener('pointerleave', e => { if (e.pointerType !== 'mouse') return; shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); });
+  document.addEventListener('pointerleave', () => { shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); });
   addEventListener('blur', () => { shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); });
   document.addEventListener('pointerover', e => {
     const t = e.target instanceof Element ? e.target : null;
@@ -155,27 +155,6 @@
     label.textContent = card ? 'Open' : '';
   });
   addEventListener('pointerdown', () => { ring.classList.remove('is-click'); void ring.offsetWidth; ring.classList.add('is-click'); }, { passive: true });
-
-  // Touch screens: the same bubble follows the finger (also while the page scrolls under it), snaps onto the
-  // button you tap, and fades a moment after you lift.
-  if (!fine) {
-    document.documentElement.classList.add('cur-touch');
-    let idle = 0;
-    const at = (x, y) => {
-      clearTimeout(idle); tx = x; ty = y;
-      if (!shown) { shown = true; rx = dx = tx; ry = dy = ty; document.documentElement.classList.add('has-cur'); }
-      if (snapEl) { const r = snapEl.getBoundingClientRect(); if (x < r.left - 8 || x > r.right + 8 || y < r.top - 8 || y > r.bottom + 8) setSnap(null); }
-      kick();
-    };
-    addEventListener('touchstart', e => { const t = e.touches[0]; if (t) at(t.clientX, t.clientY); }, { passive: true });
-    addEventListener('touchmove', e => { const t = e.touches[0]; if (t) at(t.clientX, t.clientY); }, { passive: true });
-    addEventListener('touchend', e => {
-      if (e.touches.length) return;
-      clearTimeout(idle);
-      idle = setTimeout(() => { shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); }, 1400);
-    }, { passive: true });
-    return;   // magnetic pull and tilt below need a hovering mouse
-  }
 
   /* ------------------------------------------------------------------ 3. magnetic buttons --------------- */
   for (const el of $$('[data-magnetic]')) {

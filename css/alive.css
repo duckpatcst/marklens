@@ -69,6 +69,3 @@
 @media (prefers-reduced-motion:reduce){
   .tw__caret,.siri-dot::before,.atmos__orb{animation:none}
 }
-
-/* touch screens: the finger hides the small dot, so only the bubble shows */
-.cur-touch .cur-dot{display:none}
