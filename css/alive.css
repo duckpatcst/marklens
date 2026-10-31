@@ -69,3 +69,15 @@
 @media (prefers-reduced-motion:reduce){
   .tw__caret,.siri-dot::before,.atmos__orb{animation:none}
 }
+
+/* the finger bubble (js/alive.js 1b): phones and tablets */
+.tap-bub{position:fixed;left:0;top:0;z-index:9999;width:0;height:0;pointer-events:none;opacity:0}
+.tap-bub i{--w0:58px;position:absolute;left:calc(var(--w,var(--w0)) / -2);top:calc(var(--h,var(--w0)) / -2);width:var(--w,var(--w0));height:var(--h,var(--w0));border-radius:var(--rad,50%);
+  border:1.5px solid color-mix(in srgb,var(--siri-2) 55%,transparent);
+  background:radial-gradient(circle at 30% 25%,color-mix(in srgb,var(--siri-1) 24%,transparent),color-mix(in srgb,var(--siri-3) 16%,transparent) 55%,color-mix(in srgb,var(--siri-4) 22%,transparent));
+  box-shadow:0 8px 24px -10px color-mix(in srgb,var(--siri-3) 65%,transparent);transform:scale(.4);transition:transform .38s cubic-bezier(.34,1.56,.64,1)}
+.tap-bub.is-on{opacity:1;transition:opacity .1s}
+.tap-bub.is-on i{transform:scale(1)}
+.tap-bub.is-snap.is-on i{transform:scale(1.02)}
+.tap-bub.is-up{opacity:0;transition:opacity .42s}
+.tap-bub.is-up i{transform:scale(1.18)}

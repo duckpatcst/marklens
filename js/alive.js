@@ -84,7 +84,43 @@
     dio.observe(dash);
   }
 
+  if (!reduce && !fine) touchBubble();
   if (reduce || !fine) return;   // everything below needs a mouse or trackpad
+
+  /* ------------------------------------------------------------------ 1b. the finger bubble (phones, tablets) */
+  // A touch has no hover, so the bubble appears where the finger lands: on a button it melts into the button's
+  // shape (the same snap as the mouse), anywhere else it follows the finger, and it fades out when you lift.
+  function touchBubble(){
+    const b = document.createElement('div');
+    b.className = 'tap-bub'; b.innerHTML = '<i></i>'; b.setAttribute('aria-hidden', 'true');
+    document.body.append(b);
+    const SNAPT = 'a, button, select, summary, label.btn, [role="button"], .rd, .pill, .ld-dot, .gc';
+    let id = null, hideT = 0;
+    const place = (x, y) => { b.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0)`; };
+    addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') return;
+      clearTimeout(hideT); id = e.pointerId;
+      const t = e.target instanceof Element ? e.target.closest(SNAPT) : null;
+      let r = t && t.getBoundingClientRect();
+      if (r && (r.width > 720 || r.height > 260)) r = null;
+      b.classList.remove('is-on', 'is-up', 'is-snap');
+      if (r) {
+        place(r.left + r.width / 2, r.top + r.height / 2);
+        b.style.setProperty('--w', (r.width + 10).toFixed(0) + 'px');
+        b.style.setProperty('--h', (r.height + 8).toFixed(0) + 'px');
+        b.style.setProperty('--rad', Math.min((parseFloat(getComputedStyle(t).borderTopLeftRadius) || 10) + 4, (r.height + 8) / 2).toFixed(0) + 'px');
+        b.classList.add('is-snap');
+      } else {
+        b.style.removeProperty('--w'); b.style.removeProperty('--h'); b.style.removeProperty('--rad');
+        place(e.clientX, e.clientY);
+      }
+      void b.offsetWidth; b.classList.add('is-on');
+    }, { passive: true });
+    addEventListener('pointermove', e => { if (e.pointerId === id && !b.classList.contains('is-snap')) place(e.clientX, e.clientY); }, { passive: true });
+    const up = e => { if (e.pointerId !== id) return; id = null; b.classList.add('is-up'); hideT = setTimeout(() => b.classList.remove('is-on', 'is-up'), 450); };
+    addEventListener('pointerup', up, { passive: true });
+    addEventListener('pointercancel', up, { passive: true });
+  }
 
   /* ------------------------------------------------------------------ 2. the cursor bubble -------------- */
   // Two movement effects, after Cuberto's mouse follower and the iPad pointer:
