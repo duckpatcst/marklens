@@ -53,15 +53,7 @@ button,.btn,select,a{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0}
 
 /* nav */
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin-inline:-16px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 94%,transparent);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
-nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.logo{display:flex;align-items:center;gap:9px;font:800 1.15rem var(--f-display);text-decoration:none;letter-spacing:-.02em}
-.logo img{width:28px;height:28px;display:block;border-radius:8px;box-shadow:0 4px 12px -4px rgba(61,99,255,.55);transition:transform .5s cubic-bezier(.34,1.56,.64,1)}
-.logo:hover img{transform:rotate(-8deg) scale(1.08)}
-nav ul{display:flex;gap:22px;list-style:none;margin:0;padding:0;font-size:.9rem;color:var(--mute)}
-nav ul a{text-decoration:none}
-@media(hover:hover){nav ul a:hover{color:var(--ink)}}
-@media(max-width:620px){nav ul{display:none}}
+/* the top bar lives in css/nav.css */
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:9px 17px;border-radius:999px;cursor:pointer;text-decoration:none;font-weight:500;font-size:.92rem;position:relative}
@@ -410,13 +402,25 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
 <link rel="stylesheet" href="css/app.css?v=3">
 <link rel="stylesheet" href="css/idle-hint.css?v=3">
 <link rel="stylesheet" href="css/hero-top.css?v=5">
+<link rel="stylesheet" href="css/nav.css?v=7">
 </head>
 <body>
-<nav><div class="wrap">
-  <a class="logo" href="#top"><img src="assets/logo.svg" alt="" width="28" height="28">MarkLens</a>
-  <ul><li><a href="#how">How it works</a></li><li><a href="#analyze">Analyzer</a></li><li><a href="#dashboard">Dashboard</a></li></ul>
-  <a class="btn primary nav-cta" href="#analyze" tabindex="-1">Analyze my paper</a>
-</div></nav>
+<nav class="isl" id="nav" aria-label="Main">
+  <div class="isl__bar">
+    <span class="isl__halo" aria-hidden="true"></span>
+    <span class="isl__ring" aria-hidden="true"><i></i></span>
+    <span class="isl__fill" aria-hidden="true"></span>
+    <a class="logo" href="#top"><img src="assets/logo.svg" alt="" width="28" height="28"><span class="logo__txt">MarkLens</span></a>
+    <span class="isl__live" aria-live="polite"><small>You&#39;re on</small><b>Home</b></span>
+    <ul class="isl__links"><i class="isl__lamp" aria-hidden="true"></i><li><a href="#how" data-sec="how">How it works</a></li><li><a href="#exams" data-sec="exams">Exams</a></li><li><a href="#analyze" data-sec="analyze">Analyzer</a></li><li><a href="#dashboard" data-sec="dashboard">Dashboard</a></li></ul>
+    <div class="isl__end">
+      <svg class="isl__pring" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle class="fg" cx="12" cy="12" r="9"/></svg>
+      <a class="isl__cta nav-cta" href="#analyze" tabindex="-1"><span class="isl__cta-lg">Analyze my paper</span><span class="isl__cta-sm">Analyze</span><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></a>
+      <button type="button" class="isl__menu" aria-label="Menu" aria-expanded="false" aria-controls="navSheet"><i></i><i></i></button>
+    </div>
+  </div>
+  <div class="isl__sheet" id="navSheet"><a href="#how" data-sec="how">How it works<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a href="#exams" data-sec="exams">Exams<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a href="#analyze" data-sec="analyze">Analyzer<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a href="#dashboard" data-sec="dashboard">Dashboard<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a class="isl__sheet-cta" href="#analyze">Analyze my paper</a></div>
+</nav>
 
 <div class="land" id="top">
 
@@ -1525,5 +1529,6 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
 <script src="js/alive.js?v=4"></script>
 <script src="js/idle-hint.js?v=3"></script>
 <script src="js/hero-top.js?v=5"></script>
+<script src="js/nav.js?v=7"></script>
 </body>
 </html>
