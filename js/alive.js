@@ -11,7 +11,11 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  // Phones and tablets (Android, iPhone, iPad, also in "desktop site" mode) never get the cursor bubble
+  const ua = navigator.userAgent || '';
+  const touchDevice = /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|Tablet/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
+    || (navigator.maxTouchPoints > 0 && !matchMedia('(any-pointer: fine)').matches);
+  const fine = !touchDevice && matchMedia('(hover: hover) and (pointer: fine)').matches;
   const lite = document.documentElement.classList.contains('lite');
 
   /* ------------------------------------------------------------------ 1. typewriter slogans -------------- */
@@ -154,6 +158,7 @@
     ring.classList.toggle('is-label', !!card);
     label.textContent = card ? 'Open' : '';
   });
+  addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { shown = false; setSnap(null); document.documentElement.classList.remove('has-cur'); } }, { passive: true });
   addEventListener('pointerdown', () => { ring.classList.remove('is-click'); void ring.offsetWidth; ring.classList.add('is-click'); }, { passive: true });
 
   /* ------------------------------------------------------------------ 3. magnetic buttons --------------- */
