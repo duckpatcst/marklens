@@ -1,0 +1,41 @@
+/* MarkLens · hero top (js/hero-top.js): the "New" mlchip above the headline, the logo finale of the typewriter,
+   and the nav button that only appears once the hero's own button has scrolled away. */
+
+/* the mlchip: a live feature ticker that links to the part of the page it talks about */
+.mlchip{position:relative;display:inline-flex;align-items:center;gap:10px;margin:0 0 18px;padding:5px 12px 5px 5px;border-radius:999px;
+  background:var(--surface);color:var(--ink);text-decoration:none;font-size:.86rem;font-weight:500;isolation:isolate;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 26px -16px rgba(61,99,255,.55);transition:transform .45s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
+/* hairline gradient ring */
+.mlchip::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;z-index:-1;
+  background:linear-gradient(110deg,#00c8ff,#3d63ff 35%,#a855ff 65%,#ff47a6);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.7}
+/* a soft light sweeps across every few seconds */
+.mlchip::after{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;z-index:1;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:translate3d(-120%,0,0);animation:mlchipShine 5.5s cubic-bezier(.65,0,.35,1) 1.2s infinite}
+@keyframes mlchipShine{0%{transform:translate3d(-120%,0,0)}28%,100%{transform:translate3d(320%,0,0)}}
+.mlchip:hover{transform:translateY(-1px);box-shadow:0 1px 2px rgba(0,0,0,.05),0 14px 30px -14px rgba(61,99,255,.65)}
+.mlchip__tag{padding:3px 9px;border-radius:999px;font:700 .7rem/1.3 var(--f-body);letter-spacing:.04em;text-transform:uppercase;color:#fff;
+  background:linear-gradient(120deg,#3d63ff,#a855ff 60%,#ff47a6)}
+.mlchip__win{position:relative;display:block;height:1.35em;overflow:hidden}
+.mlchip__txt{display:block;line-height:1.35em;white-space:nowrap;transition:transform .5s cubic-bezier(.16,1,.3,1),opacity .35s}
+.mlchip__txt.is-out{transform:translate3d(0,-110%,0);opacity:0}
+.mlchip__txt.is-in{transform:translate3d(0,110%,0);opacity:0;transition:none}
+.mlchip__go{width:14px;height:14px;opacity:.55;transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .2s}
+.mlchip:hover .mlchip__go{transform:translateX(3px);opacity:1}
+.mlchip__dots{display:flex;gap:3px;margin-left:-2px}
+.mlchip__dots i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.18;transition:opacity .3s,transform .3s}
+.mlchip__dots i.on{opacity:.7;transform:scale(1.25)}
+
+/* the typewriter's last slogan: the logo pops in, then "MarkLens." types beside it */
+.tw__logo{display:inline-block;width:0;height:.84em;margin-right:0;vertical-align:-.07em;border-radius:.24em;opacity:0;
+  transform:scale(.2) rotate(-25deg);transform-origin:50% 60%;
+  transition:width .45s cubic-bezier(.16,1,.3,1),margin .45s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.34,1.56,.64,1),opacity .3s}
+.tw.is-logo .tw__logo{width:.84em;margin-right:.2em;opacity:1;transform:none;filter:drop-shadow(0 .08em .18em rgba(61,99,255,.45))}
+
+/* nav button: hidden while the hero's "Analyze my paper" is on screen, slides in once it scrolls away */
+.nav-cta{opacity:0;transform:translate3d(0,-6px,0) scale(.92);pointer-events:none;transition:opacity .3s,transform .5s cubic-bezier(.34,1.56,.64,1)}
+.cta-out .nav-cta{opacity:1;transform:none;pointer-events:auto}
+
+@media (max-width:620px){.mlchip{font-size:.8rem;gap:8px}.mlchip__dots{display:none}}
+.lite .mlchip::after{animation:none;display:none}
+@media (prefers-reduced-motion:reduce){.mlchip::after{animation:none;display:none}.mlchip__txt,.tw__logo,.nav-cta{transition:none}}

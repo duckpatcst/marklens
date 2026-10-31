@@ -37,6 +37,7 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 | `js/redmarks-worker.js` | Runs the marks reader in the background, so the page stays smooth |
 | `models/marks-v2.json` | The marks reader's small model (77 kB): digits, tick, cross or something else |
 | `js/idle-hint.js`, `css/idle-hint.css` | When the landing sits still for a few seconds, a pill invites the visitor to scroll (laptop) or swipe up (phone); it hides on any movement |
+| `js/hero-top.js`, `css/hero-top.css` | The NEW chip above the headline (cycles through features, each links to its section), the logo ending of the typing loop, and the top-bar button that only shows once the hero's button has scrolled away |
 | `tools/check-backend.mjs` | Checks a running back end against `docs/API.md`: `node tools/check-backend.mjs http://localhost:8788 --code YOUR_CODE` |
 | `assets/logo.svg` | The MarkLens logo (lens with a red tick, in the Siri colours); also the favicon. `logo-180.png` / `logo-512.png` for phone home screens |
 | `tools/marks/` | How that model is trained (`train.py`) and the test sheets it is checked on (`make_tick_sheets.py`). Not needed by the website |

@@ -26,7 +26,8 @@
     ['Turn red ink into a ', 'study plan.'],
     ['Know exactly what to ', 'study next.'],
     ['Every lost mark, ', 'found.'],
-    ['Win back the marks ', 'you lost.']
+    ['Win back the marks ', 'you lost.'],
+    ['', 'MarkLens.', 'logo']   // the loop ends on the name, with the logo popping in
   ];
   const tw = $('.tw'), twA = $('.tw__a'), twB = $('.tw__b'), h1 = $('#heroTitle');
   if (tw && !reduce) {
@@ -58,14 +59,16 @@
       for (;;) {
         await waitShown();
         tw.classList.add('is-typing');
-        const [a0, b0] = SLOGANS[i], full0 = a0 + b0;
+        const [a0, b0, k0] = SLOGANS[i], full0 = a0 + b0;
         for (let n = full0.length; n >= 0; n -= 2) { if (!idle()) await waitShown(); show(full0.slice(0, Math.min(n, a0.length)), n > a0.length ? b0.slice(0, n - a0.length) : ''); await sleep(16); }   // delete, fast
+        if (k0) { tw.classList.remove('is-logo'); await sleep(320); }
         i = (i + 1) % SLOGANS.length;
-        const [a, b] = SLOGANS[i], full = a + b;
+        const [a, b, k] = SLOGANS[i], full = a + b;
         await sleep(260);
+        if (k) { tw.classList.add('is-logo'); await sleep(520); }
         for (let n = 1; n <= full.length; n++) { if (!idle()) await waitShown(); show(full.slice(0, Math.min(n, a.length)), n > a.length ? b.slice(0, n - a.length) : ''); await sleep(typeDelay(full[n - 1])); }
         tw.classList.remove('is-typing');
-        await sleep(2800);
+        await sleep(k ? 3600 : 2800);
       }
     })();
   }
