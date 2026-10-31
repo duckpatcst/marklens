@@ -1,0 +1,49 @@
+/* MarkLens · thinking (js/thinking.js): the Siri glow while MarkLens works.
+   Four soft colour bands hug the screen edges; inside each, a long blurred gradient strip slides (transform only,
+   blur drawn once). A glass pill at the bottom says what is happening. Pointer events pass straight through. */
+.siri{position:fixed;inset:0;z-index:9000;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .5s cubic-bezier(.16,1,.3,1),visibility 0s .5s}
+.siri.is-on{opacity:1;visibility:visible;transition:opacity .45s cubic-bezier(.16,1,.3,1),visibility 0s}
+
+.siri__edges i{position:absolute;overflow:hidden;display:block}
+.siri__edges .t,.siri__edges .b{left:0;right:0;height:26px}
+.siri__edges .t{top:0}.siri__edges .b{bottom:0}
+.siri__edges .l,.siri__edges .r{top:0;bottom:0;width:26px}
+.siri__edges .l{left:0}.siri__edges .r{right:0}
+.siri__edges b{position:absolute;display:block;will-change:transform;filter:blur(9px);opacity:.95;
+  background:linear-gradient(90deg,#00c8ff,#3d63ff,#a855ff,#ff47a6,#ff8f3c,#00c8ff,#3d63ff,#a855ff,#ff47a6,#ff8f3c,#00c8ff)}
+.siri__edges .t b,.siri__edges .b b{top:-8px;bottom:6px;left:0;width:300%;animation:siriX 5s linear infinite}
+.siri__edges .b b{top:6px;bottom:-8px;animation-direction:reverse}
+.siri__edges .l b,.siri__edges .r b{left:-8px;right:6px;top:0;height:300%;animation:siriY 5s linear infinite;
+  background:linear-gradient(180deg,#ff8f3c,#ff47a6,#a855ff,#3d63ff,#00c8ff,#ff8f3c,#ff47a6,#a855ff,#3d63ff,#00c8ff,#ff8f3c)}
+.siri__edges .r b{left:6px;right:-8px;animation-direction:reverse}
+@keyframes siriX{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+@keyframes siriY{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-50%,0)}}
+/* the glow breathes in as it arrives */
+.siri__edges{position:absolute;inset:0;transform:scale(1.04);transition:transform .7s cubic-bezier(.16,1,.3,1)}
+.siri.is-on .siri__edges{transform:none}
+
+.siri__pill{position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));translate:-50% 0;display:flex;align-items:center;gap:12px;
+  max-width:min(460px,calc(100vw - 32px));padding:10px 16px 10px 10px;border-radius:999px;
+  background:color-mix(in srgb,var(--surface,#fff) 94%,transparent);color:var(--ink,#1d1d1f);
+  border:1px solid color-mix(in srgb,#fff 60%,transparent);
+  box-shadow:0 2px 6px rgba(0,0,0,.08),0 18px 40px -16px rgba(61,99,255,.45),0 10px 30px -18px rgba(255,71,166,.5);
+  transform:translate3d(0,18px,0) scale(.96);opacity:0;transition:transform .6s cubic-bezier(.16,1,.3,1),opacity .4s}
+.siri.is-on .siri__pill{transform:none;opacity:1}
+.siri__orb{position:relative;flex:0 0 34px;height:34px;border-radius:50%;overflow:hidden}
+.siri__orb i{position:absolute;inset:-25%;background:conic-gradient(from 0deg,#00c8ff,#3d63ff,#a855ff,#ff47a6,#ff8f3c,#00c8ff);animation:siriSpin 1.6s linear infinite}
+.siri__orb::after{content:"";position:absolute;inset:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95),rgba(255,255,255,.55) 45%,rgba(255,255,255,.15));animation:siriPulse 1.4s ease-in-out infinite}
+@keyframes siriSpin{to{transform:rotate(360deg)}}
+@keyframes siriPulse{0%,100%{transform:scale(.82);opacity:.85}50%{transform:scale(1);opacity:1}}
+.siri__txt{display:flex;flex-direction:column;min-width:0}
+.siri__label{font:600 .95rem/1.25 var(--f-display,system-ui);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.siri__status{font-size:.8rem;color:var(--mute,#6e6e73);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.2em}
+.siri__time{margin-left:auto;padding-left:6px;font:500 .78rem var(--f-mono,ui-monospace);color:var(--mute,#6e6e73);font-variant-numeric:tabular-nums}
+
+/* phones: thinner edges, the pill sits above the home bar */
+@media (max-width:620px){
+  .siri__edges .t,.siri__edges .b{height:18px}.siri__edges .l,.siri__edges .r{width:14px}
+  .siri__pill{bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+}
+/* low-power devices and reduced motion: a still glow, no sliding */
+.lite .siri__edges b,.siri-still .siri__edges b,.siri-still .siri__orb i,.siri-still .siri__orb::after{animation:none}
+@media (prefers-reduced-motion:reduce){.siri__edges b,.siri__orb i,.siri__orb::after{animation:none}.siri__edges{transition:none}}

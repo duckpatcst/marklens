@@ -1,0 +1,133 @@
+/* MarkLens · Analyzer and Dashboard refresh. Same markup and behaviour as before; only the look changes, to match the
+   front page: Apple type and spacing, soft rounded surfaces, iOS controls, Siri-gradient progress. Loaded after the
+   page's own styles, so these rules win where they overlap. */
+
+/* ---------------------------------------------------------------- shared ---- */
+#app{padding-top:clamp(36px,7vh,80px)}
+#app .sec-head{margin-bottom:28px;align-items:flex-end}
+#app .sec-head h2{font-size:clamp(2.3rem,5.2vw,4rem);line-height:1;font-weight:700;letter-spacing:-.045em}
+#app .sec-head p{font-size:1.08rem;margin-top:12px;max-width:50ch}
+.eyebrow,.readlbl{font:600 .82rem var(--f-body);letter-spacing:0;text-transform:none;color:var(--mute)}
+.panel{border-radius:26px;border-color:color-mix(in srgb,var(--line) 55%,transparent);padding:clamp(18px,2.2vw,28px);
+  box-shadow:0 1px 2px color-mix(in srgb,var(--ink) 4%,transparent),0 24px 48px -36px color-mix(in srgb,var(--ink) 35%,transparent)}
+.panel h3{font-size:1.25rem;letter-spacing:-.025em}
+.notice{border-radius:16px;border-color:color-mix(in srgb,var(--line) 70%,transparent)}
+.notice.risk{border-left-width:1px;background:color-mix(in srgb,var(--pen) 6%,var(--surface))}
+.hint{font-size:.84rem}
+.btn{font-weight:600}
+textarea{border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-radius:16px;padding:14px 16px;background:color-mix(in srgb,var(--bg) 75%,var(--surface));
+  transition:border-color .2s,box-shadow .2s,background .2s}
+textarea:focus,.pp-save input:focus,.exampick select:focus,td input:focus,td select:focus{outline:none;border-color:color-mix(in srgb,var(--blue) 55%,transparent);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--blue) 16%,transparent);background:var(--surface)}
+:focus-visible{outline-color:var(--blue)}
+
+/* iOS segmented control */
+.seg{border:0;border-radius:12px;padding:3px;gap:2px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.seg button{border-radius:9px;padding:7px 14px;font-weight:500;color:var(--mute);transition:background .25s,color .25s,box-shadow .25s}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12),0 1px 1px rgba(0,0,0,.04)}
+
+/* ---------------------------------------------------------------- analyzer -- */
+.exampick{border-radius:22px;padding:18px 20px;border-color:color-mix(in srgb,var(--line) 55%,transparent);
+  box-shadow:0 1px 2px color-mix(in srgb,var(--ink) 4%,transparent),0 18px 40px -32px color-mix(in srgb,var(--ink) 35%,transparent)}
+.exampick select,.omr-scheme input,.pp-save input{border-radius:12px;border-color:color-mix(in srgb,var(--line) 80%,transparent);background-color:var(--surface)}
+.exampick select{min-height:48px;padding:10px 40px 10px 14px;appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%);
+  background-position:calc(100% - 20px) 50%,calc(100% - 15px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+.readers{gap:12px}
+.rd{border-radius:20px;padding:14px 16px;border-color:color-mix(in srgb,var(--line) 65%,transparent);
+  box-shadow:0 1px 2px color-mix(in srgb,var(--ink) 4%,transparent);transition:transform .3s cubic-bezier(.16,1,.3,1),box-shadow .3s,border-color .2s}
+@media(hover:hover){.rd:hover{border-color:color-mix(in srgb,var(--blue) 40%,transparent);transform:translateY(-2px);box-shadow:0 14px 30px -20px color-mix(in srgb,var(--ink) 45%,transparent)}}
+.rd[aria-pressed=true]{border:2px solid transparent;box-shadow:0 14px 34px -22px color-mix(in srgb,var(--siri-3) 70%,transparent);
+  background:linear-gradient(var(--surface),var(--surface)) padding-box,linear-gradient(120deg,var(--siri-1),var(--siri-2),var(--siri-3),var(--siri-4)) border-box}
+.rd[aria-pressed=true] .ic{background:transparent;color:inherit}
+.rd .pick{transform:none;border-radius:999px;padding:3px 9px;font:700 .6rem var(--f-body);letter-spacing:.06em;background:linear-gradient(90deg,var(--siri-2),var(--siri-4))}
+.lensguide{border-radius:22px;background:var(--surface);background-image:none;border-color:color-mix(in srgb,var(--line) 55%,transparent);padding:20px 22px 16px}
+.lensguide h3{font-size:1.2rem;letter-spacing:-.02em}
+.lg-steps li::before,.ld-steps li::before,.fi-n{transform:none;border:0;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;
+  color:#fff;font:600 .82rem var(--f-body);background:linear-gradient(135deg,var(--siri-2),var(--siri-3) 60%,var(--siri-4));box-shadow:0 6px 14px -8px color-mix(in srgb,var(--siri-3) 80%,transparent)}
+.ld-steps li::before{width:22px;height:22px;font-size:.72rem}
+kbd{border-radius:7px;font-family:var(--f-body);font-weight:600}
+.shot{border-radius:14px;border-color:color-mix(in srgb,var(--line) 70%,transparent);box-shadow:0 6px 14px -10px color-mix(in srgb,var(--ink) 40%,transparent)}
+.shot span{border-radius:6px;font-family:var(--f-body)}
+.checks{border-radius:14px}
+.omrbox,.omrpaper{border-radius:16px;border-color:color-mix(in srgb,var(--line) 70%,transparent)}
+.omrcheck img{border-radius:14px}
+dialog.lensdlg{border-radius:26px;border-color:color-mix(in srgb,var(--line) 60%,transparent);box-shadow:0 40px 80px -30px rgba(0,0,0,.45)}
+dialog.lensdlg::backdrop{background:rgba(10,12,20,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.ld-photo{border-radius:16px}
+.ld-dot{font-family:var(--f-body)}
+.ld-dot.now{border-color:var(--blue);color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
+
+/* the question table */
+th{font:600 .76rem var(--f-body);letter-spacing:0;text-transform:none;color:var(--mute);padding:10px 8px}
+td{padding:6px 8px;border-bottom-color:color-mix(in srgb,var(--line) 70%,transparent)}
+tbody tr{transition:background .15s}
+@media(hover:hover){tbody tr:hover{background:color-mix(in srgb,var(--blue) 4%,transparent)}}
+td input,td select{border-radius:9px;padding:6px 8px}
+@media(hover:hover){td input:hover,td select:hover{background:color-mix(in srgb,var(--ink) 4%,transparent);border-color:transparent}}
+td button{border-radius:50%;width:30px;height:30px}
+@media(hover:hover){td button:hover{background:color-mix(in srgb,var(--pen) 10%,transparent);color:var(--pen)}}
+
+/* ---------------------------------------------------------------- dashboard - */
+:root{--st-score:#0071e3;--st-full:#1d7f3a;--st-part:#e08600;--st-lost:#d70015}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--st-score:#2997ff;--st-full:#30d158;--st-part:#ff9f0a;--st-lost:#ff453a}}
+:root[data-theme="dark"]{--st-score:#2997ff;--st-full:#30d158;--st-part:#ff9f0a;--st-lost:#ff453a}
+.sample-flag,.db-examname{font:600 .72rem var(--f-body);letter-spacing:0;text-transform:none;border:0;border-radius:999px;padding:4px 10px;
+  background:color-mix(in srgb,var(--blue) 12%,transparent);color:var(--blue);vertical-align:middle}
+.db-hero{position:relative;overflow:hidden;background:var(--surface);background-image:none}
+.db-hero::before{content:"";position:absolute;right:-12%;top:-55%;width:62%;aspect-ratio:1;border-radius:50%;pointer-events:none;opacity:.35;
+  background:radial-gradient(closest-side at 40% 45%,color-mix(in srgb,var(--siri-1) 55%,transparent),transparent),radial-gradient(closest-side at 62% 52%,color-mix(in srgb,var(--siri-3) 50%,transparent),transparent),radial-gradient(closest-side at 50% 70%,color-mix(in srgb,var(--siri-4) 40%,transparent),transparent)}
+.db-hero>*{position:relative}
+.db-big{font-weight:700;letter-spacing:-.05em}
+.db-big small{font-family:var(--f-body);font-weight:500}
+.db-stamp{transform:none;border:0;border-radius:999px;padding:6px 13px;font:700 .95rem var(--f-body);color:#fff;background:linear-gradient(135deg,var(--siri-4),var(--pen))}
+.db-sub>span.db-pct{font-family:var(--f-body);font-weight:700}
+.ruler-track{border:0;height:16px;border-radius:999px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.r-got{background:linear-gradient(90deg,var(--siri-2),var(--siri-3))}
+.r-reach,.mr-rc{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--siri-1) 75%,transparent) 0 5px,color-mix(in srgb,var(--siri-1) 35%,transparent) 5px 10px)}
+.lg-got{background:linear-gradient(90deg,var(--siri-2),var(--siri-3))}
+.lg-reach{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--siri-1) 75%,transparent) 0 3px,color-mix(in srgb,var(--siri-1) 35%,transparent) 3px 6px)}
+.r-all{border-left-color:var(--siri-1)}.lg-all{border-left-color:var(--siri-1)}
+.tick.major{background:var(--mute)}
+.tick b{font-family:var(--f-body)}
+.db-stats{border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.db-stats b{font-weight:700;letter-spacing:-.03em}
+.fi{border-top-color:color-mix(in srgb,var(--line) 70%,transparent)}
+.fi-n{margin-top:0}
+.fi-gain{font-weight:700;letter-spacing:-.03em}
+.fi-add{font-weight:600;transition:background .2s,border-color .2s,color .2s,transform .15s}
+.fi-add:active{transform:scale(.96)}
+.mr,.bar,.sh-bar{height:9px;border-radius:999px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.ls .mr{height:7px}
+.mr-got,.sh-bar>span{background:linear-gradient(90deg,var(--siri-2),var(--siri-3));border-radius:999px}
+.sh.habit .sh-bar>span{background:linear-gradient(90deg,var(--siri-1),color-mix(in srgb,var(--siri-1) 55%,var(--siri-2)))}
+.cb .bar>span{background:linear-gradient(90deg,var(--siri-4),var(--pen))}
+.sh-pct,.sj-pct,.ls-v,.cb .mono{font-family:var(--f-body);font-weight:700;letter-spacing:-.02em}
+.tp-lvl{font:600 .72rem var(--f-body);letter-spacing:0;text-transform:none;border:0;border-radius:999px;padding:3px 10px;background:color-mix(in srgb,currentColor 12%,transparent)}
+.qt{border-radius:10px;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+@media(hover:hover){.db-map .qtiles .qt:hover{outline:0;transform:translateY(-2px) scale(1.06)}}
+.qtip{border-radius:12px;padding:8px 12px}
+.an{border-radius:20px;background:var(--surface);border-color:color-mix(in srgb,var(--line) 65%,transparent);padding:16px 18px;
+  transition:transform .3s cubic-bezier(.16,1,.3,1),box-shadow .3s}
+@media(hover:hover){.an:hover{transform:translateY(-2px);box-shadow:0 18px 36px -26px color-mix(in srgb,var(--ink) 45%,transparent)}}
+.an-q{transform:none;border:0;border-radius:999px;padding:2px 9px;font:700 .78rem var(--f-body);background:color-mix(in srgb,var(--pen) 12%,transparent)}
+.an-lost{font-family:var(--f-body);font-weight:700}
+.an-k{font:600 .74rem var(--f-body);letter-spacing:0;text-transform:none}
+.an-sol{border-left:0;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--st-full) 8%,transparent)}
+.an-sol.low{background:color-mix(in srgb,var(--warn) 9%,transparent)}
+.an-work p{font-family:var(--f-body)}
+.an-get{border:0;background:var(--cta,#0071e3);color:#fff;min-height:36px;padding:6px 14px}
+@media(hover:hover){.an-get:hover{background:var(--cta-hover,#0077ed);color:#fff}}
+.pp-list li{border-top-color:color-mix(in srgb,var(--line) 70%,transparent)}
+.live{padding:6px 12px;border-radius:999px;background:color-mix(in srgb,var(--st-full) 10%,transparent);color:var(--st-full);font-weight:600}
+footer.site{border-top-color:color-mix(in srgb,var(--line) 70%,transparent)}
+
+/* dashboard panels rise in, once, the first time the dashboard scrolls into view (js/alive.js adds .dash-anim
+   for a moment; later re-renders while editing never replay it) */
+#dash.dash-anim .panel{animation:panelRise .9s cubic-bezier(.16,1,.3,1) both}
+#dash.dash-anim .panel:nth-child(2),#dash.dash-anim .db-col .panel:nth-child(1){animation-delay:.08s}
+#dash.dash-anim .db-col .panel:nth-child(2){animation-delay:.16s}
+#dash.dash-anim .db-col .panel:nth-child(3){animation-delay:.24s}
+#dash.dash-anim .db-col .panel:nth-child(n+4){animation-delay:.32s}
+@keyframes panelRise{from{opacity:0;transform:translate3d(0,28px,0)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#dash.dash-anim .panel{animation:none}.rd,.an,.qt{transition:none}}

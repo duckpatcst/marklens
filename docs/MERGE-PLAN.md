@@ -76,8 +76,12 @@ If git reports a conflict, it can only be in a shared file:
 
 Then test it for real:
 ```bash
-npx wrangler pages dev .
+npx wrangler pages dev .                                           # terminal 1
+node tools/check-backend.mjs http://localhost:8788 --code YOUR_CODE  # terminal 2
 ```
+The checker logs in like the page does and tests every rule in `docs/API.md` (access gate, `GET /api/ai` fields,
+403 for other sites, error codes the page knows). It ends with **"The front end will work with this back end"** or names
+exactly what does not match. Add `--live` to also send one tiny real AI job (needs an AI key in `.dev.vars`).
 - [ ] The page opens after the access code
 - [ ] The example paper marks itself, and one scroll flies the marks into their lessons
 - [ ] Analyzer: Reload example, the table and dashboard show 21 / 38
@@ -89,6 +93,20 @@ When every box is ticked:
 ```bash
 git push origin main
 ```
+
+## Plugging in his back end, step by step
+
+1. **Easiest (the plan above):** his code lives in `functions/` on the same site. The page already calls `/api/ai`, so
+   nothing in the front end changes. Run the checker; if it passes, the page works.
+2. **He renamed or added a task:** add it to `docs/API.md`, call it through `MarkLensAPI.call({ task: '...' })` in
+   `index.html`, and give any new error code a message in the `ERR` table. The checker flags unknown error codes.
+3. **His back end runs on another address** (for example his own server): put it in the page head,
+   `<meta name="marklens-api" content="https://his-server.example">` (already there, empty = same site), and add that
+   address to `connect-src` in `_headers`. His server must then also allow this site with CORS
+   (`Access-Control-Allow-Origin: <our site>`, `Access-Control-Allow-Credentials: true`) and accept our site as
+   `Origin`. Option 1 avoids all of this, so prefer it.
+
+Run the checker against any address: `node tools/check-backend.mjs https://marklens.pages.dev --code YOUR_CODE`.
 
 ## Putting it online
 

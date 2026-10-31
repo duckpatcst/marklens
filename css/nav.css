@@ -1,0 +1,155 @@
+/* MarkLens · top bar (js/nav.js): a Dynamic Island.
+   A black island floats at the top with a Siri glow running around its edge.
+   At the top of the page it is open: logo, links, button. Once you scroll it shrinks into a compact island that
+   shows where you are ("You're on Analyzer") and a ring filling up as you read; point at it and it springs open again.
+   While MarkLens checks a paper, the glow speeds up and the island says so. On phones it opens downward into a menu.
+   Motion is transform, opacity and width only; the glow is drawn once and spun as one layer. */
+.isl{--isl-ease:cubic-bezier(.34,1.45,.64,1);position:sticky;top:env(safe-area-inset-top,0px);z-index:40;height:var(--nav-h,61px);margin-inline:-16px;padding:8px 12px 0;box-sizing:border-box;pointer-events:none}
+.isl__bar{pointer-events:auto;position:relative;display:flex;align-items:center;gap:12px;isolation:isolate;
+  width:min(900px,100%);height:46px;margin-inline:auto;padding:0 6px 0 9px;box-sizing:border-box;border-radius:999px;color:var(--isl-ink);
+  transition:width .75s var(--isl-ease)}
+
+/* island colours: light by default (a white, frosted-looking island), black in dark mode like the real one */
+.isl{--isl-ink:#1d1d1f;--isl-mute:#6e6e73;--isl-small:rgba(29,29,31,.45);--isl-hair:rgba(0,0,0,.06);
+  --isl-fill:linear-gradient(180deg,#ffffff,#f7f7fb);
+  --isl-fill-shadow:inset 0 1px 0 #fff,0 10px 30px -14px rgba(61,99,255,.35),0 2px 6px -2px rgba(20,20,40,.12);
+  --isl-live:linear-gradient(90deg,#1d1d1f 40%,#3d63ff);
+  --isl-lamp:linear-gradient(135deg,rgba(61,99,255,.1),rgba(168,85,255,.09),rgba(255,71,166,.09));--isl-lamp-shadow:inset 0 0 0 1px rgba(61,99,255,.14);
+  --isl-track:rgba(0,0,0,.09);--isl-btn:rgba(0,0,0,.05);--isl-sheet:linear-gradient(180deg,#ffffff,#f7f7fb);
+  --isl-ring:.75;--isl-halo:.28}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .isl{--isl-ink:#f5f5f7;--isl-mute:rgba(255,255,255,.62);--isl-small:rgba(255,255,255,.5);--isl-hair:rgba(255,255,255,.08);
+  --isl-fill:radial-gradient(120% 140% at 50% -40%,#26262c,#0b0b0e 60%);--isl-fill-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  --isl-live:linear-gradient(90deg,#fff,#d9dcff);--isl-lamp:rgba(255,255,255,.12);--isl-lamp-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+  --isl-track:rgba(255,255,255,.14);--isl-btn:rgba(255,255,255,.1);--isl-sheet:radial-gradient(120% 60% at 50% 0%,#26262c,#0b0b0e 70%);--isl-ring:1;--isl-halo:.42}}
+:root[data-theme="dark"] .isl{--isl-ink:#f5f5f7;--isl-mute:rgba(255,255,255,.62);--isl-small:rgba(255,255,255,.5);--isl-hair:rgba(255,255,255,.08);
+  --isl-fill:radial-gradient(120% 140% at 50% -40%,#26262c,#0b0b0e 60%);--isl-fill-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  --isl-live:linear-gradient(90deg,#fff,#d9dcff);--isl-lamp:rgba(255,255,255,.12);--isl-lamp-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+  --isl-track:rgba(255,255,255,.14);--isl-btn:rgba(255,255,255,.1);--isl-sheet:radial-gradient(120% 60% at 50% 0%,#26262c,#0b0b0e 70%);--isl-ring:1;--isl-halo:.42}
+.isl__ring{opacity:var(--isl-ring)}
+/* the Siri glow: a soft halo behind, a bright ring on the edge, and the black island on top */
+.isl__halo{position:absolute;inset:3px 14px;border-radius:inherit;z-index:-3;pointer-events:none;
+  background:linear-gradient(90deg,#00c8ff,#3d63ff 30%,#a855ff 60%,#ff47a6 85%,#ff8f3c);filter:blur(14px);opacity:.42;
+  transform:translateY(5px);animation:islHalo 3.2s ease-in-out infinite alternate}
+@keyframes islHalo{from{opacity:calc(var(--isl-halo) * .7)}to{opacity:calc(var(--isl-halo) * 1.4)}}
+.isl__ring{position:absolute;inset:0;border-radius:inherit;overflow:hidden;z-index:-2;pointer-events:none}
+.isl__ring i{position:absolute;left:50%;top:50%;width:1000px;height:1000px;margin:-500px 0 0 -500px;will-change:transform;
+  background:conic-gradient(from 0deg,#00c8ff,#3d63ff,#a855ff,#ff47a6,#ff8f3c,#ffd166,#00c8ff 60%,#3d63ff 75%,#a855ff 88%,#00c8ff);
+  animation:islSpin 6s linear infinite}
+@keyframes islSpin{to{transform:rotate(360deg)}}
+.isl__fill{position:absolute;inset:1.5px;border-radius:inherit;z-index:-1;pointer-events:none;
+  background:var(--isl-fill);box-shadow:var(--isl-fill-shadow)}
+
+/* logo */
+.isl .logo{display:flex;align-items:center;gap:9px;flex:0 0 auto;font:750 1.02rem var(--f-display);letter-spacing:-.02em;color:var(--isl-ink);text-decoration:none}
+.isl .logo img{width:28px;height:28px;display:block;border-radius:9px;transition:transform .5s var(--isl-ease)}
+.isl .logo:hover img{transform:rotate(-10deg) scale(1.08)}
+.logo__txt{display:inline-block;overflow:hidden;white-space:nowrap;max-width:110px;transition:max-width .6s var(--isl-ease),opacity .3s}
+
+/* the live label (compact island) */
+.isl__live{display:flex;flex-direction:column;justify-content:center;min-width:0;line-height:1.1;max-width:0;opacity:0;overflow:hidden;white-space:nowrap;
+  transition:max-width .6s var(--isl-ease),opacity .25s}
+.isl__live small{font:600 .6rem var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--isl-small)}
+.isl__live b{font:650 .9rem var(--f-display);letter-spacing:-.01em;background:var(--isl-live);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* links, centred, with a light that slides under the one you point at */
+.isl__links{position:absolute;left:50%;top:50%;translate:-50% -50%;display:flex;gap:2px;list-style:none;margin:0;padding:3px;font-size:.87rem;font-weight:500;color:var(--isl-mute);
+  transition:opacity .3s,transform .5s var(--isl-ease)}
+.isl__links a{position:relative;z-index:1;display:block;padding:6px 13px;border-radius:999px;text-decoration:none;white-space:nowrap;transition:color .25s}
+.isl__links a.is-on,.isl__links a:hover,.isl__links a:focus-visible{color:var(--isl-ink)}
+.isl__links a.is-on::after{content:"";position:absolute;left:50%;bottom:1px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:linear-gradient(#00c8ff,#ff47a6);box-shadow:0 0 6px #a855ff}
+.isl__lamp{position:absolute;left:0;top:3px;bottom:3px;width:0;border-radius:999px;pointer-events:none;opacity:0;
+  background:var(--isl-lamp);box-shadow:var(--isl-lamp-shadow);
+  transition:transform .5s var(--isl-ease),width .5s var(--isl-ease),opacity .3s}
+.isl__lamp.on{opacity:1}
+
+.isl__end{display:flex;align-items:center;gap:8px;margin-left:auto;flex:0 0 auto}
+/* reading progress ring */
+.isl__pring{width:22px;height:22px;rotate:-90deg;flex:0 0 auto;max-width:0;opacity:0;transition:max-width .5s var(--isl-ease),opacity .3s}
+.isl__pring circle{fill:none;stroke:var(--isl-track);stroke-width:2.6}
+.isl__pring .fg{stroke:#a855ff;stroke-linecap:round;stroke-dasharray:56.55;stroke-dashoffset:56.55;transition:stroke-dashoffset .2s linear}
+
+/* the button */
+.isl__cta{position:relative;display:inline-flex;align-items:center;gap:6px;height:34px;border-radius:999px;overflow:hidden;color:#fff;font-size:.86rem;font-weight:600;text-decoration:none;white-space:nowrap;
+  background:linear-gradient(120deg,#0a84ff,#3d63ff 40%,#a855ff 80%,#ff47a6);box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 6px 18px -6px rgba(168,85,255,.8)}
+.isl__cta svg{width:14px;height:14px;transition:transform .35s var(--isl-ease)}
+.isl__cta:hover svg{transform:translateX(3px)}
+.isl__cta::after{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:translate3d(-130%,0,0);pointer-events:none}
+.cta-out .isl__cta::after{animation:islShine 4.5s cubic-bezier(.65,0,.35,1) .6s infinite}
+@keyframes islShine{0%{transform:translate3d(-130%,0,0)}30%,100%{transform:translate3d(330%,0,0)}}
+.isl__cta-sm{display:none}
+.isl .nav-cta{max-width:0;padding-inline:0;transition:opacity .3s,transform .5s var(--isl-ease),max-width .6s var(--isl-ease),padding .6s var(--isl-ease)}
+.cta-out .isl .nav-cta{max-width:220px;padding-inline:14px}
+
+/* ---- compact island: after scrolling, until you point at it ---- */
+.nav-scrolled .isl__bar{width:400px}
+.nav-scrolled:not(.cta-out) .isl__bar{width:270px}
+.nav-scrolled .logo__txt{max-width:0;opacity:0}
+.nav-scrolled .isl__live{max-width:200px;opacity:1}
+.nav-scrolled .isl__pring{max-width:22px;opacity:1}
+.nav-scrolled .isl__links{opacity:0;pointer-events:none;transform:scale(.92)}
+/* point at it (or tab into it): it springs open. js/nav.js sets .is-peek, so it closes again reliably
+   after a click, a scroll, or when focus leaves (CSS :hover / :focus-within stuck open in those cases) */
+@media (min-width:721px){
+  .nav-scrolled .isl.is-peek .isl__bar{width:min(900px,100%)}
+  .nav-scrolled .isl.is-peek .logo__txt{max-width:110px;opacity:1}
+  .nav-scrolled .isl.is-peek .isl__live{max-width:0;opacity:0}
+  .nav-scrolled .isl.is-peek .isl__links{opacity:1;pointer-events:auto;transform:none;transition-delay:.12s}
+}
+
+/* ---- MarkLens is checking something: the glow speeds up and brightens ---- */
+.siri-on .isl__ring i{animation-duration:1.6s}
+.siri-on .isl__halo{opacity:.9;animation:none}
+
+/* ---- phones ---- */
+.isl__menu{display:none;position:relative;width:34px;height:34px;border:0;border-radius:50%;background:var(--isl-btn);color:var(--isl-ink);cursor:pointer;padding:0;flex:0 0 auto}
+.isl__menu i{position:absolute;left:10px;right:10px;height:2px;border-radius:2px;background:currentColor;transition:transform .45s var(--isl-ease)}
+.isl__menu i:first-child{top:13px}.isl__menu i:last-child{top:19px}
+.nav-open .isl__menu i:first-child{transform:translateY(3px) rotate(45deg)}
+.nav-open .isl__menu i:last-child{transform:translateY(-3px) rotate(-45deg)}
+.isl__sheet{pointer-events:none;position:absolute;left:12px;right:12px;top:calc(100% + 2px);display:grid;gap:2px;padding:10px;border-radius:28px;color:var(--isl-ink);
+  background:var(--isl-sheet);box-shadow:0 0 0 1px var(--isl-hair),0 26px 50px -18px rgba(61,99,255,.55),0 18px 40px -20px rgba(255,71,166,.5);
+  opacity:0;transform:translate3d(0,-16px,0) scale(.9,.6);transform-origin:50% 0;visibility:hidden;
+  transition:opacity .25s,transform .55s var(--isl-ease),visibility 0s .55s}
+.nav-open .isl__sheet{pointer-events:auto;opacity:1;transform:none;visibility:visible;transition:opacity .2s,transform .55s var(--isl-ease),visibility 0s}
+.isl__sheet a{display:flex;align-items:center;justify-content:space-between;padding:14px;border-radius:18px;text-decoration:none;font:600 1.05rem var(--f-display);letter-spacing:-.01em;
+  opacity:0;transform:translate3d(0,-6px,0);transition:opacity .3s,transform .45s cubic-bezier(.16,1,.3,1),background .2s}
+.isl__sheet a svg{width:16px;height:16px;opacity:.45}
+.isl__sheet a:active,.isl__sheet a.is-on{background:var(--isl-lamp)}
+.nav-open .isl__sheet a{opacity:1;transform:none}
+.nav-open .isl__sheet a:nth-child(2){transition-delay:.04s}.nav-open .isl__sheet a:nth-child(3){transition-delay:.08s}
+.nav-open .isl__sheet a:nth-child(4){transition-delay:.12s}.nav-open .isl__sheet a:nth-child(5){transition-delay:.16s}
+.isl__sheet .isl__sheet-cta{justify-content:center;margin-top:6px;color:#fff;background:linear-gradient(120deg,#0a84ff,#3d63ff 40%,#a855ff 80%,#ff47a6)}
+@media (min-width:721px){.isl__sheet{display:none}}
+@media (max-width:720px){
+  .isl__links{display:none}
+  .isl__menu{display:block}
+  .isl__bar{width:100%;padding-left:8px}
+  .nav-scrolled .isl__bar,.nav-scrolled:not(.cta-out) .isl__bar{width:min(100%,360px)}
+  .nav-open .isl__bar{width:100%}
+}
+@media (max-width:420px){.isl__cta-lg{display:none}.isl__cta-sm{display:inline}.nav-scrolled .isl__bar{width:100%}}
+
+.lite .isl__ring i,.lite .isl__halo,.lite .cta-out .isl__cta::after{animation:none}
+@media (prefers-reduced-motion:reduce){.isl__ring i,.isl__halo,.cta-out .isl__cta::after{animation:none}
+  .isl__bar,.isl__lamp,.isl__sheet,.isl__sheet a,.isl__menu i,.isl .nav-cta,.logo__txt,.isl__live,.isl__links,.isl__pring{transition:none}}
+/* busy: room for the longer label */
+.isl__live b{overflow:hidden;text-overflow:ellipsis}
+@media (min-width:721px){.siri-on.nav-scrolled .isl:not(.is-peek) .isl__bar{width:470px}.siri-on.nav-scrolled:not(.cta-out) .isl:not(.is-peek) .isl__bar{width:340px}.siri-on .isl__live{max-width:240px}}
+
+/* ---- at the top of the landing the island stretches edge to edge as a full bar; scrolling shrinks it back into
+   the floating island (same behaviour as before from there on) ---- */
+.isl{padding:0}
+.isl__bar{width:100%;height:var(--nav-h,61px);margin-top:0;border-radius:0;padding:0 max(16px,calc((100vw - 1180px) / 2));
+  transition:width .75s var(--isl-ease),height .6s cubic-bezier(.16,1,.3,1),margin .6s cubic-bezier(.16,1,.3,1),border-radius .6s cubic-bezier(.16,1,.3,1),padding .6s cubic-bezier(.16,1,.3,1)}
+.isl__fill{inset:0 0 1.5px 0;transition:inset .6s cubic-bezier(.16,1,.3,1)}
+.isl__halo{inset:auto 6% -2px;height:14px;opacity:.35;transition:inset .6s}
+.nav-scrolled .isl__bar{height:46px;margin-top:8px;border-radius:999px;padding:0 6px 0 9px}
+.nav-scrolled .isl__fill{inset:1.5px}
+.nav-scrolled .isl__halo{inset:3px 14px;height:auto}
+@media (max-width:720px){
+  .isl__bar{width:100%;padding:0 10px 0 14px}
+  .nav-scrolled .isl__bar,.nav-scrolled:not(.cta-out) .isl__bar{width:min(calc(100% - 24px),360px);padding:0 6px 0 8px}
+  .nav-open.nav-scrolled .isl__bar{width:calc(100% - 24px)}
+}
+@media (max-width:420px){.nav-scrolled .isl__bar{width:calc(100% - 24px)}}
+@media (min-width:721px){.nav-scrolled .isl.is-peek .isl__bar{width:min(900px,calc(100% - 24px))}}

@@ -4,37 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Photograph a question paper and exam sheet. MarkLens shows where your marks went, the right answers, your weak topics and where to spend your study time.">
-<meta name="theme-color" content="#f1f4f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0c131c" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)">
 <title>MarkLens</title>
+<meta name="marklens-api" content="">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/logo-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@500;600&display=swap">
+<script>/* low-power devices get the lighter landing (see css/landing.css, html.lite) */
+try{var n=navigator,l=(n.hardwareConcurrency||8)<=4||(n.deviceMemory||8)<=4||n.connection&&n.connection.saveData;if(l)document.documentElement.classList.add('lite')}catch(e){}</script>
+<link rel="stylesheet" href="vendor/scrollcraft/scrollcraft.css">
+<link rel="stylesheet" href="vendor/lenis/lenis.css">
 <style>
 /* Layout: sticky nav, split hero with a marked-script mock, 3-step strip, then the analyzer and live dashboard as one working surface.
    Input: photos (camera or gallery) read on the device (Tesseract) or by the site's AI function; touch-sized controls for Android and iOS. */
 :root{
-  --bg:#f1f4f7;--surface:#ffffff;--ink:#13202e;--mute:#5a6879;--line:#dce2e9;
-  --pen:#d92d3a;--blue:#1f4fd8;--ok:#0f8a6b;--warn:#b26a00;--tint:#e8eefc;--paper:#fbfcfd;
-  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
-  --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
-  --f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  --bg:#f5f5f7;--surface:#ffffff;--ink:#1d1d1f;--mute:#6e6e73;--line:#e2e2e7;
+  --pen:#d70015;--blue:#0066cc;--ok:#1d7f3a;--warn:#a85200;--tint:#eaf2fd;--paper:#ffffff;
+  --f-display:'Inter Tight','SF Pro Display',-apple-system,'Segoe UI',system-ui,sans-serif;
+  --f-body:'Inter','SF Pro Text',-apple-system,'Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono','SF Mono',ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
-  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}}
+  --bg:#0b0b0d;--surface:#1c1c1e;--ink:#f5f5f7;--mute:#a1a1a6;--line:#2c2c2e;
+  --pen:#ff453a;--blue:#2997ff;--ok:#30d158;--warn:#ffb340;--tint:#14213a;--paper:#161618;color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0c131c;--surface:#131c28;--ink:#e6ecf3;--mute:#92a0b2;--line:#233044;
-  --pen:#ff6a74;--blue:#7ba3ff;--ok:#4fd1b0;--warn:#f0b64d;--tint:#18233a;--paper:#101925;color-scheme:dark}
+  --bg:#0b0b0d;--surface:#1c1c1e;--ink:#f5f5f7;--mute:#a1a1a6;--line:#2c2c2e;
+  --pen:#ff453a;--blue:#2997ff;--ok:#30d158;--warn:#ffb340;--tint:#14213a;--paper:#161618;color-scheme:dark}
 *{box-sizing:border-box}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
 img{max-width:100%}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-inline:16px}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-inline:16px;-webkit-font-smoothing:antialiased;font-feature-settings:'cv11','ss01'}
 .wrap{max-width:1160px;margin-inline:auto}
-h1,h2,h3{font-family:var(--f-display);letter-spacing:-.02em;text-wrap:balance;margin:0}
-h1{font-size:clamp(2.2rem,5.4vw,3.8rem);line-height:1.02;font-weight:800}
+h1,h2,h3{font-family:var(--f-display);letter-spacing:-.025em;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.2rem,5.4vw,3.8rem);line-height:1.02;font-weight:700}
 h2{font-size:clamp(1.5rem,3vw,2.1rem);line-height:1.1;font-weight:700}
 h3{font-size:1.02rem;font-weight:700;letter-spacing:-.01em}
 a{color:inherit}
@@ -46,56 +53,23 @@ button,.btn,select,a{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0}
 
 /* nav */
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin-inline:-16px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.logo{display:flex;align-items:center;gap:9px;font:800 1.15rem var(--f-display);text-decoration:none;letter-spacing:-.02em}
-.logo i{width:22px;height:22px;border:2.5px solid var(--pen);border-radius:50%;position:relative;display:inline-block}
-.logo i::after{content:"";position:absolute;left:11px;top:16px;width:9px;height:2.5px;background:var(--pen);transform:rotate(45deg);transform-origin:left}
-nav ul{display:flex;gap:22px;list-style:none;margin:0;padding:0;font-size:.9rem;color:var(--mute)}
-nav ul a{text-decoration:none}
-@media(hover:hover){nav ul a:hover{color:var(--ink)}}
-@media(max-width:620px){nav ul{display:none}}
+/* the top bar lives in css/nav.css */
 
 /* buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:9px 15px;border-radius:8px;cursor:pointer;text-decoration:none;font-weight:500;font-size:.92rem;position:relative}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:9px 17px;border-radius:999px;cursor:pointer;text-decoration:none;font-weight:500;font-size:.92rem;position:relative}
 .btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 @media(hover:hover){.btn:hover{border-color:var(--blue)}.btn.primary:hover{background:var(--blue);border-color:var(--blue);color:#fff}}
 .btn:active{transform:translateY(1px)}
 label.btn:focus-within{outline:2px solid var(--blue);outline-offset:2px}
 .btn[disabled]{opacity:.5;cursor:wait}
 
-/* hero */
-.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:48px;align-items:center;padding-block:56px 48px}
-.hero p.lead{font-size:1.12rem;color:var(--mute);max-width:46ch;margin:18px 0 26px}
-.hero .cta{display:flex;gap:10px;flex-wrap:wrap}
-.hero h1 em{font-style:normal;color:var(--pen);position:relative;white-space:nowrap}
-.hero h1 em::after{content:"";position:absolute;left:-2%;right:-2%;bottom:-.08em;height:.1em;background:var(--pen);border-radius:4px;transform:rotate(-1.2deg)}
-@media(max-width:860px){.hero{grid-template-columns:1fr;gap:32px;padding-block:36px}}
-.script{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px 20px 12px;transform:rotate(1.2deg);box-shadow:0 18px 40px -22px rgba(10,25,50,.35);
-  background-image:repeating-linear-gradient(transparent 0 33px,color-mix(in srgb,var(--blue) 18%,transparent) 33px 34px);background-position:0 8px}
-.script header{display:flex;justify-content:space-between;font:600 .72rem var(--f-mono);color:var(--mute);letter-spacing:.08em;padding-bottom:10px;margin-bottom:6px;border-bottom:2px solid var(--ink)}
-.sq{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;min-height:34px;font-size:.88rem}
-.sq b{font:600 .8rem var(--f-mono)}
-.sq span.n{color:var(--mute)}
-.sq .m{font:600 .95rem var(--f-mono);color:var(--pen);position:relative;padding:1px 8px;border:2px solid var(--pen);border-radius:50%/60%;transform:rotate(-4deg)}
-.sq .m.full{color:var(--ok);border-color:var(--ok)}
-.note{font:500 .78rem var(--f-mono);color:var(--pen);margin:-4px 0 4px 44px;transform:rotate(-.6deg)}
-.script footer{display:flex;justify-content:flex-end;padding-top:10px}
-.script footer .tot{font:800 1.5rem var(--f-display);color:var(--pen);border-bottom:3px double var(--pen)}
 
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-block:8px 64px}
-.step{padding:24px 24px 26px 0;position:relative}
-.step+.step{padding-left:24px;border-left:1px solid var(--line)}
-.step .eyebrow{display:block;margin-bottom:8px}
-.step p{margin:6px 0 0;color:var(--mute);font-size:.92rem;max-width:34ch}
-@media(max-width:760px){.steps{grid-template-columns:1fr}.step,.step+.step{padding:18px 0;border-left:0}.step+.step{border-top:1px solid var(--line)}}
 
 /* sections */
 section{scroll-margin-top:70px}
 .sec-head{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
 .sec-head p{color:var(--mute);max-width:52ch;margin:8px 0 0}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0;box-shadow:0 1px 2px color-mix(in srgb,var(--ink) 4%,transparent),0 12px 32px -24px color-mix(in srgb,var(--ink) 30%,transparent)}
 .grid{display:grid;gap:16px}
 .two{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
 textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:11px;background:var(--bg);font:.82rem/1.6 var(--f-mono)}
@@ -422,42 +396,158 @@ svg text{fill:var(--mute);font:500 11px var(--f-mono)}
 footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--line);color:var(--mute);font-size:.85rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn:active{transform:none}}
 </style>
+<link rel="stylesheet" href="css/landing.css?v=3">
+<link rel="stylesheet" href="css/alive.css?v=4">
+<link rel="stylesheet" href="css/thinking.css?v=3">
+<link rel="stylesheet" href="css/app.css?v=3">
+<link rel="stylesheet" href="css/idle-hint.css?v=3">
+<link rel="stylesheet" href="css/hero-top.css?v=5">
+<link rel="stylesheet" href="css/nav.css?v=7">
 </head>
 <body>
-<nav><div class="wrap">
-  <a class="logo" href="#top"><i></i>MarkLens</a>
-  <ul><li><a href="#how">How it works</a></li><li><a href="#analyze">Analyzer</a></li><li><a href="#dashboard">Dashboard</a></li></ul>
-  <a class="btn primary" href="#analyze">Analyze my paper</a>
-</div></nav>
-
-<main class="wrap" id="top">
-  <div class="hero">
-    <div>
-      <div class="eyebrow">Exam analysis for students</div>
-      <h1 style="margin-top:14px">See exactly where your <em>marks went.</em></h1>
-      <p class="lead">Scan the question paper and your exam sheet with Google Lens or your camera. For school tests, board papers, NEET, JEE, CUET and more, MarkLens shows the right answers to what you got wrong, the topics you are weak in, and where to spend your study time to win the most marks back.</p>
-      <div class="cta"><a class="btn primary" href="#analyze">Analyze a paper</a><a class="btn" href="#dashboard">See the dashboard</a></div>
-    </div>
-    <div class="script" aria-label="Example of a marked exam script">
-      <header><span>MATHEMATICS · TERM 2</span><span>SCRIPT 0417</span></header>
-      <div class="sq"><b>Q1</b><span class="n">Solve 2x + 3 = 11</span><span class="m full">2/2</span></div>
-      <div class="sq"><b>Q2</b><span class="n">Factorise x² − 5x + 6</span><span class="m">1/3</span></div>
-      <div class="note">sign error in step 2</div>
-      <div class="sq"><b>Q4</b><span class="n">Prove: angle sum of a triangle</span><span class="m">2/5</span></div>
-      <div class="note">proof incomplete, concept unclear</div>
-      <div class="sq"><b>Q8</b><span class="n">Prove sin²x + cos²x = 1</span><span class="m">0/5</span></div>
-      <footer><span class="tot">21 / 38</span></footer>
+<nav class="isl" id="nav" aria-label="Main">
+  <div class="isl__bar">
+    <span class="isl__halo" aria-hidden="true"></span>
+    <span class="isl__ring" aria-hidden="true"><i></i></span>
+    <span class="isl__fill" aria-hidden="true"></span>
+    <a class="logo" href="#top"><img src="assets/logo.svg" alt="" width="28" height="28"><span class="logo__txt">MarkLens</span></a>
+    <span class="isl__live" aria-live="polite"><small>You&#39;re on</small><b>Home</b></span>
+    <ul class="isl__links"><i class="isl__lamp" aria-hidden="true"></i><li><a href="#how" data-sec="how">How it works</a></li><li><a href="#exams" data-sec="exams">Exams</a></li><li><a href="#analyze" data-sec="analyze">Analyzer</a></li><li><a href="#dashboard" data-sec="dashboard">Dashboard</a></li></ul>
+    <div class="isl__end">
+      <svg class="isl__pring" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle class="fg" cx="12" cy="12" r="9"/></svg>
+      <a class="isl__cta nav-cta" href="#analyze" tabindex="-1"><span class="isl__cta-lg">Analyze my paper</span><span class="isl__cta-sm">Analyze</span><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></a>
+      <button type="button" class="isl__menu" aria-label="Menu" aria-expanded="false" aria-controls="navSheet"><i></i><i></i></button>
     </div>
   </div>
+  <div class="isl__sheet" id="navSheet"><a href="#how" data-sec="how">How it works<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a href="#exams" data-sec="exams">Exams<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a href="#analyze" data-sec="analyze">Analyzer<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a href="#dashboard" data-sec="dashboard">Dashboard<svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></a><a class="isl__sheet-cta" href="#analyze">Analyze my paper</a></div>
+</nav>
 
-  <div class="steps" id="how">
-    <div class="step"><span class="eyebrow">Step 1 · Paper</span><h3>Scan the question paper</h3><p>Take a photo of each page or pick them from your gallery. Google Lens reads them, and MarkLens finds the questions, marks and topics.</p></div>
-    <div class="step"><span class="eyebrow">Step 2 · Sheet</span><h3>Scan your exam sheet</h3><p>Google Lens reads handwriting best. Already marked? MarkLens finds the marks and the teacher's remarks. Not marked yet? The AI reader can grade your answers.</p></div>
-    <div class="step"><span class="eyebrow">Step 3 · Dashboard</span><h3>See where to focus</h3><p>MarkLens finds the topic of every question, shows the right answers with their sources, and shares your study time between subjects to win back the most marks.</p></div>
+<div class="land" id="top">
+
+  <!-- the room: soft arches, a Siri glow, red ticks drifting like birds, film grain (fixed, behind the landing only) -->
+  <div class="atmos" aria-hidden="true">
+    <div class="atmos__orb"></div>
+    <div class="arches"><div class="arch arch--l1"></div><div class="arch arch--l2"></div><div class="arch arch--l3"></div>
+    <div class="arch arch--r1"></div><div class="arch arch--r2"></div><div class="arch arch--r3"></div></div>
+    <div class="atmos__floor"></div>
+    <div class="floaters" id="floaters"></div>
+    <div class="atmos__grain"></div>
   </div>
 
+  <!-- ACT 1 · pinned: the window rises, the paper is marked, the lost marks sort themselves, the plan appears -->
+  <section class="act-mark" id="act-mark" data-sc-act="pin" data-sc-span="2" aria-labelledby="heroTitle">
+    <div data-sc-stage class="mk">
+      <header class="hero">
+        
+        <h1 id="heroTitle"><span class="vh">The future of learning is here. See where your marks went.</span><span class="tw" aria-hidden="true"><img class="tw__logo" src="assets/logo.svg" alt=""><span class="tw__a">The future of learning is </span><span class="tw__b">here.</span><i class="tw__caret"></i></span></h1>
+        <p class="hero__sub">Photograph your question paper and marked answer sheet. MarkLens finds every mark you lost, and what to fix first.</p>
+        <div class="hero__cta"><a class="btn primary" href="#start" data-magnetic>Analyze my paper<svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M216,128l-72,72V56Z" opacity="0.2"/><path d="M221.66,122.34l-72-72A8,8,0,0,0,136,56v64H40a8,8,0,0,0,0,16h96v64a8,8,0,0,0,13.66,5.66l72-72A8,8,0,0,0,221.66,122.34ZM152,180.69V75.31L204.69,128Z"/></svg></a><a class="btn glass" href="#exams" data-magnetic>Browse exams</a></div>
+      </header>
+
+      <div class="win" id="win">
+        <div class="win__glow" aria-hidden="true"></div>
+        <div class="win__frame">
+          <div class="win__bar"><span class="tl" aria-hidden="true"><i></i><i></i><i></i></span><span class="win__title">MarkLens · Example paper · <span data-mk="subject">Maths</span></span><span class="win__badge">Example</span></div>
+          <div class="win__body">
+            <figure class="sheet" id="sheetFig" role="img" aria-label="Example answer sheet, marked by the teacher">
+              <header class="sheet__head"><span>Mathematics · Term 2</span>
+                <span class="sheet__total"><svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M60 4 C88 2 99 16 97 32 C95 50 70 58 46 57 C20 56 3 46 4 30 C5 13 26 4 52 5 C62 5.5 70 8 74 11"/></svg><b id="mkTotal">0</b><i>/<span id="mkMax">38</span></i></span>
+              </header>
+              <ol class="sheet__rows" id="mkRows"></ol>
+            </figure>
+
+            <div class="mkp" id="mkp" data-state="read">
+              <div class="st st--read" aria-live="polite">
+                <p class="st__eyebrow" id="mkEyebrow">Reading the teacher&#39;s marks</p>
+                <p class="st__big"><span id="mkSoFar">0</span><small>/<span data-mk="max">38</span></small></p>
+                <p class="st__line" id="mkLine">Finding the red ticks, crosses and numbers…</p>
+              </div>
+              <div class="st st--sort">
+                <p class="st__eyebrow">Where the <span data-mk="lost">17</span> lost marks went</p>
+                <ul class="bins" id="mkBins"></ul>
+              </div>
+              <div class="st st--plan">
+                <p class="st__eyebrow">Fix these first</p>
+                <p class="reach__nums"><b id="mkReachNum"><span data-mk="got">21</span></b><span>within reach, out of <span data-mk="max">38</span></span></p>
+                <div class="reach__bar" aria-hidden="true"><i class="reach__got"></i><i class="reach__gain"></i></div>
+                <ol class="mkplan" id="mkPlan"></ol>
+                <a class="st__link" href="#dashboard">Open the full dashboard<svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M176,128,96,208V48Z" opacity="0.2"/><path d="M181.66,122.34l-80-80A8,8,0,0,0,88,48V208a8,8,0,0,0,13.66,5.66l80-80A8,8,0,0,0,181.66,122.34ZM104,188.69V67.31L164.69,128Z"/></svg></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chips" id="mkChips" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- ACT 2 · the gallery: real marking schemes from js/exams.js, filterable -->
+  <section class="gal" id="exams" aria-labelledby="galTitle">
+    <h2 class="gal__title" id="galTitle">Every exam, marked its way.</h2>
+    <p class="gal__sub">Pick yours and MarkLens uses its marking scheme, sections, grades and pass mark.</p>
+    <div class="pills" id="galPills" role="group" aria-label="Filter exams"></div>
+    <div class="gal__grid" id="galGrid"></div>
+  </section>
+
+  <!-- ACT 3 · bento: how pages are read, and where photos go -->
+  <section class="bento" id="how" aria-labelledby="howTitle">
+    <h2 class="bento__title" id="howTitle">Three ways to read your pages.</h2>
+    <div class="bento__grid">
+      <article class="tile tile--lens" data-sc-in>
+        <div class="tile__art art-cam" aria-hidden="true"><img class="" src="assets/3d/camera.webp" alt="" width="256" height="256" loading="lazy" decoding="async"></div>
+        <div class="tile__art art-lens" aria-hidden="true"><i class="c c1"></i><i class="c c2"></i><i class="c c3"></i><i class="c c4"></i><span>2x + 3 = 11</span></div>
+        <p class="tile__tag">Best for handwriting</p>
+        <h3>Google Lens</h3>
+        <p>Take photos as usual. Each one opens in Google Lens; copy the text and come back. MarkLens does the rest.</p>
+        <p class="tile__priv">Photos go to Google under its terms. MarkLens only gets the text you copy.</p>
+      </article>
+      <article class="tile tile--phone" data-sc-in>
+        <div class="tile__art art-3d" aria-hidden="true"><img class="" src="assets/3d/lock.webp" alt="" width="256" height="256" loading="lazy" decoding="async"></div>
+        <p class="tile__tag">Free and private</p>
+        <h3>On this phone</h3>
+        <p>Reads printed papers, the teacher&#39;s red ticks, crosses and marks, and OMR sheets. Nothing leaves your phone.</p>
+      </article>
+      <article class="tile tile--ai" data-sc-in>
+        <div class="tile__art art-siri" aria-hidden="true"><i></i></div>
+        <p class="tile__tag">When the site has an AI key</p>
+        <h3>AI reader</h3>
+        <p>Reads photos automatically and can grade answers that are not marked yet.</p>
+        <p class="tile__priv">Photos go to an outside AI company. Crop out your name first.</p>
+      </article>
+      <article class="tile tile--omr" data-sc-in>
+        <div class="tile__art art-3d" aria-hidden="true"><img class="" src="assets/3d/hundred.webp" alt="" width="256" height="256" loading="lazy" decoding="async"></div>
+        <p class="tile__big">200</p>
+        <h3>questions on one OMR sheet</h3>
+        <p>Print free MarkLens OMR sheets for NEET-style tests, A to D or A to E. <a class="inline" href="omr.html" target="_blank" rel="noopener">Print OMR sheets</a></p>
+      </article>
+      <article class="tile tile--keep" data-sc-in>
+        <div class="tile__art art-3d" aria-hidden="true"><img class="" src="assets/3d/shield.webp" alt="" width="256" height="256" loading="lazy" decoding="async"></div>
+        <p class="tile__big">0</p>
+        <h3>accounts needed</h3>
+        <p>Your results stay in your own browser. Save each test to see your progress over time.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ACT 4 · the close: an actual input, lit like Siri -->
+  <section class="start" id="start" aria-labelledby="startTitle">
+    <div class="start__orb" aria-hidden="true"></div>
+    <div class="start__card">
+      <h2 id="startTitle">Which exam is next?</h2>
+      <p>Pick it, then add photos of your question paper and answer sheet.</p>
+      <div class="start__row">
+        <label class="vh" for="startExam">Your exam</label>
+        <div class="start__field"><select id="startExam"><option>Any exam</option></select></div>
+        <button type="button" id="startGo" data-magnetic>Analyze my paper<svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M216,128l-72,72V56Z" opacity="0.2"/><path d="M221.66,122.34l-72-72A8,8,0,0,0,136,56v64H40a8,8,0,0,0,0,16h96v64a8,8,0,0,0,13.66,5.66l72-72A8,8,0,0,0,221.66,122.34ZM152,180.69V75.31L204.69,128Z"/></svg></button>
+      </div>
+      <p class="start__note">Results stay on your device. <a class="inline" href="privacy.html">Privacy notice</a></p>
+    </div>
+  </section>
+</div>
+
+<main class="wrap" id="app">
   <section id="analyze">
-    <div class="sec-head"><div><h2>Analyzer</h2><p>An example paper is loaded so you can see how it works. Replace it with your own pages.</p></div>
+    <div class="sec-head"><div><h2>Analyze your paper.</h2><p>An example paper is loaded so you can see how it works. Replace it with your own pages.</p></div>
       <div class="row" style="margin:0"><button class="btn" id="sample">Reload example</button><button class="btn" id="clear">Clear all</button></div></div>
     <div class="exampick" id="examPick">
       <label class="eyebrow" for="exam">Which exam is this?</label>
@@ -466,9 +556,9 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
     </div>
     <div class="eyebrow" id="readersLbl" style="margin:0 0 10px">How should MarkLens read your pages?</div>
     <div class="readers" id="readers" role="group" aria-label="How to read your pages">
-      <button type="button" class="rd" id="rdLens" aria-pressed="true"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg></span><span><b>Google Lens</b><small>Best for handwriting. Take photos; each one opens in Google Lens.</small></span><span class="pick">Recommended</span></button>
-      <button type="button" class="rd" id="rdDevice" aria-pressed="false"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span><b>On this phone</b><small>Free and private. Reads printed papers and the teacher's red ticks, crosses and marks.</small></span></button>
-      <button type="button" class="rd" id="rdAI" aria-pressed="false" hidden><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg></span><span><b>AI reader</b><small>Automatic from photos. Photos go to an AI company.</small></span></button>
+      <button type="button" class="rd" id="rdLens" aria-pressed="true"><span class="ic"><img class="ic3d" src="assets/3d/camera.webp" alt="" width="256" height="256" loading="lazy" decoding="async"></span><span><b>Google Lens</b><small>Best for handwriting. Take photos; each one opens in Google Lens.</small></span><span class="pick">Recommended</span></button>
+      <button type="button" class="rd" id="rdDevice" aria-pressed="false"><span class="ic"><img class="ic3d" src="assets/3d/phone.webp" alt="" width="256" height="256" loading="lazy" decoding="async"></span><span><b>On this phone</b><small>Free and private. Reads printed papers and the teacher's red ticks, crosses and marks.</small></span></button>
+      <button type="button" class="rd" id="rdAI" aria-pressed="false" hidden><span class="ic"><img class="ic3d" src="assets/3d/sparkles.webp" alt="" width="256" height="256" loading="lazy" decoding="async"></span><span><b>AI reader</b><small>Automatic from photos. Photos go to an AI company.</small></span></button>
     </div>
     <div class="lensguide" id="lensGuide" hidden>
       <span class="eyebrow">Google Lens · how it works</span>
@@ -495,8 +585,8 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
           <div class="row" style="margin:0"><a class="btn" href="omr.html" target="_blank" rel="noopener" id="omrPrint">Print blank OMR sheets</a></div>
         </div>
         <div class="row" id="paperPhotoRow" style="margin-top:12px">
-          <label class="btn primary">Take photo<input class="vh" type="file" id="paperCam" accept="image/*" capture="environment"></label>
-          <label class="btn">Choose photos<input class="vh" type="file" id="paperPick" accept="image/*" multiple></label>
+          <label class="btn primary"><svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M208,64H176L160,40H96L80,64H48A16,16,0,0,0,32,80V192a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V80A16,16,0,0,0,208,64ZM128,168a36,36,0,1,1,36-36A36,36,0,0,1,128,168Z" opacity="0.2"/><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/></svg>Take photo<input class="vh" type="file" id="paperCam" accept="image/*" capture="environment"></label>
+          <label class="btn"><svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M224,56v82.06l-23.72-23.72a8,8,0,0,0-11.31,0L163.31,140,113.66,90.34a8,8,0,0,0-11.32,0L64,128.69V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z" opacity="0.2"/><path d="M216,40H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V184h16a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM72,56H216v62.75l-10.07-10.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L72,109.37ZM184,200H40V88H56v80a16,16,0,0,0,16,16H184Zm32-32H72V132l36-36,49.66,49.66a8,8,0,0,0,11.31,0L194.63,120,216,141.38V168ZM160,84a12,12,0,1,1,12,12A12,12,0,0,1,160,84Z"/></svg>Choose photos<input class="vh" type="file" id="paperPick" accept="image/*" multiple></label>
         </div>
         <div class="shots" id="paperShots" hidden></div>
         <div class="row" id="paperReadRow" hidden><button class="btn primary" id="paperRead">Read text</button><span class="status" id="paperPhotoStatus"></span></div>
@@ -514,8 +604,8 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
         <h3>Exam sheet</h3>
         <div class="seg sheettype" role="group" aria-label="Sheet type" style="margin-top:10px"><button id="modeMarked" aria-pressed="true">Already marked</button><button id="modeAi" aria-pressed="false" hidden>Unmarked · AI grades</button><button id="modeOmr" aria-pressed="false">OMR sheet</button></div>
         <div class="row" id="sheetPhotoRow" style="margin-top:2px">
-          <label class="btn primary">Take photo<input class="vh" type="file" id="sheetCam" accept="image/*" capture="environment"></label>
-          <label class="btn">Choose photos<input class="vh" type="file" id="sheetPick" accept="image/*" multiple></label>
+          <label class="btn primary"><svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M208,64H176L160,40H96L80,64H48A16,16,0,0,0,32,80V192a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V80A16,16,0,0,0,208,64ZM128,168a36,36,0,1,1,36-36A36,36,0,0,1,128,168Z" opacity="0.2"/><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"/></svg>Take photo<input class="vh" type="file" id="sheetCam" accept="image/*" capture="environment"></label>
+          <label class="btn"><svg class="ph" aria-hidden="true" focusable="false" viewBox="0 0 256 256" fill="currentColor"><path d="M224,56v82.06l-23.72-23.72a8,8,0,0,0-11.31,0L163.31,140,113.66,90.34a8,8,0,0,0-11.32,0L64,128.69V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z" opacity="0.2"/><path d="M216,40H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V184h16a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM72,56H216v62.75l-10.07-10.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L72,109.37ZM184,200H40V88H56v80a16,16,0,0,0,16,16H184Zm32-32H72V132l36-36,49.66,49.66a8,8,0,0,0,11.31,0L194.63,120,216,141.38V168ZM160,84a12,12,0,1,1,12,12A12,12,0,0,1,160,84Z"/></svg>Choose photos<input class="vh" type="file" id="sheetPick" accept="image/*" multiple></label>
         </div>
         <div class="shots" id="sheetShots" hidden></div>
         <div class="row" id="sheetReadRow" hidden><button class="btn primary" id="sheetRead">Read marks</button><button class="btn primary" id="aiGo" hidden>Grade with AI</button><span class="status" id="sheetPhotoStatus"></span></div>
@@ -534,7 +624,7 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   </section>
 
   <section id="dashboard" style="margin-top:56px">
-    <div class="sec-head"><div><h2>Dashboard <span class="sample-flag" id="sampleFlag" hidden>Example data</span></h2><p>Where your marks went, and the shortest way to win them back.</p></div><span class="live" id="live"><i></i>Updates as you edit</span></div>
+    <div class="sec-head"><div><h2>Your results. <span class="sample-flag" id="sampleFlag" hidden>Example data</span></h2><p>Where your marks went, and the shortest way to win them back.</p></div><span class="live" id="live"><i></i>Updates as you edit</span></div>
     <div id="dash"></div>
   </section>
 
@@ -562,13 +652,46 @@ footer.site{margin-top:72px;padding-block:28px 40px;border-top:1px solid var(--l
   </div>
 </dialog>
 
-<script src="js/api.js"></script>
-<script src="js/omr.js"></script>
-<script src="js/exams.js"></script>
-<script src="js/insights.js"></script>
-<script src="js/parse.js"></script>
-<script src="js/redmarks.js"></script>
-<script src="js/dashboard.js"></script>
+<script type="text/plain" id="demoPaper">
+Section A: Algebra
+1. Solve 2x + 3 = 11 [2]
+2. Factorise x^2 - 5x + 6 [3]
+3. Choose the correct root of x^2 = 49: a) 5 b) 7 c) 9 d) 11 [1]
+Section B: Geometry
+4. Prove that the angle sum of a triangle is 180 degrees. [5]
+5. Find the area of a circle of radius 7 cm. [3]
+6. In a right triangle, find the missing side using the theorem. [4]
+Section C: Trigonometry
+7. Find sin 30 + cos 60. [2]
+8. Prove sin^2 x + cos^2 x = 1 using a right triangle. [5]
+Section D: Statistics
+9. Find the mean of 4, 8, 12, 16. [2]
+10. Calculate the median and mode of the data set. [4]
+11. A bag has 3 red and 5 blue balls. Find the probability of drawing red. [3]
+12. Describe how a histogram differs from a bar chart. [4]
+</script>
+<script type="text/plain" id="demoSheet">
+1: 2/2
+2: 1/3 sign error while factorising
+3: 1/1
+4: 2/5 concept not clear, incomplete proof
+5: 2/3 forgot units
+6: 1/4 wrong formula used
+7: 2/2
+8: 0/5 not attempted
+9: 2/2
+10: 3/4 careless calculation of median
+11: 3/3
+12: 2/4 incomplete explanation
+</script>
+<script src="js/api.js?v=3"></script>
+<script src="js/thinking.js?v=3"></script>
+<script src="js/omr.js?v=3"></script>
+<script src="js/exams.js?v=3"></script>
+<script src="js/insights.js?v=3"></script>
+<script src="js/parse.js?v=3"></script>
+<script src="js/redmarks.js?v=3"></script>
+<script src="js/dashboard.js?v=3"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -860,7 +983,11 @@ const forAI = (blob, colour) => new Promise((res, rej) => {
 });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Every request to the back end goes through js/api.js (contract: docs/API.md). It retries when the back end says "busy".
-const callAI = (body, onWait) => MarkLensAPI.call(body, onWait);
+// While a job runs, the Siri glow (js/thinking.js) says what MarkLens is doing and counts down when the AI is busy.
+const TASK_LABEL = { solve: 'Checking the answers', topics: 'Finding each question\'s topic', paper: 'Reading the question paper', sheet: 'Reading the teacher\'s marks',
+  answers: 'Reading your answers', grade: 'Grading your answers', tidy: 'Sorting the text from Google Lens' };
+const callAI = (body, onWait) => MarkLensThinking.track(
+  MarkLensAPI.call(body, s => { MarkLensThinking.wait(s); if (onWait) onWait(s); }), TASK_LABEL[body.task]);
 
 /* No tick-box: the own-risk notice (#aiRisk) is always on screen whenever the AI reader is available. */
 
@@ -1125,7 +1252,12 @@ async function ldFinish(){
   setSt(st, `Read ${m} marks with Google Lens.${extra}${gap > 0 ? ` ${gap} ${gap === 1 ? 'question has' : 'questions have'} no mark yet: add ${gap === 1 ? 'it' : 'them'} below as 2: 1/3.` : ''}`, gap > 0 || aiFailed);
   setTimeout(() => $('#dashboard').scrollIntoView({ behavior: 'smooth' }), 250);
 }
-const readPhotos = kind => mode === 'omr' ? readOmr(kind) : reader === 'ai' ? readWithAI(kind) : reader === 'lens' ? readLens(kind) : readOnDevice(kind);
+const readPhotos = kind => {
+  if (mode !== 'omr' && reader === 'lens') return readLens(kind);   // Google Lens is the student's own step: no glow
+  const label = mode === 'omr' ? (kind === 'paper' ? 'Reading the answer key' : 'Reading the OMR sheet')
+    : kind === 'paper' ? 'Reading the question paper' : mode === 'marked' && reader !== 'ai' ? 'Reading the teacher\'s red marks' : 'Reading the answer sheet';
+  return MarkLensThinking.track(mode === 'omr' ? readOmr(kind) : reader === 'ai' ? readWithAI(kind) : readOnDevice(kind), label);
+};
 
 async function readWithAI(kind){
   const btn = $(kind === 'paper' ? '#paperRead' : '#sheetRead'), st = '#' + kind + 'PhotoStatus', ta = $('#' + kind);
@@ -1346,34 +1478,8 @@ $('#exam').addEventListener('change', e => setExam(e.target.value, true));
 function dropShots(){ for (const k of ['paper', 'sheet']) { shots[k].forEach(s => URL.revokeObjectURL(s.url)); shots[k] = []; renderShots(k); setSt('#' + k + 'PhotoStatus', ''); } }
 $('#clear').onclick = () => { $('#paper').value = ''; $('#sheet').value = ''; $('#omrPaper').value = ''; rows = []; aiExtra = null; edits = {}; sheetCount = 0; sampleData = false; $('#paperStatus').textContent = ''; $('#sheetStatus').textContent = ''; dropShots(); keyIsExample = false; $('#paperCheck').hidden = true; $('#sheetCheck').hidden = true; if (mode !== 'omr') setMode('marked'); changed(true); };
 function loadSample(){
-  $('#paper').value = `Section A: Algebra
-1. Solve 2x + 3 = 11 [2]
-2. Factorise x^2 - 5x + 6 [3]
-3. Choose the correct root of x^2 = 49: a) 5 b) 7 c) 9 d) 11 [1]
-Section B: Geometry
-4. Prove that the angle sum of a triangle is 180 degrees. [5]
-5. Find the area of a circle of radius 7 cm. [3]
-6. In a right triangle, find the missing side using the theorem. [4]
-Section C: Trigonometry
-7. Find sin 30 + cos 60. [2]
-8. Prove sin^2 x + cos^2 x = 1 using a right triangle. [5]
-Section D: Statistics
-9. Find the mean of 4, 8, 12, 16. [2]
-10. Calculate the median and mode of the data set. [4]
-11. A bag has 3 red and 5 blue balls. Find the probability of drawing red. [3]
-12. Describe how a histogram differs from a bar chart. [4]`;
-  $('#sheet').value = `1: 2/2
-2: 1/3 sign error while factorising
-3: 1/1
-4: 2/5 concept not clear, incomplete proof
-5: 2/3 forgot units
-6: 1/4 wrong formula used
-7: 2/2
-8: 0/5 not attempted
-9: 2/2
-10: 3/4 careless calculation of median
-11: 3/3
-12: 2/4 incomplete explanation`;
+  $('#paper').value = $('#demoPaper').textContent.trim();
+  $('#sheet').value = $('#demoSheet').textContent.trim();
   edits = {}; dropShots(); setMode('marked'); sampleData = true; rebuild(); $('#sampleFlag').hidden = false;
 }
 $('#sample').onclick = () => mode === 'omr' ? loadOmrSample() : loadSample();
@@ -1417,5 +1523,12 @@ setReader(savedReader === 'device' ? 'device' : 'lens', true);   // Google Lens 
   if (savedReader === 'ai' && ai.vision !== false) setReader('ai', true);
 })();
 </script>
+<script src="vendor/lenis/lenis.min.js"></script>
+<script src="vendor/scrollcraft/scrollcraft.js"></script>
+<script src="js/landing.js?v=3"></script>
+<script src="js/alive.js?v=4"></script>
+<script src="js/idle-hint.js?v=3"></script>
+<script src="js/hero-top.js?v=5"></script>
+<script src="js/nav.js?v=7"></script>
 </body>
 </html>

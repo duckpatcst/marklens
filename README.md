@@ -21,6 +21,13 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 | `index.html` | The MarkLens website |
 | `privacy.html` | The privacy notice that students see |
 | `omr.html` | Prints blank MarkLens OMR answer sheets (up to 200 questions on one A4 page, A–D or A–E) |
+| `js/landing.js`, `css/landing.css` | The front of the page: the example paper is marked as it opens, the lost marks fly into their lessons as you scroll, then a filterable gallery of exams, how pages are read, and the exam picker. Every number comes from the same parser and maths as the Analyzer |
+| `js/alive.js`, `css/alive.css` | Small touches: typewriter slogans in the headline, a cursor bubble (mouse and trackpad only), magnetic buttons, tilting cards and headings that rise in word by word |
+| `css/app.css` | The Analyzer and Dashboard look: Apple type, iOS switches, soft rounded cards, Siri-gradient progress. Look only; no behaviour lives here |
+| `js/thinking.js`, `css/thinking.css` | The Siri glow around the screen while MarkLens checks answers or reads pages, with a status pill and the busy countdown. Open the page with `#siri` at the end of the address to see it |
+| `assets/3d/` | 21 glossy 3D icons (Microsoft Fluent Emoji 3D, MIT licence, 116 kB in all). Licence in `assets/3d/LICENSE.txt`. The small interface icons are Phosphor (MIT), written into the page |
+| `vendor/lenis/` | Smooth scrolling for mouse wheels and trackpads (Lenis 1.1.13, MIT licence, unmodified). Phones keep their own scrolling |
+| `vendor/scrollcraft/` | The scroll engine the front of the page runs on (scroll-craft by Nate Herk, MIT licence, unmodified) |
 | `js/omr.js` | The OMR sheet layout and the on-phone OMR reader |
 | `js/exams.js` | The exam types: marking schemes, sections by question number, grades and pass marks |
 | `js/parse.js` | Reads the text of question papers, marked sheets and answer keys into questions, marks, subjects, chapters and topics, and scores multiple-choice and numerical answers |
@@ -29,6 +36,11 @@ You need a computer for setup. It takes about 20 minutes. Everything below is fr
 | `js/redmarks.js` | The on-phone marks reader: the teacher's red ticks, crosses, numbers, subtotals and total, matched to the questions |
 | `js/redmarks-worker.js` | Runs the marks reader in the background, so the page stays smooth |
 | `models/marks-v2.json` | The marks reader's small model (77 kB): digits, tick, cross or something else |
+| `js/idle-hint.js`, `css/idle-hint.css` | When the landing sits still for a few seconds, a pill invites the visitor to scroll (laptop) or swipe up (phone); it hides on any movement |
+| `js/nav.js`, `css/nav.css` | The top bar as a Dynamic Island: full width at the top of the landing, a compact island with a Siri glow once you scroll ("You're on …", reading ring), opens when pointed at, says what MarkLens is doing while it checks a paper; light and dark versions; menu on phones |
+| `js/hero-top.js`, `css/hero-top.css` | The logo ending of the typing loop, and the top-bar button that only shows once the hero's button has scrolled away |
+| `tools/check-backend.mjs` | Checks a running back end against `docs/API.md`: `node tools/check-backend.mjs http://localhost:8788 --code YOUR_CODE` |
+| `assets/logo.svg` | The MarkLens logo (lens with a red tick, in the Siri colours); also the favicon. `logo-180.png` / `logo-512.png` for phone home screens |
 | `tools/marks/` | How that model is trained (`train.py`) and the test sheets it is checked on (`make_tick_sheets.py`). Not needed by the website |
 | `tests/` | Automatic checks for the files above and for the AI helper (see "Checking the code" below). Not needed by the website |
 | (online) | The free on-phone photo reader, Tesseract 5.1.1 (Apache 2.0), loads from jsDelivr the first time |
